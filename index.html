@@ -1,10 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>我的第一个网页</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的个人博客</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>欢迎来到我的网站！</h1>
-    <p>这个页面是我用 GitHub Pages 搭建的。</p>
+    <div class="container">
+        <nav>
+            <div><strong>MyBlog</strong></div>
+            <div>
+                <a href="index.html">首页</a>
+                <a href="about.html">关于</a>
+            </div>
+        </nav>
+
+        <header>
+            <img src="assets/avatar.jpg" alt="头像">
+            <h1>你的名字</h1>
+            <p>一句描述你自己的话，比如“写代码的诗人”</p>
+        </header>
+
+        <ul class="blog-list">
+            <li><a href="post.html">我的第一篇文章</a><br><small>2025-08-01</small></li>
+            <li><a href="#">第二篇文章（即将发布）</a><br><small>2025-08-10</small></li>
+        </ul>
+
+        <footer>
+            © 2025 你的名字 | <a href="https://github.com/你的账号">GitHub</a>
+        </footer>
+    </div>
 </body>
 </html>
