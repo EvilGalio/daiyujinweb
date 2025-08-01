@@ -9,18 +9,14 @@
 <script>
     window.MathJax = {
         tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]'], ['$', '$']], // 把单$也当作display
-            processEscapes: true,
-            processEnvironments: true  // 允许解析 begin/end 环境
-        },
-        options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            inlineMath: [['$', '$'], ['\\(', '\\)']],   // 行公式
+            displayMath: [['$$', '$$'], ['\\[', '\\]']] // 块公式
         },
         svg: { fontCache: 'global' }
     };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
 
 </head>
 
@@ -47,53 +43,39 @@
 
 <p>一个数除4，5，6都余1，求这个数的最小可能值</p>
 
-<p>
-    $x-1 = (4,5,6)k$
-</p>
-
-<p>
-    $x= (4,5,6)k +1$
-</p>
+<p>$x-1 = (4,5,6)k$</p>
+<p>$x= (4,5,6)k +1$</p>
 
 <h3>差同减差</h3>
 
 <p>一个数除4，5，6分别余3，4，5（差1个整除），求这个数的最小可能值</p>
 
-<p>
-    $x+1 =(4,5,6)k$
-</p>
-
-<p>
-    $x = (4,5,6)k-1$
-</p>
+<p>$x+1 =(4,5,6)k$</p>
+<p>$x = (4,5,6)k-1$</p>
 
 <h3>和同加和</h3>
 
 <p>一个数除4余3，除5余2，除6余1（和相同），求这个数的最小可能值</p>
 
-<p>
-    $$
+<p>$$
     \begin{cases}
     x-3 = 4k_1 \\
     x-2 = 5k_2 \\
     x-1 = 6k_3
     \end{cases}
-    $$
-</p>
+    $$</p>
 
-<p>
-    $$
+<p>$$
     \begin{cases}
     x-7 = 4k_1-4 \\
     x-7 = 5k_2-5 \\
     x-7 = 6k_3-6
-    \end{cases},
-    说明(x-7)可以被4，5，6整除
-    $$
-</p>
+    \end{cases}
+    $$</p>
+
+<p>说明 $(x-7)$ 可以被 4，5，6 整除</p>
 
 <p>$x-7 = (4,5,6)k$</p>
-
 <p>$x = (4,5,6)k+7$</p>
 
 <h3>注意</h3>
@@ -108,11 +90,10 @@
     <li>讨论倍数</li>
 </ol>
 
-<p>e.g.除5余3，除8余4</p>
+<p>e.g. 除5余3，除8余4</p>
 
 <p>$5k_1+3 = 8k_2+4$</p>
-
-<p>$5(k_1-k_2)=3k_2+1,令k_2取值满足整数要求，这里取k_2=3$</p>
+<p>$5(k_1-k_2)=3k_2+1$，令 $k_2$ 取值满足整数要求，这里取 $k_2=3$</p>
 
 <p>代入求得即可</p>
 
@@ -120,15 +101,15 @@
 
 <h3>质数的倒数和问题</h3>
 
-<p>x,y,z为质数，倒数和为$\frac{1661}{1986}$,求xyz的和</p>
+<p>$x,y,z$ 为质数，倒数和为 $\frac{1661}{1986}$，求 $xyz$ 的和</p>
 
-<p>$通分发现分母即为xyz，于是将1986用短除法得到3个质因数，即为xyz$</p>
+<p>通分发现分母即为 $xyz$，于是将1986用短除法得到3个质因数，即为 $xyz$</p>
 
 <h3>多项式质数问题</h3>
 
-<p>x∈Z，$x^2+8x-20$为质数，求这个质数。</p>
+<p>$x ∈ Z$，$x^2+8x-20$ 为质数，求这个质数。</p>
 
-<p>$x^2+8x-20\rightarrow （x-2）(x+10)为质数 \rightarrow 其中一个为1，另一个即为质数本身。讨论$</p>
+<p>$x^2+8x-20 \rightarrow (x-2)(x+10)$ 为质数 $\rightarrow$ 其中一个为1，另一个即为质数本身。讨论</p>
 
 <h2>母题模型3：约数倍数问题</h2>
 
@@ -138,8 +119,7 @@
 
 <h3>公式解题</h3>
 
-<p>
-    $$
+<p>$$
     \begin{cases}
     x = ak \\
     y = bk \\
@@ -147,16 +127,15 @@
     [x,y] = abk \\
     (a,b) = 1
     \end{cases}
-    $$
-</p>
+    $$</p>
 
-<p>e.g.最大公因数是6，最小公倍数是72，解xy</p>
+<p>e.g. 最大公因数是6，最小公倍数是72，解 $xy$</p>
 
-<p>k=6,abk = 72,ab =12,由于ab互质</p>
+<p>$k=6,abk = 72,ab =12$，由于 $ab$ 互质</p>
 
-<p>讨论ab的多种组合 1x12？3x4？2x6？（排除）</p>
+<p>讨论 $ab$ 的多种组合 1×12？3×4？2×6？（排除）</p>
 
-<p>将ak，bk分别带入看哪个满足题设</p>
+<p>将 $ak$，$bk$ 分别带入看哪个满足题设</p>
 
 <h2>母题模型4：整数不定方程问题</h2>
 
@@ -179,21 +158,14 @@
     <li>倍数分析</li>
 </ol>
 
-<p><img src="assets/p1.png" alt="image.png" width="600" height="auto" /></p>
+<p><img src="assets/p1.png" alt="image.png" /></p>
 
 <h3>乘法模型</h3>
 
 <h4>公式</h4>
 
 <p>$a^2-b^2 = (a+b)(a-b)$</p>
-
-<p>$abab公式：ab-ma-nb +mn=(a-n)(b-m)$</p>
-
-
-
-            <h2>小节标题</h2>
-            <p>更多段落内容……</p>
-        </div>
+<p>$abab$ 公式：$ab-ma-nb + mn = (a-n)(b-m)$</p>
 
         <footer>
             © 2025 Daiyujin All rights reserved | <a>页面最后更新日期：2025-08-01</a>
