@@ -1,0 +1,99 @@
+/* 全局设置 */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #ffffff;
+    color: #1c1c1e;
+    line-height: 1.6;
+}
+
+/* 容器宽度控制 */
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* 导航栏 */
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e5e5ea;
+}
+
+nav a {
+    text-decoration: none;
+    color: #007aff;
+    margin-left: 1rem;
+    font-weight: 500;
+}
+
+/* 标题区 */
+header {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+header img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    font-size: 2rem;
+    margin: 1rem 0 0.5rem;
+}
+
+header p {
+    color: #6e6e73;
+}
+
+/* 博客列表 */
+.blog-list {
+    list-style: none;
+    padding: 0;
+}
+
+.blog-list li {
+    margin-bottom: 1.5rem;
+}
+
+.blog-list a {
+    text-decoration: none;
+    color: #1c1c1e;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.blog-list a:hover {
+    color: #007aff;
+}
+
+/* 文章正文 */
+.article {
+    margin-top: 2rem;
+}
+
+.article h2 {
+    margin-top: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.article p {
+    margin-top: 1rem;
+    font-size: 1rem;
+}
+
+/* 底部 */
+footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e5ea;
+    color: #8e8e93;
+    font-size: 0.9rem;
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习笔记-管综199数学</title>
+    <link rel="stylesheet" href="styles.css">
+<script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]'], ['$', '$']], // 把单$也当作display
+            processEscapes: true,
+            processEnvironments: true  // 允许解析 begin/end 环境
+        },
+        options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        },
+        svg: { fontCache: 'global' }
+    };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</head>
+
+<body>
+    <div class="container">
+        <nav>
+            <div><strong>MyBlog</strong></div>
+            <div>
+                <a href="index.html">首页</a>
+                <a href="about.html">关于</a>
+            </div>
+        </nav>
+
+        <div class="article">
+            <h1>学习笔记-管综199数学</h1>
+            <p><small>2025-08-01创建</small></p>
+<h1>第一讲</h1>
+
+<h2>短除法求最小公倍数、最大公因数</h2>
+
+<h2>母题模型1：带余除法问题</h2>
+
+<h3>余同加余</h3>
+
+<p>一个数除4，5，6都余1，求这个数的最小可能值</p>
+
+<p>
+    $x-1 = (4,5,6)k$
+</p>
+
+<p>
+    $x= (4,5,6)k +1$
+</p>
+
+<h3>差同减差</h3>
+
+<p>一个数除4，5，6分别余3，4，5（差1个整除），求这个数的最小可能值</p>
+
+<p>
+    $x+1 =(4,5,6)k$
+</p>
+
+<p>
+    $x = (4,5,6)k-1$
+</p>
+
+<h3>和同加和</h3>
+
+<p>一个数除4余3，除5余2，除6余1（和相同），求这个数的最小可能值</p>
+
+<p>
+    $$
+    \begin{cases}
+    x-3 = 4k_1 \\
+    x-2 = 5k_2 \\
+    x-1 = 6k_3
+    \end{cases}
+    $$
+</p>
+
+<p>
+    $$
+    \begin{cases}
+    x-7 = 4k_1-4 \\
+    x-7 = 5k_2-5 \\
+    x-7 = 6k_3-6
+    \end{cases},
+    说明(x-7)可以被4，5，6整除
+    $$
+</p>
+
+<p>$x-7 = (4,5,6)k$</p>
+
+<p>$x = (4,5,6)k+7$</p>
+
+<h3>注意</h3>
+
+<p>题目中有可能不会直观的体现和同、余同、差同，例如除2余1等价于除2差1等价于除2多1，要会转化</p>
+
+<h3>无规律</h3>
+
+<ol>
+    <li>列等式</li>
+    <li>拆大系数项</li>
+    <li>讨论倍数</li>
+</ol>
+
+<p>e.g.除5余3，除8余4</p>
+
+<p>$5k_1+3 = 8k_2+4$</p>
+
+<p>$5(k_1-k_2)=3k_2+1,令k_2取值满足整数要求，这里取k_2=3$</p>
+
+<p>代入求得即可</p>
+
+<h2>母题模型2：质数合数问题</h2>
+
+<h3>质数的倒数和问题</h3>
+
+<p>x,y,z为质数，倒数和为$\frac{1661}{1986}$,求xyz的和</p>
+
+<p>$通分发现分母即为xyz，于是将1986用短除法得到3个质因数，即为xyz$</p>
+
+<h3>多项式质数问题</h3>
+
+<p>x∈Z，$x^2+8x-20$为质数，求这个质数。</p>
+
+<p>$x^2+8x-20\rightarrow （x-2）(x+10)为质数 \rightarrow 其中一个为1，另一个即为质数本身。讨论$</p>
+
+<h2>母题模型3：约数倍数问题</h2>
+
+<h3>公式一则</h3>
+
+<p>$x*y = (x,y)*[x,y]$</p>
+
+<h3>公式解题</h3>
+
+<p>
+    $$
+    \begin{cases}
+    x = ak \\
+    y = bk \\
+    (x,y) = k \\
+    [x,y] = abk \\
+    (a,b) = 1
+    \end{cases}
+    $$
+</p>
+
+<p>e.g.最大公因数是6，最小公倍数是72，解xy</p>
+
+<p>k=6,abk = 72,ab =12,由于ab互质</p>
+
+<p>讨论ab的多种组合 1x12？3x4？2x6？（排除）</p>
+
+<p>将ak，bk分别带入看哪个满足题设</p>
+
+<h2>母题模型4：整数不定方程问题</h2>
+
+<h3>加法模型</h3>
+
+<h4>识别</h4>
+
+<ol>
+    <li>正整数</li>
+    <li>不定方程（方程个数不足以求解未知数）</li>
+    <li>加法运算</li>
+</ol>
+
+<h4>方法</h4>
+
+<ol>
+    <li>列出方程</li>
+    <li>奇偶分析</li>
+    <li>尾数分析</li>
+    <li>倍数分析</li>
+</ol>
+
+<p><img src="assets/p1.png" alt="image.png" width="600" height="auto" /></p>
+
+<h3>乘法模型</h3>
+
+<h4>公式</h4>
+
+<p>$a^2-b^2 = (a+b)(a-b)$</p>
+
+<p>$abab公式：ab-ma-nb +mn=(a-n)(b-m)$</p>
+
+
+
+            <h2>小节标题</h2>
+            <p>更多段落内容……</p>
+        </div>
+
+        <footer>
+            © 2025 Daiyujin All rights reserved | <a>页面最后更新日期：2025-08-01</a>
+        </footer>
+    </div>
+</body>
+
+</html>
