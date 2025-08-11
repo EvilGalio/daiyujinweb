@@ -136,16 +136,62 @@
 <p>$(a+b+c)^2=(a^2+b^2+c^2+2ab+2ac+2bc)$</p>
 <p>$a^2+b^2+c^2+ab+bc+ac=\frac{1}{2}[(a+b)^2+(a+c)^2+(b+c)^2]$</p>
 <p>$(a\pm b)^3=(a\pm b)(a^2\mp ab+b^2),完全立方公式为1331$</p>
-<h2>因式定理＆余式定理</h2>
+<h2>母题模型9：因式定理＆余式定理</h2>
 <h3>因式</h3>
 <p>F(x)=f(x)g(x),F(x)被f(x)整除。$若存在a使得f(a)=0←→则x-a是F(x)的一个因式$</p>
 <h3>余式</h3>
 <p>F(x)=f(x)g(x)+r(x),同上a，则F(a)=r(x)</p>
 <p><img src="assets\p3.png" alt="p3" width="600" height="auto"></p>
-
+<h2>母题模型10：形如$x+\frac{1}{x}=a$的求值</h2>
+<h3>$x+\frac{1}{x}$的递推</h3>
+<p>已知$x+\frac{1}{x}$：</p>
+<p>$x^2+\frac{1}{x^2}=(x+\frac{1}{x})^2-2$</p>
+<p>$x^3+\frac{1}{x^3}=(x+\frac{1}{x})^3-3(x+\frac{1}{x})$</p>
+<p>$x-\frac{1}{x}=\pm\sqrt{x^2+\frac{1}{x^2}-2}$</p>
+<h3>$x^2+ax+1=0$的降幂</h3>
+$$
+\begin{cases}x^2=-ax-1\\x^2+ax=-1\\x^2+1=-ax\\x+\frac{1}{x}=-a \end{cases}
+$$
+<p><img src="assets\p4.png" alt="p4" width="600" height="auto"></p>
+<h1>第三讲</h1>
+<h2>母题模型11：均值不等式</h2>
+<h3>母题识别</h3>
+<p>已知几个字母的和或积的值，求另一个多项式的最值；类似对勾函数的问题</p>
+<h3>最基础：一正二定三相等</h3>
+<p>$ax+\frac{b}{x}\ge 2\sqrt{ab},>0;全项相等时取等$</p>
+<h3>变式：不止两项或不止二次的均值不等式</h3>
+<p>$\frac{a}{n}x+\frac{a}{n}x+..._{n项}+\frac{b}{x^n} \ge n\sqrt[n]{\frac{a^nb}{n^n}}$</p>
+<p><img src="assets\p5.png" alt="p5" width="600" height="auto"></p>
+<p><img src="assets\p6.png" alt="p6" width="600" height="auto"></p>
+<h3>方法</h3>
+<p>求和的最小值：均等拆分低次项</p>
+<p>求积的最大值：均等拆分高次项</p>
+<h3>1的代换</h3>
+<p>$a+2b=1$,求$\frac{1}{a}+\frac{2}{b}$的最值</p>
+<p>$(a+2b)*(\frac{1}{a}+\frac{2}{b})=5+\frac{2b}{a}+\frac{2a}{b}\ge5+2\sqrt{4}=9$</p>
+<h3>证明不等式</h3>
+<p>两个例题</p>
+<p><img src="assets\p7.png" alt="p7" width="600" height="auto"></p>
+<p><img src="assets\p8.png" alt="p8" width="600" height="auto"></p>
+<h2>母题模型12：柯西不等式</h2>
+<p>$(a^2+b^2)(c^2+d^2)\ge (ac+bd)^2,ad=bc时取等$</p>
+<p>$原理：a^2c^2+\underline{b^2c^2+a^2d^2}+b^2d^2\ge a^2c^2+2bcad+b^2d^2=(ac+bd)^2$</p>
+<p>$2(x^2+y^2)\ge(x+y)^2 \ge4xy,x=y时取等$</p>
+<p>$原理：x^2+y^2+\underline{x^2+y^2}\ge x^2+y^2+2xy=(x+y)^2$</p>
+<p><img src="assets\p9.png" alt="p9" width="600" height="auto"></p>
+<p><img src="assets\p10.png" alt="p10" width="600" height="auto"></p>
+<h2>母题模型13：二次函数的基本问题</h2>
+<h3>区间根</h3>
+<p>基本的思想就是两个根对应图像的两个零点：</p>
+<p>两根在不同区间时,例如</p>
+<p>$x_1 &lt; 1&lt; x_2 \rightarrow af(1)&lt;0$</p>
+<p>$x_1∈(1,2),x_2∈(2,3) \rightarrow \begin{cases} af(1)>0\\af(2)<0\\af(3)>0\end{cases}$</p>
+<p>两根在同区间时，还需考虑Δ和对称轴的关系</p>
+<p>$x_1,x_2∈(1,2)\rightarrow \begin{cases} Δ \ge 0 \\ -\frac{b}{2a}∈(1,2)\\af(1),af(2)>0\end{cases}$</p>
+<p>$1&lt;x_1&lt;x_2 \rightarrow \begin{cases} Δ&gt;0\\ -\frac{b}{2a}&gt;1\\af(1)&gt;0\end{cases}$</p>
 
         <footer>
-            © 2025 Daiyujin All rights reserved | <a>页面最后更新日期：2025-08-02</a>
+            © 2025 Daiyujin All rights reserved | <a>页面最后更新日期：2025-08-11</a>
         </footer>
     </div>
 </body>
