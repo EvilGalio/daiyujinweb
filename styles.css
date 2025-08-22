@@ -87,7 +87,24 @@ header p {
     margin-top: 1rem;
     font-size: 1rem;
 }
-
+/* 行内代码块 */
+p code,
+li code {
+    background-color: #e5e5ea;
+    /* 浅灰背景，轻微凸显 */
+    color: #1c1c1e;
+    /* 与正文一致，避免抢眼 */
+    padding: 0.2em 0.4em;
+    /* 上下左右留白，增强可读性 */
+    border-radius: 4px;
+    /* 圆角，柔和 */
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+    /* 等宽字体 */
+    font-size: 0.9em;
+    /* 略小于正文 */
+    line-height: 1.4;
+    /* 调整行高，避免太挤 */
+}
 /* 底部 */
 footer {
     text-align: center;

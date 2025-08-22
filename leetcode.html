@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习笔记-管综199逻辑</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-python.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-javascript.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-kotlin.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <nav>
+            <div><strong>DaiyujinCoding</strong></div>
+            <div>
+                <a href="index.html">首页</a>
+                <a href="about.html">关于</a>
+            </div>
+        </nav>
+    <div class="article">
+        <h1>雨尽随笔</h1>
+        <p><small>2025-08-22创建</small></p>
+        <h2>写在最前</h2>
+        <p>我不是写代码的高手，我甚至常常一行写完就怀疑自己。这里的内容不是自得自满，而是我记录自己跌跌撞撞留下的痕迹。若你看见这些代码觉得可笑，请你原谅我的笨拙，再顺手告诉我哪里错了，我会心怀感激。</p>
+        <h2>155:最小栈</h2>
+        <p>设计一个支持 <code>push</code> ，<code>pop</code> ，<code>top</code> 操作，并能在常数时间内检索到最小元素的栈。</p>
+        <p>实现 <code>MinStack</code> 类:</p>
+        <ul>
+            <li><code>MinStack()</code> 初始化堆栈对象。</li>
+            <li><code>void push(int val)</code> 将元素val推入堆栈。</li>
+            <li><code>void pop()</code> 删除堆栈顶部的元素。</li>
+            <li><code>int top()</code> 获取堆栈顶部的元素。</li>
+            <li><code>int getMin()</code> 获取堆栈中的最小元素。</li>
+        </ul>
+        <h3>题解</h3>
+        <pre><code class="language-python">class MinStack:
+            def __init__(self):
+                self.stack=[]
+                self.min = [2**31]
+            def push(self, val: int) -> None:
+                self.stack.append(val)
+                self.min.append(min(val,self.min[-1]))
+            def pop(self) -> None:
+                self.stack.pop()
+                self.min.pop()
+            def top(self) -> int:
+                top=self.stack[-1]
+                return top
+        
+            def getMin(self) -> int:
+                return self.min[-1]
+        </code></pre>
+        
+        <h2>20:有效的括号</h2>
+        <p>给定一个只包括
+            <code>&#39;(&#39;</code>，<code>&#39;)&#39;</code>，<code>&#39;{&#39;</code>，<code>&#39;}&#39;</code>，<code>&#39;[&#39;</code>，<code>&#39;]&#39;</code>
+            的字符串 <code>s</code> ，判断字符串是否有效。</p>
+        <p>有效字符串需满足：</p>
+        <ol>
+            <li>左括号必须用相同类型的右括号闭合。</li>
+            <li>左括号必须以正确的顺序闭合。</li>
+            <li>每个右括号都有一个对应的相同类型的左括号。</li>
+        </ol>
+        <h3>题解</h3>
+        <pre><code class="language-python">class Solution:
+            def isValid(self, s: str) -> bool:
+                list=[]
+                for str in s:
+                    list.append(str)
+                def jud(a,b):
+                    if a=='('and b==')':
+                        return True
+                    elif a=='['and b==']':
+                        return True
+                    elif a=='{' and b== '}':
+                        return True
+                    else:return False
+                def syn(list):
+                    if len(list)==0:
+                        return True
+                    elif len(list)%2 !=0:
+                        return False
+                    else: 
+                        i=0
+                        while i<=len(list)/2:
+                            if list[i] in ['[','(','{']:
+                                i+=1
+                                continue
+                            elif list[i] in [')',']','}']:
+                                if jud(list[i-1],list[i]) and i!=0:
+                                    list.pop(i)
+                                    list.pop(i-1)
+                                    return syn(list)
+                                else:
+                                    return False
+                        return False
+                return syn(list)
+        </code></pre>
+        
+        <h2>169：多数元素</h2>
+        <p>给定一个大小为 <code>n</code> 的数组 <code>nums</code> ，返回其中的多数元素。多数元素是指在数组中出现次数 <strong>大于</strong> <code>⌊ n/2 ⌋</code> 的元素。
+        </p>
+        <p>你可以假设数组是非空的，并且给定的数组总是存在多数元素。</p>
+        <pre><code class="language-python">class Solution:
+            def majorityElement(self, nums: List[int]) -> int:
+                n = len(nums)
+                result = 0
+                for i in set(nums):
+                    coun = nums.count(i)
+                    if coun >n/2:
+                        result = i
+                        break
+                return result
+        </code></pre>
+    </div>
