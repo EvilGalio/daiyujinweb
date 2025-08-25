@@ -119,3 +119,109 @@
                 return result
         </code></pre>
     </div>
+<h2>239：滑动窗口最大值——单调队列</h2>
+<p>给你一个整数数组 <code class="language-none">nums</code>，有一个大小为 <code class="language-none">k</code>
+    的滑动窗口从数组的最左侧移动到数组的最右侧。你只可以看到在滑动窗口内的 <code class="language-none">k</code> 个数字。滑动窗口每次只向右移动一位。</p>
+<p>返回 <em>滑动窗口中的最大值</em> 。</p>
+<p><strong>示例 1：</strong></p>
+
+<p>输入：<code class="language-none">nums = [1,3,-1,-3,5,3,6,7], k = 3</code><br>
+    输出：<br>
+    解释：<br>
+    滑动窗口的位置&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最大值</p>
+<hr>
+<pre><code class="language-none">[1  3  -1] -3  5  3  6  7       3
+ 1 [3  -1  -3] 5  3  6  7       3
+ 1  3 [-1  -3  5] 3  6  7       5
+ 1  3  -1 [-3  5  3] 6  7       5
+ 1  3  -1  -3 [5  3  6] 7       6
+ 1  3  -1  -3  5 [3  6  7]      7
+</code></pre>
+
+<p><strong>示例 2：</strong></p>
+<p>输入：<code class="language-none">nums = [1], k = 1</code><br>输出：<code class="language-none">1</code></p>
+
+<p>我自己的最初的解法是最原始的暴力解法，最后不出意外的报了 TimeOutError。参考了
+    <a href="https://leetcode.cn/u/jyd/" target="_blank" rel="noopener noreferrer">Krahets</a> 的题解，自己实现了
+    <strong>单调队列</strong> 来重新解。
+</p>
+
+<pre><code class="language-python">from typing import List
+import collections
+
+class Solution:
+    def maxSlidingWindow(self, nums: List[int], k: int) -&gt; List[int]:
+        res = []
+        dq = collections.deque()  # 存放“值”的单调递减队列
+        n = len(nums)
+        for i, j in zip(range(1 - k, n - k + 1), range(n)):
+            # 如果队首等于滑出窗口的元素，则从左侧弹出（完成“滑动”）
+            if i &gt;= 0 and dq and dq[0] == nums[i]:
+                dq.popleft()
+            # 保持队列单调：把所有比新元素小的从右侧弹出
+            while dq and dq[-1] &lt; nums[j]:
+                dq.pop()
+            dq.append(nums[j])
+            res.append(dq[0])  # 队首即当前窗口最大值
+        return res[k - 1:]
+</code></pre>
+
+<p>虽然最后成功通过，但只是狗尾续貂罢了，很佩服提出这个算法的大神。</p>
+
+<hr>
+
+<h2>104：二叉树的最大深度</h2>
+<p>给定一个二叉树 <code class="language-none">root</code> ，返回其最大深度。</p>
+<p>二叉树的 <strong>最大深度</strong> 是指从根节点到最远叶子节点的最长路径上的节点数。</p>
+
+<p><strong>示例 1：</strong></p>
+<p><img src="https://assets.leetcode.com/uploads/2020/11/26/tmp-tree.jpg" alt="img"></p>
+<pre><code class="language-none">输入：root = [3,9,20,null,null,15,7]
+输出：3
+</code></pre>
+
+<p><strong>示例 2：</strong></p>
+<pre><code class="language-none">输入：root = [1,null,2]
+输出：2
+</code></pre>
+
+<p>这个题的难度是简单，但这是我第一次接触树这个数据结构。思来想去，我的思路是使用 DFS（深度优先搜索）方法，获得所有叶子节点的深度，最后再获得最大值。</p>
+
+<pre><code class="language-python">from typing import Optional, List
+
+class Solution:
+    class TreeNode:
+        def __init__(self, val: int = 0, left: 'Solution.TreeNode' = None, right: 'Solution.TreeNode' = None):
+            self.val = val
+            self.left = left
+            self.right = right
+
+    def maxDepth(self, root: Optional['Solution.TreeNode']) -&gt; int:
+        res: List[int] = []  # 记录所有叶子节点的深度
+
+        def dfs(node: Optional['Solution.TreeNode'], depth: int = 1) -&gt; None:
+            if not node:  # 空节点
+                return
+            if not node.left and not node.right:  # 叶子节点
+                res.append(depth)
+                return
+            if node.left:
+                dfs(node.left, depth + 1)
+            if node.right:
+                dfs(node.right, depth + 1)
+
+        if not root:
+            return 0  # 空树深度为 0
+        dfs(root, 1)
+        return max(res) if res else 0
+</code></pre>
+
+
+
+            <footer>
+                © 2025 Daiyujin All rights resserved | <a >页面最后更新日期：2025-08-25</a>
+            </footer>
+            </div>
+            </body>
+            
+            </html>
