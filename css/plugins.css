@@ -582,6 +582,65 @@ body.tool-page {
     transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Country search dropdown ───────────────── */
+
+.country-search {
+    position: relative;
+}
+
+.country-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: var(--panel);
+    box-shadow: var(--shadow-elevated);
+}
+
+.country-dropdown.open {
+    display: block;
+}
+
+.country-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: background 0.1s;
+}
+
+.country-item:hover,
+.country-item.active {
+    background: #f0f6ff;
+}
+
+.country-en {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.country-cn {
+    font-size: 0.78rem;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.country-item.muted {
+    color: var(--muted);
+    cursor: default;
+    justify-content: flex-start;
+}
+
 /* ── Dynamic factor badge ──────────────────── */
 
 .dynamic-badge {

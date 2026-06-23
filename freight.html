@@ -32,17 +32,12 @@
             </section>
 
             <section class="tool-grid">
-                <form class="tool-panel tool-form" data-freight-form>
+                <form class="tool-panel tool-form" data-freight-form autocomplete="off">
                     <h2>Shipment</h2>
-                    <div class="tool-field">
+                    <div class="tool-field country-search" data-country-search>
                         <label for="country">Destination</label>
-                        <input id="country" name="country" type="text" list="countries" placeholder="Germany" autocomplete="off" required>
-                        <datalist id="countries" data-country-list>
-                            <option value="Germany"></option>
-                            <option value="Japan"></option>
-                            <option value="United States"></option>
-                            <option value="Hong Kong"></option>
-                        </datalist>
+                        <input id="country" name="country" type="text" placeholder="Search country&hellip;" autocomplete="off" required>
+                        <div class="country-dropdown" data-country-dropdown></div>
                     </div>
                     <div class="tool-field">
                         <label for="weight">Weight (kg)</label>

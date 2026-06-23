@@ -10,6 +10,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from database import DATA_DIR, SessionLocal, init_db
 from models import FreightRate
+from services.country_names import to_english
 from services.freight_importer import find_freight_workbook, parse_freight_workbook
 
 
@@ -28,7 +29,7 @@ def import_freight_rates() -> dict[str, int]:
             [
                 FreightRate(
                     carrier=record["carrier"],
-                    country=record["country"],
+                    country=to_english(record["country"]),
                     country_cn=record["country"],
                     zone=record["zone"],
                     currency=record["currency"],

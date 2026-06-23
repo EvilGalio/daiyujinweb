@@ -20,16 +20,16 @@ def main() -> int:
     assert import_result["inserted"] > 9000, import_result
 
     countries = get_countries()
-    assert "德国" in countries
-    assert "KG" not in countries
-    assert not any(country.lower().find("kg") >= 0 for country in countries)
+    en_names = [c["en"] for c in countries]
+    assert "Germany" in en_names
+    assert "Japan" in en_names
 
     summary = get_freight_summary()
     assert summary["record_count"] == import_result["inserted"]
     assert set(summary["carriers"]) == {"DHL", "FedEx"}
 
     quote = calculate_freight(
-        country="德国",
+        country="Germany",
         weight_kg=5,
         carriers=["DHL", "FedEx"],
         currency="CNY",

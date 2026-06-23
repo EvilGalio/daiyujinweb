@@ -11,13 +11,22 @@ from models import ExchangeRate, FreightRate
 SUPPORTED_CURRENCIES = {"CNY", "USD", "EUR"}
 
 
-def get_countries() -> list[str]:
+def get_countries() -> list[dict[str, str]]:
     session = SessionLocal()
     try:
-        rows = session.execute(select(FreightRate.country).distinct().order_by(FreightRate.country)).all()
-        return [row[0] for row in rows]
+        rows = session.execute(
+            select(FreightRate.country, FreightRate.country_cn)
+            .distinct()
+            .order_by(FreightRate.country)
+        ).all()
+        return [{"en": row[0], "cn": row[1] or row[0]} for row in rows]
     finally:
         session.close()
+
+
+def get_country_list() -> list[str]:
+    """Flat list of English names for backwards compat."""
+    return [c["en"] for c in get_countries()]
 
 
 def get_freight_summary() -> dict[str, Any]:
@@ -92,13 +101,21 @@ def calculate_freight(
 
     session = SessionLocal()
     try:
-        country_exists = (
-            session.execute(select(FreightRate.id).where(FreightRate.country == country).limit(1))
+        match = (
+            session.execute(
+                select(FreightRate)
+                .where(
+                    (FreightRate.country == country)
+                    | (FreightRate.country_cn == country)
+                )
+                .limit(1)
+            )
             .scalars()
             .first()
         )
-        if country_exists is None:
+        if match is None:
             raise ValueError(f"Unsupported destination country: {country}")
+        resolved_country = match.country
 
         results: list[dict[str, Any]] = []
         missing_carriers: list[str] = []
@@ -106,7 +123,7 @@ def calculate_freight(
             rate = (
                 session.execute(
                     select(FreightRate)
-                    .where(FreightRate.country == country)
+                    .where(FreightRate.country == resolved_country)
                     .where(FreightRate.carrier == carrier)
                     .where(FreightRate.weight_min >= weight_kg)
                     .order_by(FreightRate.weight_min.asc())
