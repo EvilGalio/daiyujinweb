@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import random
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -104,8 +106,14 @@ def calculate_quote(payload: dict[str, Any], *, client_ip: str | None = None, us
         machining_total_usd = size_cost.base_cost_usd * quantity * tolerance.factor * tier.factor
         treatment_total_usd = sum(treatment.cost_usd for treatment in treatments) * quantity
         subtotal_usd = material_total_usd + machining_total_usd + treatment_total_usd
-        total_usd = round(subtotal_usd, 2)
-        total_amount = round(total_usd * exchange_rate, 2)
+        base_total_usd = round(subtotal_usd, 2)
+
+        seed = str(payload.get("file_id", "")) + str(payload.get("material_id", "")) + str(quantity)
+        seed_hash = int(hashlib.md5(seed.encode()).hexdigest()[:8], 16)
+        rng = random.Random(seed_hash)
+        dynamic_factor = round(0.985 + rng.random() * 0.03, 4)
+        display_total_usd = round(base_total_usd * dynamic_factor, 2)
+        total_amount = round(display_total_usd * exchange_rate, 2)
 
         result = {
             "quote_status": "estimated",
@@ -130,16 +138,18 @@ def calculate_quote(payload: dict[str, Any], *, client_ip: str | None = None, us
                 "size_bucket": f"<= {size_cost.max_dim_mm:g} mm",
             },
             "breakdown": [
-                _money_line("Material", material_total_usd, exchange_rate, currency),
-                _money_line("Machining", machining_total_usd, exchange_rate, currency),
-                _money_line("Surface treatment", treatment_total_usd, exchange_rate, currency),
+                _money_line("Material", material_total_usd * dynamic_factor, exchange_rate, currency),
+                _money_line("Machining", machining_total_usd * dynamic_factor, exchange_rate, currency),
+                _money_line("Surface treatment", treatment_total_usd * dynamic_factor, exchange_rate, currency),
             ],
             "total": {
                 "amount": total_amount,
                 "currency": currency,
-                "amount_usd": total_usd,
+                "amount_usd": display_total_usd,
                 "display": _format_money(total_amount, currency),
             },
+            "dynamic_factor": dynamic_factor,
+            "base_total_usd": base_total_usd,
             "disclaimer": QUOTE_DISCLAIMER,
         }
         _record_quote_inquiry(session, payload, result, client_ip=client_ip, user_agent=user_agent)

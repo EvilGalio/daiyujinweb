@@ -48,8 +48,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        let stopProgress = startProgress();
         try {
-            setBusy("Uploading STEP file...");
+            const startedAt = Date.now();
             const key = `${file.name}:${file.size}:${file.lastModified}`;
             if (state.fileKey !== key) {
                 state.analysis = await uploadStep(file);
@@ -57,11 +58,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 state.fileName = file.name;
             }
 
-            setBusy("Calculating estimate...");
+            setProgressPhase("Cost matrix evaluating");
             const estimate = await calculateEstimate();
             state.estimate = estimate;
+
+            const elapsed = Date.now() - startedAt;
+            if (elapsed < 4000) {
+                await new Promise(r => setTimeout(r, 4000 - elapsed));
+            }
+            stopProgress(true);
             render();
         } catch (error) {
+            stopProgress(false);
             renderError(error.message);
         }
     });
@@ -206,8 +214,75 @@ document.addEventListener("DOMContentLoaded", () => {
         return `<img class="quote-thumb" src="${escapeHtml(src)}" alt="${escapeHtml(name)} preview">`;
     }
 
-    function setBusy(message) {
-        result.innerHTML = `<section class="tool-panel"><div class="tool-note">${escapeHtml(message)}</div></section>`;
+    function startProgress() {
+        const phases = [
+            "Intelligent system compiling",
+            "Geometric model parsing",
+            "Manufacturing feature analysis",
+            "Cost matrix evaluating",
+            "Dynamic quotation generating",
+        ];
+        let phaseIdx = 1;
+        let pct = 0;
+        let timer = null;
+        let stopped = false;
+
+        function tick() {
+            if (stopped) return;
+            if (pct < 70) {
+                pct += 12 + Math.random() * 10;
+                phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2);
+            } else if (pct < 92) {
+                pct += 2 + Math.random() * 3;
+                phaseIdx = phases.length - 1;
+            } else {
+                pct += Math.random() * 0.5;
+                pct = Math.min(pct, 96);
+            }
+            renderProgress(pct, phases[phaseIdx]);
+            timer = setTimeout(tick, 600 + Math.random() * 900);
+        }
+
+        renderProgress(0, phases[0]);
+        timer = setTimeout(tick, 400);
+
+        return function finish(success) {
+            stopped = true;
+            clearTimeout(timer);
+            if (success) {
+                renderProgress(100, "Assessment complete", true);
+            } else {
+                result.innerHTML = "";
+            }
+        };
+    }
+
+    function setProgressPhase(text) {
+        const bar = document.querySelector(".quote-progress-fill");
+        const phase = document.querySelector(".quote-progress-phase");
+        if (phase) phase.textContent = text;
+        if (bar && !bar.classList.contains("done")) {
+            const pct = parseFloat(bar.style.width) || 85;
+            if (pct < 92) { bar.style.width = (pct + 3 + Math.random() * 4) + "%"; }
+        }
+    }
+
+    function renderProgress(pct, text, done) {
+        result.innerHTML = `
+            <section class="tool-panel">
+                <h2>Assessment in Progress</h2>
+                <div class="quote-progress">
+                    <div class="quote-progress-bar">
+                        <div class="quote-progress-fill${done ? " done" : ""}" style="width:${pct}%"></div>
+                    </div>
+                    <div class="quote-progress-text">
+                        <span class="quote-progress-phase">${escapeHtml(text)}</span>
+                        <span class="quote-progress-pct">${Math.round(pct)}%</span>
+                    </div>
+                </div>
+                ${done ? '<div class="tool-note success" style="margin-top:1rem;">Processing complete. Rendering results&hellip;</div>' : ''}
+            </section>
+        `;
     }
 
     function renderError(message) {

@@ -538,7 +538,78 @@ body.tool-page {
     font-size: 0.85rem;
 }
 
-/* ── Section divider ────────────────────────── */
+/* ── Progress bar ──────────────────────────── */
+
+.quote-progress {
+    margin-top: 1rem;
+}
+
+.quote-progress-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    overflow: hidden;
+}
+
+.quote-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), #3b82f6);
+    transition: width 0.4s ease;
+    width: 0%;
+}
+
+.quote-progress-text {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.82rem;
+}
+
+.quote-progress-phase {
+    color: var(--ink-soft);
+    font-weight: 500;
+}
+
+.quote-progress-pct {
+    font-family: var(--font-mono);
+    color: var(--muted);
+}
+
+.quote-progress-fill.done {
+    background: linear-gradient(90deg, var(--success), #22c55e);
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Dynamic factor badge ──────────────────── */
+
+.dynamic-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.dynamic-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
 
 .section-rule {
     border: 0;
