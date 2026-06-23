@@ -8,7 +8,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from database import SessionLocal
-from models import FreightRate, Inquiry
+from models import FreightRate
 from scripts.import_freight_rates import import_freight_rates
 from scripts.seed_data import seed
 from services.freight import calculate_freight, get_countries, get_freight_summary
@@ -41,7 +41,6 @@ def main() -> int:
     session = SessionLocal()
     try:
         assert session.query(FreightRate).count() == import_result["inserted"]
-        assert session.query(Inquiry).filter_by(type="freight").count() >= 1
     finally:
         session.close()
         SessionLocal.remove()

@@ -321,10 +321,22 @@ def _format_money(amount: float, currency: str) -> str:
 
 
 def _record_quote_inquiry(session, payload: dict[str, Any], result: dict[str, Any], *, client_ip: str | None, user_agent: str | None) -> None:
+    part = result.get("part", {})
+    selections = result.get("selections", {})
+    total = result.get("total", {})
     inquiry = Inquiry(
         type="quote",
-        stp_filename=str(payload.get("stp_filename") or result["part"]["stp_filename"] or ""),
-        stp_file_path=result["part"]["stored_path"],
+        material_name=selections.get("material", {}).get("name"),
+        volume_mm3=part.get("volume_mm3"),
+        weight_kg=part.get("weight_kg"),
+        max_dim_mm=part.get("max_dim_mm"),
+        tolerance_grade=selections.get("tolerance_grade", {}).get("grade"),
+        quantity=selections.get("quantity"),
+        total_usd=total.get("amount_usd"),
+        total_display=total.get("display"),
+        currency=total.get("currency"),
+        stp_filename=str(payload.get("stp_filename") or part.get("stp_filename", "")),
+        stp_file_path=part.get("stored_path"),
         input_params=json.dumps(payload, ensure_ascii=False),
         result=json.dumps(result, ensure_ascii=False),
         client_ip=client_ip,

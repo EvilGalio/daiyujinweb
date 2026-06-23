@@ -8,8 +8,6 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import create_app
-from database import SessionLocal
-from models import Inquiry
 from services.tolerance import calculate_fit, get_tolerance_presets, get_tolerance_zones
 
 
@@ -65,13 +63,6 @@ def main() -> int:
     )
     assert bad_response.status_code == 400
     assert bad_response.get_json()["code"] == "invalid_tolerance_request"
-
-    session = SessionLocal()
-    try:
-        assert session.query(Inquiry).filter_by(type="tolerance").count() >= 1
-    finally:
-        session.close()
-        SessionLocal.remove()
 
     print("phase 1C smoke test passed")
     return 0

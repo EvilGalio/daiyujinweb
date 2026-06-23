@@ -100,10 +100,25 @@ class Inquiry(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     type: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # ── business fields ──
+    material_name: Mapped[str | None] = mapped_column(String(160))
+    volume_mm3: Mapped[float | None] = mapped_column(Float)
+    weight_kg: Mapped[float | None] = mapped_column(Float)
+    max_dim_mm: Mapped[float | None] = mapped_column(Float)
+    tolerance_grade: Mapped[str | None] = mapped_column(String(20))
+    quantity: Mapped[int | None] = mapped_column(Integer)
+    total_usd: Mapped[float | None] = mapped_column(Float)
+    total_display: Mapped[str | None] = mapped_column(String(40))
+    currency: Mapped[str | None] = mapped_column(String(3))
+
+    # ── audit fields ──
     stp_filename: Mapped[str | None] = mapped_column(String(255))
     stp_file_path: Mapped[str | None] = mapped_column(String(500))
-    input_params: Mapped[str] = mapped_column(Text, nullable=False)
-    result: Mapped[str] = mapped_column(Text, nullable=False)
     client_ip: Mapped[str | None] = mapped_column(String(80))
     user_agent: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # ── raw snapshots (debug / replay) ──
+    input_params: Mapped[str] = mapped_column(Text, nullable=False)
+    result: Mapped[str] = mapped_column(Text, nullable=False)

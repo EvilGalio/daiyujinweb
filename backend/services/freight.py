@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from sqlalchemy import func, select
 
 from database import SessionLocal
-from models import ExchangeRate, FreightRate, Inquiry
+from models import ExchangeRate, FreightRate
 
 
 SUPPORTED_CURRENCIES = {"CNY", "USD", "EUR"}
@@ -77,8 +76,6 @@ def calculate_freight(
     weight_kg: float,
     carriers: list[str],
     currency: str,
-    client_ip: str | None = None,
-    user_agent: str | None = None,
 ) -> dict[str, Any]:
     country = country.strip()
     currency = currency.upper()
@@ -155,24 +152,6 @@ def calculate_freight(
             "missing_carriers": missing_carriers,
         }
 
-        session.add(
-            Inquiry(
-                type="freight",
-                input_params=json.dumps(
-                    {
-                        "country": country,
-                        "weight_kg": weight_kg,
-                        "carriers": carriers,
-                        "currency": currency,
-                    },
-                    ensure_ascii=False,
-                ),
-                result=json.dumps(payload, ensure_ascii=False),
-                client_ip=client_ip,
-                user_agent=user_agent,
-            )
-        )
-        session.commit()
         return payload
     finally:
         session.close()

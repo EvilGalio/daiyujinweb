@@ -73,6 +73,12 @@ def main() -> int:
     session = SessionLocal()
     try:
         assert session.query(Inquiry).filter_by(type="quote").count() >= 2
+        latest = session.query(Inquiry).filter_by(type="quote").order_by(Inquiry.id.desc()).first()
+        assert latest.material_name is not None
+        assert latest.volume_mm3 is not None
+        assert latest.weight_kg is not None
+        assert latest.total_usd is not None
+        assert latest.currency == "USD"
         assert session.query(Inquiry).filter_by(type="quote_formal_request").count() >= 2
     finally:
         session.close()

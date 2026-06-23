@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import json
 import math
 import re
 from dataclasses import dataclass
 from typing import Any
-
-from database import SessionLocal
-from models import Inquiry
 
 
 SIZE_RANGES: tuple[tuple[float, float], ...] = (
@@ -121,7 +117,6 @@ def calculate_fit(
     *,
     client_ip: str | None = None,
     user_agent: str | None = None,
-    log_inquiry: bool = True,
 ) -> dict[str, Any]:
     size = _validate_size(basic_size_mm)
     if fit_combination:
@@ -149,8 +144,6 @@ def calculate_fit(
         "fit": fit,
     }
 
-    if log_inquiry:
-        _record_inquiry(result, client_ip=client_ip, user_agent=user_agent)
     return result
 
 

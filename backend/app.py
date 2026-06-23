@@ -23,9 +23,16 @@ THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
 DEFAULT_OCC_PYTHON = Path(r"D:\anaconda\envs\occ\python.exe")
 
 
+def _cors_origins():
+    raw = os.environ.get("ALLOWED_ORIGINS", "*")
+    if raw.strip() == "*":
+        return "*"
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {"origins": _cors_origins()}})
     app.teardown_appcontext(shutdown_session)
 
     @app.errorhandler(404)
@@ -72,8 +79,6 @@ def create_app() -> Flask:
                 weight_kg=weight_kg,
                 carriers=[str(carrier) for carrier in carriers],
                 currency=currency,
-                client_ip=request.remote_addr,
-                user_agent=request.headers.get("User-Agent"),
             )
         except ValueError as exc:
             return api_error("invalid_freight_request", str(exc), 400)
