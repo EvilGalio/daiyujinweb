@@ -146,25 +146,21 @@
     <strong>单调队列</strong> 来重新解。
 </p>
 
-<pre><code class="language-python">from typing import List
-import collections
-
+<pre><code class="language-python">
 class Solution:
-    def maxSlidingWindow(self, nums: List[int], k: int) -&gt; List[int]:
-        res = []
-        dq = collections.deque()  # 存放“值”的单调递减队列
-        n = len(nums)
-        for i, j in zip(range(1 - k, n - k + 1), range(n)):
-            # 如果队首等于滑出窗口的元素，则从左侧弹出（完成“滑动”）
-            if i &gt;= 0 and dq and dq[0] == nums[i]:
-                dq.popleft()
-            # 保持队列单调：把所有比新元素小的从右侧弹出
-            while dq and dq[-1] &lt; nums[j]:
-                dq.pop()
-            dq.append(nums[j])
-            res.append(dq[0])  # 队首即当前窗口最大值
-        return res[k - 1:]
-</code></pre>
+    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
+        res=[]
+        deque = collections.deque()
+        n=len(nums)
+        for i,j in zip(range(1-k,n-k+1),range(n)):
+            if i>0 and deque[0]==nums[i-1]:#当队首是滑走的值的时候删去左边，实现了滑动；
+                deque.popleft()
+            while deque and deque[-1]< nums[j]:#从右往左去掉队列中所有比新值小的元素 
+                deque.pop() 
+            deque.append(nums[j])#加入队尾,保证了单调性
+            res.append(deque[0]) 
+        return(res[k-1:])
+    </code></pre>
 
 <p>虽然最后成功通过，但只是狗尾续貂罢了，很佩服提出这个算法的大神。</p>
 
@@ -187,33 +183,28 @@ class Solution:
 
 <p>这个题的难度是简单，但这是我第一次接触树这个数据结构。思来想去，我的思路是使用 DFS（深度优先搜索）方法，获得所有叶子节点的深度，最后再获得最大值。</p>
 
-<pre><code class="language-python">from typing import Optional, List
+<pre><code class="language-python">
 
 class Solution:
     class TreeNode:
-        def __init__(self, val: int = 0, left: 'Solution.TreeNode' = None, right: 'Solution.TreeNode' = None):
+        def __init__(self, val=0, left=None, right=None):
             self.val = val
             self.left = left
             self.right = right
-
-    def maxDepth(self, root: Optional['Solution.TreeNode']) -&gt; int:
-        res: List[int] = []  # 记录所有叶子节点的深度
-
-        def dfs(node: Optional['Solution.TreeNode'], depth: int = 1) -&gt; None:
-            if not node:  # 空节点
+    def maxDepth(self, root: Optional[TreeNode]) -> int:
+        res = [0]#空树深度
+        def openit(node = TreeNode,depth=1,res=[]):
+            if not node:#如果遍历完毕
                 return
-            if not node.left and not node.right:  # 叶子节点
+            if not node.left and not node.right:#如果是叶子节点
                 res.append(depth)
                 return
             if node.left:
-                dfs(node.left, depth + 1)
+                openit(node.left,depth+1,res)
             if node.right:
-                dfs(node.right, depth + 1)
-
-        if not root:
-            return 0  # 空树深度为 0
-        dfs(root, 1)
-        return max(res) if res else 0
+                openit(node.right,depth+1,res)
+        openit(root,1,res)
+        return max(res)
 </code></pre>
 
 

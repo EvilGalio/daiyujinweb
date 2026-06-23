@@ -19,14 +19,21 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     padding: 1rem 0;
     border-bottom: 1px solid #e5e5ea;
+}
+
+nav > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem 1rem;
 }
 
 nav a {
     text-decoration: none;
     color: #007aff;
-    margin-left: 1rem;
     font-weight: 500;
 }
 
@@ -113,4 +120,15 @@ footer {
     border-top: 1px solid #e5e5ea;
     color: #8e8e93;
     font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    nav {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    nav > div:last-child {
+        justify-content: flex-start;
+    }
 }

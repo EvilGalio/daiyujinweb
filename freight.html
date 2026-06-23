@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运费查询 | Daiyujin Precision Tools</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/plugins.css">
+</head>
+
+<body class="tool-page">
+    <div class="tool-shell">
+        <nav class="tool-nav">
+            <div><strong>Daiyujin Precision</strong></div>
+            <div class="tool-nav-links">
+                <a href="index.html">首页</a>
+                <a href="quote.html">报价计算</a>
+                <a href="freight.html" aria-current="page">运费查询</a>
+                <a href="tolerance.html">公差查询</a>
+                <a href="about.html">关于</a>
+            </div>
+        </nav>
+
+        <main>
+            <section class="tool-hero">
+                <div>
+                    <h1>运费查询</h1>
+                    <p>目的地、重量与快递商形成一张很朴素的表。先把表读准，再谈漂亮。</p>
+                </div>
+                <div class="tool-status" data-api-status>API checking</div>
+            </section>
+
+            <section class="tool-grid">
+                <form class="tool-panel tool-form" data-freight-form>
+                    <h2>Freight</h2>
+                    <div class="tool-field">
+                        <label for="country">目的地国家/地区</label>
+                        <input id="country" name="country" type="text" placeholder="Germany">
+                    </div>
+                    <div class="tool-field">
+                        <label for="weight">重量 (kg)</label>
+                        <input id="weight" name="weight" type="number" min="0.5" step="0.5" value="5">
+                    </div>
+                    <div class="tool-field">
+                        <span class="tool-label">快递商</span>
+                        <div class="tool-checks">
+                            <label><input type="checkbox" name="carrier" value="DHL" checked> DHL</label>
+                            <label><input type="checkbox" name="carrier" value="FedEx" checked> FedEx</label>
+                        </div>
+                    </div>
+                    <div class="tool-field">
+                        <label for="currency">显示货币</label>
+                        <select id="currency" name="currency">
+                            <option value="CNY">CNY</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                        </select>
+                    </div>
+                    <button class="tool-button" type="submit">查询运费</button>
+                </form>
+
+                <aside class="tool-panel">
+                    <h2>Result</h2>
+                    <div class="tool-result" data-freight-result>
+                        <div class="tool-note">Awaiting freight query.</div>
+                    </div>
+                </aside>
+            </section>
+        </main>
+
+        <footer>
+            © 2025 Daiyujin All rights reserved
+        </footer>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/freight.js"></script>
+</body>
+
+</html>

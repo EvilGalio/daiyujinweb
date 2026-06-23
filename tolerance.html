@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公差查询 | Daiyujin Precision Tools</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/plugins.css">
+</head>
+
+<body class="tool-page">
+    <div class="tool-shell">
+        <nav class="tool-nav">
+            <div><strong>Daiyujin Precision</strong></div>
+            <div class="tool-nav-links">
+                <a href="index.html">首页</a>
+                <a href="quote.html">报价计算</a>
+                <a href="freight.html">运费查询</a>
+                <a href="tolerance.html" aria-current="page">公差查询</a>
+                <a href="about.html">关于</a>
+            </div>
+        </nav>
+
+        <main>
+            <section class="tool-hero">
+                <div>
+                    <h1>公差查询</h1>
+                    <p>Basic size, tolerance class, fit result.</p>
+                </div>
+                <div class="tool-status" data-api-status>API checking</div>
+            </section>
+
+            <section class="tool-grid">
+                <form class="tool-panel tool-form" data-tolerance-form>
+                    <h2>Tolerance</h2>
+                    <div class="tool-field">
+                        <label for="basic-size">Basic Size (mm)</label>
+                        <input id="basic-size" name="basic_size" type="number" min="1" max="3150" step="0.001" value="25">
+                    </div>
+                    <div class="tool-field">
+                        <label for="fit-combination">Fit Combination</label>
+                        <input id="fit-combination" name="fit_combination" type="text" value="H6/k5">
+                    </div>
+                    <div class="tool-field">
+                        <label for="preset">Preset</label>
+                        <select id="preset" name="preset">
+                            <option value="">Custom</option>
+                            <option value="H7/g6">H7/g6</option>
+                            <option value="H7/h6">H7/h6</option>
+                            <option value="H7/p6">H7/p6</option>
+                        </select>
+                    </div>
+                    <button class="tool-button" type="submit">计算</button>
+                </form>
+
+                <aside class="fit-cards" data-tolerance-result>
+                    <section class="tool-panel">
+                        <h2>Shaft</h2>
+                        <div class="metric-row"><span>Limits of Size</span><strong>-</strong></div>
+                        <div class="metric-row"><span>ei / es</span><strong>-</strong></div>
+                    </section>
+                    <section class="tool-panel">
+                        <h2>Bore</h2>
+                        <div class="metric-row"><span>Limits of Size</span><strong>-</strong></div>
+                        <div class="metric-row"><span>EI / ES</span><strong>-</strong></div>
+                    </section>
+                    <section class="tool-panel">
+                        <h2>Fit</h2>
+                        <div class="metric-row"><span>Type</span><strong>-</strong></div>
+                    </section>
+                </aside>
+            </section>
+        </main>
+
+        <footer>
+            © 2025 Daiyujin All rights reserved
+        </footer>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/tolerance.js"></script>
+</body>
+
+</html>

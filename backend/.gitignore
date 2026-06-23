@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+
+/uploads/
+/static/thumbnails/
+/data/*.db
