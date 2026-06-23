@@ -488,17 +488,91 @@ body.tool-page {
     gap: 1rem;
 }
 
-/* ── Tolerance chart ───────────────────────── */
+/* ── Tolerance charts ──────────────────────── */
 
-.tolerance-chart {
-    padding-bottom: 0.5rem;
+.zone-charts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 0.5rem 0 0.75rem;
 }
 
-.chart-svg {
+.zone-chart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.zone-chart-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    font-family: var(--font-display);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+}
+
+.zone-chart-title span {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    padding: 0.12rem 0.4rem;
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.zone-svg {
     display: block;
     width: 100%;
-    max-width: 640px;
-    margin: 0 auto;
+    max-width: 180px;
+}
+
+.zone-bar {
+    transition: y 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zone-chart-meta {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.76rem;
+    color: var(--muted);
+}
+
+.tag {
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.tag-clearance { background: #ecfdf5; color: #065f46; }
+.tag-interference { background: #fef2f2; color: #991b1b; }
+
+.fit-card { border-left: 3px solid var(--line); }
+.fit-card.fit-clearance { border-left-color: #22c55e; }
+.fit-card.fit-transition { border-left-color: var(--warn); }
+.fit-card.fit-interference { border-left-color: #ef4444; }
+
+@media (max-width: 600px) {
+    .zone-charts {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.35rem;
+    }
+    .zone-svg { max-width: 120px; }
+    .zone-chart-title { font-size: 0.7rem; }
 }
 
 .tolerance-card.fit-clearance {

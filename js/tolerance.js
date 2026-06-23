@@ -13,9 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (presetSelect) {
         presetSelect.addEventListener("change", () => {
-            if (presetSelect.value) {
-                fitInput.value = presetSelect.value;
-            }
+            if (presetSelect.value) fitInput.value = presetSelect.value;
         });
     }
 
@@ -26,12 +24,10 @@ document.addEventListener("DOMContentLoaded", () => {
             basic_size_mm: Number(formData.get("basic_size")),
             fit_combination: String(formData.get("fit_combination") || "").trim(),
         };
-
         renderLoading();
         try {
             const data = await window.DaiyujinAPI.request("/api/public/tolerance/calculate", {
-                method: "POST",
-                body: JSON.stringify(payload),
+                method: "POST", body: JSON.stringify(payload),
             });
             renderResult(data);
         } catch (error) {
@@ -43,204 +39,209 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const data = await window.DaiyujinAPI.request("/api/public/tolerance/presets");
             if (!Array.isArray(data.presets)) return;
-            if (presetList) {
-                presetList.innerHTML = data.presets.map(p => `<option value="${escapeHtml(p)}"></option>`).join("");
-            }
+            if (presetList) presetList.innerHTML = data.presets.map(p => `<option value="${esc(p)}"></option>`).join("");
             if (presetSelect) {
-                const current = presetSelect.value;
-                presetSelect.innerHTML = [
-                    '<option value="">Custom</option>',
-                    ...data.presets.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`),
-                ].join("");
-                presetSelect.value = current;
+                const cur = presetSelect.value;
+                presetSelect.innerHTML = ['<option value="">Custom</option>', ...data.presets.map(p => `<option value="${esc(p)}">${esc(p)}</option>`)].join("");
+                presetSelect.value = cur;
             }
         } catch (e) {}
     }
 
     function renderEmpty() {
-        result.innerHTML = `
-            ${dimensionCard("Shaft", null, "ei / es")}
-            ${dimensionCard("Bore", null, "EI / ES")}
-            ${fitCard(null)}
-        `;
+        result.innerHTML = zoneCard("Shaft", null, null) + zoneCard("Bore", null, null) + fitCard(null);
     }
 
     function renderLoading() {
-        result.innerHTML = '<section class="tool-panel"><div class="tool-note">Calculating tolerance stack&hellip;</div></section>';
+        result.innerHTML = '<section class="tool-panel"><div class="tool-note">Calculating&hellip;</div></section>';
     }
 
     function renderResult(data) {
-        result.innerHTML = `
-            ${dimensionCard("Shaft", data.shaft, "ei / es")}
-            ${dimensionCard("Bore", data.hole, "EI / ES")}
-            ${toleranceChart(data)}
-            ${fitCard(data.fit, data.fit_combination, data.size_range)}
-        `;
+        result.innerHTML =
+            chartsPanel(data) +
+            zoneCard("Shaft", data.shaft, data.basic_size_mm) +
+            zoneCard("Bore", data.hole, data.basic_size_mm) +
+            fitCard(data.fit, data.fit_combination, data.size_range);
     }
 
-    function renderError(message) {
-        result.innerHTML = `<section class="tool-panel"><div class="tool-note error">${escapeHtml(message)}</div></section>`;
+    function renderError(msg) {
+        result.innerHTML = `<section class="tool-panel"><div class="tool-note error">${esc(msg)}</div></section>`;
     }
 
-    /* ── SVG Tolerance Zone Chart ─────────────── */
+    /* ── Three-panel zone chart ───────────────── */
 
-    function toleranceChart(data) {
-        const hole = data.hole;
-        const shaft = data.shaft;
-        const fit = data.fit;
-        const size = data.basic_size_mm;
+    function chartsPanel(data) {
+        const h = data.hole, s = data.shaft, f = data.fit, basic = data.basic_size_mm;
 
-        const hMin = hole.lower_deviation_um;
-        const hMax = hole.upper_deviation_um;
-        const sMin = shaft.lower_deviation_um;
-        const sMax = shaft.upper_deviation_um;
+        const all = [h.lower_deviation_um, h.upper_deviation_um, s.lower_deviation_um, s.upper_deviation_um, 0];
+        const dMin = Math.min(...all), dMax = Math.max(...all);
+        const span = dMax - dMin || 20;
+        const pad = Math.max(span * 0.3, 15);
+        const rMin = dMin - pad, rMax = dMax + pad;
 
-        const allVals = [hMin, hMax, sMin, sMax, 0];
-        const dataMin = Math.min(...allVals);
-        const dataMax = Math.max(...allVals);
-        const span = dataMax - dataMin || 10;
-        const pad = span * 0.25;
-        const rangeMin = dataMin - pad;
-        const rangeMax = dataMax + pad;
-        const rangeSpan = rangeMax - rangeMin;
+        const shared = { rMin, rMax, basic, h, s, f };
 
-        const W = 520;
-        const H = 180;
-        const margin = { top: 22, right: 16, bottom: 30, left: 100 };
-        const plotW = W - margin.left - margin.right;
-        const plotH = H - margin.top - margin.bottom;
+        return `
+        <section class="tool-panel">
+            <h2>Deviation Diagram <small>zero = ${basic.toFixed(3)} mm</small></h2>
+            <div class="zone-charts">
+                ${singleChart("Shaft", s.tolerance, s.lower_deviation_um, s.upper_deviation_um, shared, "#dc5c26", s.grade, s.it_um)}
+                ${singleChart("Bore", h.tolerance, h.lower_deviation_um, h.upper_deviation_um, shared, "#0066cc", h.grade, h.it_um)}
+                ${overlayChart(shared)}
+            </div>
+        </section>`;
+    }
 
-        function x(val) { return margin.left + ((val - rangeMin) / rangeSpan) * plotW; }
-        const zeroX = x(0);
-        const boreY = margin.top + plotH * 0.18;
-        const shaftY = margin.top + plotH * 0.62;
-        const barH = plotH * 0.22;
+    function singleChart(label, code, lo, hi, s, color, grade, it) {
+        const box = svgBox(s.rMin, s.rMax);
+        const y0 = y(0, box);
+        const yLo = y(lo, box), yHi = y(hi, box);
+        const barW = 48, x = (box.w - barW) / 2;
 
-        const tickVals = niceTicks(rangeMin, rangeMax, 5);
-        const zeroLineClamped = Math.max(margin.left + 1, Math.min(margin.left + plotW - 1, zeroX));
+        return `
+        <div class="zone-chart">
+            <div class="zone-chart-title">${label}<span>${esc(code)}</span></div>
+            <svg viewBox="0 0 ${box.w} ${box.h}" class="zone-svg">
+                <line x1="0" y1="${y0}" x2="${box.w}" y2="${y0}" stroke="#cbd5e1" stroke-dasharray="5 3" stroke-width="1"/>
+                ${ticks(box, y0)}
+                <rect class="zone-bar zone-anim" x="${x}" y="${Math.min(yLo, yHi)}" width="${barW}" height="${Math.abs(yHi - yLo)}" rx="3" fill="${color}" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(yLo, yHi)}" data-anim-h="${Math.abs(yHi - yLo)}"/>
+                <text x="${x + barW / 2}" y="${Math.min(yLo, yHi) - 5}" text-anchor="middle" fill="${color}" font-size="11" font-weight="700">${fmtSigned(hi)}</text>
+                <text x="${x + barW / 2}" y="${Math.max(yLo, yHi) + 14}" text-anchor="middle" fill="${color}" font-size="11" font-weight="700">${fmtSigned(lo)}</text>
+            </svg>
+            <div class="zone-chart-meta">${esc(grade)} = ${it} μm</div>
+        </div>`;
+    }
 
-        const boreColor = "#0066cc";
-        const shaftColor = "#dc5c26";
-        const clearanceColor = "#22c55e";
-        const interferenceColor = "#ef4444";
+    function overlayChart(s) {
+        const box = svgBox(s.rMin, s.rMax);
+        const y0 = y(0, box);
+        const hLo = y(s.h.lower_deviation_um, box), hHi = y(s.h.upper_deviation_um, box);
+        const sLo = y(s.s.lower_deviation_um, box), sHi = y(s.s.upper_deviation_um, box);
+        const barW = 40, hX = 24, sX = box.w - 24 - barW;
 
-        let zoneHtml = "";
-        const boreLeft = x(hMin), boreRight = x(hMax);
-        const shaftLeft = x(sMin), shaftRight = x(sMax);
+        /* clearance / interference shading */
+        let shade = "";
+        const holeTop = Math.min(hLo, hHi), holeBot = Math.max(hLo, hHi);
+        const shaftTop = Math.min(sLo, sHi), shaftBot = Math.max(sLo, sHi);
+        const clearY = Math.min(holeBot, shaftTop);
+        const clearH = Math.abs(shaftTop - holeBot);
+        const interY = Math.min(holeTop, shaftBot);
+        const interH = Math.abs(shaftBot - holeTop);
 
-        if (fit.type === "clearance") {
-            zoneHtml += `<rect x="${shaftRight}" y="${boreY + barH}" width="${boreLeft - shaftRight}" height="${shaftY - boreY - barH}" fill="${clearanceColor}" opacity="0.15" rx="2"/>`;
-        } else if (fit.type === "interference") {
-            zoneHtml += `<rect x="${boreLeft}" y="${boreY + barH}" width="${shaftRight - boreLeft}" height="${shaftY - boreY - barH}" fill="${interferenceColor}" opacity="0.18" rx="2"/>`;
+        if (s.f.type === "clearance" && clearH > 0.5) {
+            shade = `<rect x="0" y="${clearY}" width="${box.w}" height="${clearH}" fill="#22c55e" opacity="0.12" rx="1"/>`;
+        } else if (s.f.type === "interference" && interH > 0.5) {
+            shade = `<rect x="0" y="${interY}" width="${box.w}" height="${interH}" fill="#ef4444" opacity="0.14" rx="1"/>`;
         } else {
-            const clearW = boreLeft - shaftRight;
-            const interfW = shaftRight - boreLeft;
-            if (clearW > 1) zoneHtml += `<rect x="${shaftRight}" y="${boreY + barH}" width="${clearW}" height="${shaftY - boreY - barH}" fill="${clearanceColor}" opacity="0.12" rx="2"/>`;
-            if (interfW > 1) zoneHtml += `<rect x="${boreLeft}" y="${boreY + barH}" width="${interfW}" height="${shaftY - boreY - barH}" fill="${interferenceColor}" opacity="0.15" rx="2"/>`;
+            if (s.f.max_clearance_um > 0 && clearH > 0.5)
+                shade += `<rect x="0" y="${clearY}" width="${box.w}" height="${clearH}" fill="#22c55e" opacity="0.10" rx="1"/>`;
+            if (s.f.max_interference_um > 0 && interH > 0.5)
+                shade += `<rect x="0" y="${interY}" width="${box.w}" height="${interH}" fill="#ef4444" opacity="0.12" rx="1"/>`;
         }
 
-        const svg = `
-        <section class="tool-panel tolerance-chart">
-            <h2>Deviation Chart <small>${fit.type} fit</small></h2>
-            <svg viewBox="0 0 ${W} ${H}" class="chart-svg" aria-label="ISO tolerance zone diagram">
-                <!-- Grid lines -->
-                ${tickVals.map(v => {
-                    const tx = x(v);
-                    return `<line x1="${tx}" y1="${margin.top}" x2="${tx}" y2="${margin.top + plotH}" stroke="#e2e8f0" stroke-width="0.5"/><text x="${tx}" y="${H - 6}" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="SF Mono, monospace">${v > 0 ? "+" : ""}${Math.round(v)}</text>`;
-                }).join("")}
-
-                <!-- Zero line -->
-                <line x1="${zeroLineClamped}" y1="${margin.top}" x2="${zeroLineClamped}" y2="${margin.top + plotH}" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="4 2"/>
-                <text x="${zeroLineClamped}" y="${margin.top - 6}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="600">${size.toFixed(3)} mm</text>
-
-                <!-- Bore bar -->
-                <rect x="${boreLeft}" y="${boreY}" width="${Math.max(boreRight - boreLeft, 2)}" height="${barH}" fill="${boreColor}" opacity="0.85" rx="3"/>
-                <text x="${boreLeft - 6}" y="${boreY + barH / 2 + 4}" text-anchor="end" fill="${boreColor}" font-size="11" font-weight="600">Bore ${escapeHtml(hole.tolerance)}</text>
-                <text x="${boreLeft + 4}" y="${boreY + barH / 2 + 4}" fill="#fff" font-size="9" font-weight="600">${hMin > 0 ? "+" : ""}${hMin}</text>
-                ${hMax !== hMin ? `<text x="${boreRight - 4}" y="${boreY + barH / 2 + 4}" text-anchor="end" fill="#fff" font-size="9" font-weight="600">${hMax > 0 ? "+" : ""}${hMax}</text>` : ""}
-
-                <!-- Shaft bar -->
-                <rect x="${shaftLeft}" y="${shaftY}" width="${Math.max(shaftRight - shaftLeft, 2)}" height="${barH}" fill="${shaftColor}" opacity="0.85" rx="3"/>
-                <text x="${shaftLeft - 6}" y="${shaftY + barH / 2 + 4}" text-anchor="end" fill="${shaftColor}" font-size="11" font-weight="600">Shaft ${escapeHtml(shaft.tolerance)}</text>
-                <text x="${shaftLeft + 4}" y="${shaftY + barH / 2 + 4}" fill="#fff" font-size="9" font-weight="600">${sMin > 0 ? "+" : ""}${sMin}</text>
-                ${sMax !== sMin ? `<text x="${shaftRight - 4}" y="${shaftY + barH / 2 + 4}" text-anchor="end" fill="#fff" font-size="9" font-weight="600">${sMax > 0 ? "+" : ""}${sMax}</text>` : ""}
-
-                <!-- Fit zone -->
-                ${zoneHtml}
-
-                <!-- Axis label -->
-                <text x="${margin.left + plotW / 2}" y="${H - 2}" text-anchor="middle" fill="#94a3b8" font-size="9">deviation (μm)</text>
+        return `
+        <div class="zone-chart">
+            <div class="zone-chart-title">Fit<span>${esc(s.f.type)}</span></div>
+            <svg viewBox="0 0 ${box.w} ${box.h}" class="zone-svg">
+                <line x1="0" y1="${y0}" x2="${box.w}" y2="${y0}" stroke="#0f172a" stroke-width="1.2"/>
+                ${ticks(box, y0)}
+                ${shade}
+                <!-- Hole -->
+                <rect class="zone-bar zone-anim" x="${hX}" y="${Math.min(hLo, hHi)}" width="${barW}" height="${Math.abs(hHi - hLo)}" rx="3" fill="#0066cc" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(hLo, hHi)}" data-anim-h="${Math.abs(hHi - hLo)}"/>
+                <text x="${hX + barW / 2}" y="${Math.min(hLo, hHi) - 5}" text-anchor="middle" fill="#0066cc" font-size="11" font-weight="700">${esc(s.h.tolerance)}</text>
+                <!-- Shaft -->
+                <rect class="zone-bar zone-anim" x="${sX}" y="${Math.min(sLo, sHi)}" width="${barW}" height="${Math.abs(sHi - sLo)}" rx="3" fill="#dc5c26" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(sLo, sHi)}" data-anim-h="${Math.abs(sHi - sLo)}"/>
+                <text x="${sX + barW / 2}" y="${Math.min(sLo, sHi) - 5}" text-anchor="middle" fill="#dc5c26" font-size="11" font-weight="700">${esc(s.s.tolerance)}</text>
             </svg>
-        </section>`;
-        return svg;
+            <div class="zone-chart-meta">
+                <span class="tag tag-clearance">Clr ${s.f.max_clearance_um} μm</span>
+                <span class="tag tag-interference">Int ${s.f.max_interference_um} μm</span>
+            </div>
+        </div>`;
     }
 
-    function niceTicks(min, max, count) {
-        const rough = (max - min) / (count - 1);
-        const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
-        const residual = rough / magnitude;
-        let step;
-        if (residual <= 1.5) step = 1 * magnitude;
-        else if (residual <= 3.5) step = 2 * magnitude;
-        else if (residual <= 7.5) step = 5 * magnitude;
-        else step = 10 * magnitude;
-        const start = Math.ceil(min / step) * step;
-        const end = Math.floor(max / step) * step;
-        const ticks = [];
-        for (let v = start; v <= end + step * 0.5; v += step) ticks.push(v);
-        return ticks;
+    function svgBox(rMin, rMax) {
+        const rng = rMax - rMin;
+        return { w: 140, h: 220, pad: 18, rMin, rMax, rng };
+    }
+
+    function y(val, box) {
+        return box.pad + ((box.rMax - val) / box.rng) * (box.h - 2 * box.pad);
+    }
+
+    function ticks(box, y0) {
+        const step = niceStep(box.rMin, box.rMax, 5);
+        let html = "";
+        for (let v = Math.ceil(box.rMin / step) * step; v <= box.rMax; v += step) {
+            const yv = y(v, box);
+            if (Math.abs(yv - y0) < 6) continue;
+            html += `<text x="${box.w - 4}" y="${yv + 4}" text-anchor="end" fill="#94a3b8" font-size="9" font-family="SF Mono, monospace">${v > 0 ? "+" : ""}${Math.round(v)}</text>`;
+        }
+        return html;
+    }
+
+    function niceStep(min, max, n) {
+        const rough = (max - min) / (n - 1);
+        const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+        const r = rough / mag;
+        const step = r <= 1.5 ? mag : r <= 3.5 ? 2 * mag : r <= 7.5 ? 5 * mag : 10 * mag;
+        return Math.max(step, 1);
+    }
+
+    /* ── Animation ────────────────────────────── */
+
+    function animateCharts() {
+        document.querySelectorAll(".zone-anim").forEach(el => {
+            const from = parseFloat(el.dataset.animFrom);
+            const to = parseFloat(el.dataset.animTo);
+            const h = parseFloat(el.dataset.animH);
+            el.setAttribute("y", from);
+            el.setAttribute("height", "0");
+            requestAnimationFrame(() => {
+                el.style.transition = "y 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)";
+                el.setAttribute("y", to);
+                el.setAttribute("height", h);
+            });
+        });
     }
 
     /* ── Cards ────────────────────────────────── */
 
-    function dimensionCard(title, item, deviationLabel) {
-        if (!item) {
-            return `
-                <section class="tool-panel">
-                    <h2>${title}</h2>
-                    <div class="metric-row"><span>Limits of Size</span><strong>-</strong></div>
-                    <div class="metric-row"><span>${deviationLabel}</span><strong>-</strong></div>
-                </section>`;
-        }
+    function zoneCard(title, item, basic) {
+        if (!item) return `<section class="tool-panel"><h2>${title}</h2><div class="tool-note">Enter parameters.</div></section>`;
         return `
-            <section class="tool-panel tolerance-card">
-                <h2>${title} <small>${escapeHtml(item.tolerance)}</small></h2>
-                <div class="metric-row"><span>Limits of Size</span><strong>${formatMm(item.min_size_mm)} – ${formatMm(item.max_size_mm)} mm</strong></div>
-                <div class="metric-row"><span>${deviationLabel}</span><strong>${formatSigned(item.lower_deviation_um)} / ${formatSigned(item.upper_deviation_um)} μm</strong></div>
-                <div class="metric-row"><span>Grade</span><strong>${escapeHtml(item.grade)} = ${item.it_um} μm</strong></div>
-            </section>`;
+        <section class="tool-panel">
+            <h2>${title} <small>${esc(item.tolerance)}</small></h2>
+            <div class="metric-row"><span>Limits</span><strong>${fmtMm(item.min_size_mm)} – ${fmtMm(item.max_size_mm)} mm</strong></div>
+            <div class="metric-row"><span>Deviations</span><strong>${fmtSigned(item.lower_deviation_um)} / ${fmtSigned(item.upper_deviation_um)} μm</strong></div>
+            <div class="metric-row"><span>Grade</span><strong>${esc(item.grade)} = ${item.it_um} μm</strong></div>
+        </section>`;
     }
 
-    function fitCard(fit, combination = "-", sizeRange = "-") {
-        if (!fit) {
-            return `
-                <section class="tool-panel">
-                    <h2>Fit</h2>
-                    <div class="metric-row"><span>Type</span><strong>-</strong></div>
-                    <div class="metric-row"><span>Clearance</span><strong>-</strong></div>
-                    <div class="metric-row"><span>Interference</span><strong>-</strong></div>
-                </section>`;
-        }
+    function fitCard(fit, combo, range) {
+        if (!fit) return '<section class="tool-panel"><h2>Fit</h2><div class="tool-note">Enter parameters.</div></section>';
         return `
-            <section class="tool-panel tolerance-card fit-${escapeHtml(fit.type)}">
-                <h2>Fit <small>${escapeHtml(combination)}</small></h2>
-                <div class="metric-row"><span>Type</span><strong>${escapeHtml(fit.label)}</strong></div>
-                <div class="metric-row"><span>Max Clearance</span><strong>${fit.max_clearance_um} μm</strong></div>
-                <div class="metric-row"><span>Max Interference</span><strong>${fit.max_interference_um} μm</strong></div>
-                <div class="metric-row"><span>Size Range</span><strong>${escapeHtml(sizeRange)} mm</strong></div>
-            </section>`;
+        <section class="tool-panel fit-card fit-${esc(fit.type)}">
+            <h2>Fit <small>${esc(combo)}</small></h2>
+            <div class="metric-row"><span>Type</span><strong>${esc(fit.label)}</strong></div>
+            <div class="metric-row"><span>Max Clearance</span><strong>${fit.max_clearance_um} μm</strong></div>
+            <div class="metric-row"><span>Max Interference</span><strong>${fit.max_interference_um} μm</strong></div>
+            <div class="metric-row"><span>Size Range</span><strong>${esc(range)} mm</strong></div>
+        </section>`;
     }
 
-    function formatMm(value) {
-        return Number(value).toFixed(3);
+    /* ── Helpers ──────────────────────────────── */
+
+    function fmtMm(v) { return Number(v).toFixed(3); }
+    function fmtSigned(v) { const n = Number(v); return n > 0 ? `+${n}` : `${n}`; }
+    function esc(v) {
+        return String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
     }
 
-    function formatSigned(value) {
-        const n = Number(value);
-        return n > 0 ? `+${n}` : `${n}`;
-    }
+    /* ── Wire animation trigger ───────────────── */
 
-    function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-    }
+    const observer = new MutationObserver(() => {
+        if (document.querySelector(".zone-anim")) { animateCharts(); }
+    });
+    observer.observe(result, { childList: true, subtree: true });
 });
