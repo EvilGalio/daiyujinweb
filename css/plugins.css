@@ -488,7 +488,18 @@ body.tool-page {
     gap: 1rem;
 }
 
-/* ── Tolerance cards ────────────────────────── */
+/* ── Tolerance chart ───────────────────────── */
+
+.tolerance-chart {
+    padding-bottom: 0.5rem;
+}
+
+.chart-svg {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+}
 
 .tolerance-card.fit-clearance {
     border-left: 3px solid var(--success);
