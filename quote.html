@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quote Calculator | Daiyujin Precision Tools</title>
+    <title>Quote Calculator — Daiyujin Precision</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/plugins.css">
 </head>
@@ -12,7 +12,7 @@
 <body class="tool-page">
     <div class="tool-shell">
         <nav class="tool-nav">
-            <div><strong>Daiyujin Precision</strong></div>
+            <a href="index.html" class="tool-nav-brand"><span></span> Daiyujin Precision</a>
             <div class="tool-nav-links">
                 <a href="index.html">Home</a>
                 <a href="quote.html" aria-current="page">Quote</a>
@@ -25,30 +25,31 @@
         <main>
             <section class="tool-hero">
                 <div>
-                    <h1>Quote Calculator</h1>
-                    <p>Upload a STEP file, confirm part metrics, then calculate a non-binding manufacturing estimate.</p>
+                    <h1>Instant Quoting</h1>
+                    <p>Upload a STEP file and receive a manufacturing estimate in seconds. Every quote is logged for
+                        engineering review before binding.</p>
                 </div>
-                <div class="tool-status" data-api-status>API checking</div>
+                <div class="tool-status" data-api-status>checking</div>
             </section>
 
             <section class="tool-grid">
                 <form class="tool-panel tool-form" data-quote-form>
-                    <h2>Part & Process</h2>
+                    <h2>Part &amp; Process</h2>
                     <label class="tool-upload" data-upload-label>
                         <input name="file" type="file" accept=".stp,.step">
                         <span>Choose STEP file</span>
-                        <small>.stp / .step, max 50MB</small>
+                        <small>.stp / .step &middot; max 50 MB</small>
                     </label>
                     <div class="tool-field">
                         <label for="material">Material</label>
                         <select id="material" name="material_id" data-material-select>
-                            <option value="">Loading materials...</option>
+                            <option value="">Loading&hellip;</option>
                         </select>
                     </div>
                     <div class="tool-field">
                         <label for="tolerance">Tolerance Grade</label>
                         <select id="tolerance" name="tolerance_grade" data-tolerance-select>
-                            <option value="">Loading grades...</option>
+                            <option value="">Loading&hellip;</option>
                         </select>
                     </div>
                     <div class="tool-field">
@@ -57,7 +58,7 @@
                             <label><input type="checkbox" disabled> Loading</label>
                         </div>
                     </div>
-                    <div class="tool-field split-fields">
+                    <div class="tool-field">
                         <label for="quantity">Quantity</label>
                         <input id="quantity" name="quantity" type="number" min="1" step="1" value="100">
                     </div>
@@ -83,10 +84,10 @@
             </section>
         </main>
 
-        <footer>
-            © 2025 Daiyujin All rights reserved
-        </footer>
+        <footer>&copy; 2025 Daiyujin. All rights reserved.</footer>
     </div>
+
+    <script>window.DAIYUJIN_API_BASE = "http://127.0.0.1:5000";</script>
     <script src="js/api.js"></script>
     <script src="js/quote.js"></script>
 </body>

@@ -13,9 +13,10 @@ from models import ExchangeRate, Inquiry, Material, QuantityTier, SizeCost, Surf
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 QUOTE_DISCLAIMER = (
-    "This is an automated estimate based on your selected parameters. It does not constitute a binding offer. "
-    "Final pricing may vary after engineering review and is subject to material availability, exchange rate "
-    "fluctuations, and applicable taxes, duties, and shipping costs."
+    "This estimate is prepared by our assessment system as a preliminary reference. "
+    "Final pricing is confirmed by our engineering team after design review. "
+    "Taxes, duties, and shipping are not included. "
+    "For a binding quotation, please submit a formal request \u2014 we typically respond within one business day."
 )
 
 

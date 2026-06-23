@@ -51,10 +51,16 @@ def seed() -> None:
                 existing.rate = rate
 
         materials = [
+            ("Carbon Steel AISI 1045", 7.85, 2.50, "Carbon Steel"),
+            ("Stainless Steel 304", 7.93, 8.00, "Stainless Steel"),
+            ("Stainless Steel 316", 8.00, 12.00, "Stainless Steel"),
             ("Aluminum 6061-T6", 2.70, 6.50, "Aluminum"),
-            ("Stainless Steel 304", 7.93, 5.80, "Stainless Steel"),
-            ("Carbon Steel AISI 1045", 7.85, 3.20, "Carbon Steel"),
-            ("Brass C360", 8.50, 8.40, "Copper Alloy"),
+            ("Aluminum 7075-T6", 2.81, 9.00, "Aluminum"),
+            ("Titanium Grade 5 (Ti-6Al-4V)", 4.43, 45.00, "Titanium"),
+            ("Brass C360", 8.50, 10.00, "Copper Alloy"),
+            ("Copper C110", 8.96, 14.00, "Copper Alloy"),
+            ("POM (Delrin)", 1.41, 4.00, "Engineering Plastic"),
+            ("PEEK", 1.32, 80.00, "Engineering Plastic"),
         ]
         for name, density, unit_price, category in materials:
             material = session.query(Material).filter_by(name=name).one_or_none()
@@ -75,10 +81,13 @@ def seed() -> None:
                 material.is_active = True
 
         tolerance_grades = [
-            ("IT6", 1.35, "IT6 - high precision machining"),
-            ("IT7", 1.18, "IT7 - precision machining"),
-            ("IT8", 1.00, "IT8 - standard machining"),
-            ("IT9", 0.92, "IT9 - general machining"),
+            ("IT5", 2.20, "IT5 \u2014 Precision grinding"),
+            ("IT6", 1.50, "IT6 \u2014 Fine grinding / precision turning"),
+            ("IT7", 1.25, "IT7 \u2014 Precision machining"),
+            ("IT8", 1.00, "IT8 \u2014 Standard machining"),
+            ("IT9", 0.90, "IT9 \u2014 General machining"),
+            ("IT10", 0.80, "IT10 \u2014 Rough machining"),
+            ("IT11", 0.70, "IT11 \u2014 Rough machining"),
         ]
         for grade, factor, label in tolerance_grades:
             row = session.query(ToleranceGrade).filter_by(grade=grade).one_or_none()
@@ -90,10 +99,16 @@ def seed() -> None:
 
         treatments = [
             ("None", 0.00),
-            ("Clear anodizing", 1.20),
-            ("Black anodizing", 1.45),
-            ("Bead blasting", 0.85),
-            ("Passivation", 1.10),
+            ("Clear Anodizing", 5.00),
+            ("Black Anodizing", 6.50),
+            ("Hard Anodizing", 12.00),
+            ("Sandblasting", 3.00),
+            ("Polishing", 8.00),
+            ("Zinc Plating", 4.00),
+            ("Nickel Plating", 7.00),
+            ("Passivation", 3.50),
+            ("Heat Treatment", 15.00),
+            ("Carburizing", 18.00),
         ]
         for name, cost in treatments:
             treatment = session.query(SurfaceTreatment).filter_by(name=name).one_or_none()

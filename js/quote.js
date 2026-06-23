@@ -40,28 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    result.addEventListener("click", async (event) => {
-        const button = event.target.closest("[data-request-formal]");
-        if (!button || !state.estimate) return;
-        button.disabled = true;
-        button.textContent = "Submitting...";
-        try {
-            const response = await window.DaiyujinAPI.request("/api/public/quote/request-formal", {
-                method: "POST",
-                body: JSON.stringify({ quote_result: state.estimate }),
-            });
-            button.textContent = "Request received";
-            button.insertAdjacentHTML(
-                "afterend",
-                `<div class="tool-note">Inquiry #${response.inquiry_id} received for engineering review.</div>`,
-            );
-        } catch (error) {
-            button.disabled = false;
-            button.textContent = "Request Formal Quote";
-            renderError(error.message);
-        }
-    });
-
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const file = fileInput.files[0];
@@ -206,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return `
             <section class="tool-panel quote-estimate">
-                <h2>Estimate <small>${escapeHtml(state.estimate.quote_status)}</small></h2>
+                <h2>Estimate</h2>
                 <div class="quote-total">${escapeHtml(state.estimate.total.display)}</div>
                 <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(state.estimate.valid_until)}</strong></div>
                 <div class="metric-row"><span>Material</span><strong>${escapeHtml(state.estimate.selections.material.name)}</strong></div>
@@ -218,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     `).join("")}
                 </div>
                 <div class="tool-note">${escapeHtml(state.estimate.disclaimer)}</div>
-                <button class="tool-button secondary" type="button" data-request-formal>Request Formal Quote</button>
+                <a class="tool-button secondary" href="mailto:" style="display:inline-flex;text-decoration:none;">Email Us for Formal Quote</a>
             </section>
         `;
     }

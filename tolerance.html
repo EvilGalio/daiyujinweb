@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公差查询 | Daiyujin Precision Tools</title>
+    <title>Tolerance Calculator — Daiyujin Precision</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/plugins.css">
 </head>
@@ -12,35 +12,35 @@
 <body class="tool-page">
     <div class="tool-shell">
         <nav class="tool-nav">
-            <div><strong>Daiyujin Precision</strong></div>
+            <a href="index.html" class="tool-nav-brand"><span></span> Daiyujin Precision</a>
             <div class="tool-nav-links">
-                <a href="index.html">首页</a>
-                <a href="quote.html">报价计算</a>
-                <a href="freight.html">运费查询</a>
-                <a href="tolerance.html" aria-current="page">公差查询</a>
-                <a href="about.html">关于</a>
+                <a href="index.html">Home</a>
+                <a href="quote.html">Quote</a>
+                <a href="freight.html">Freight</a>
+                <a href="tolerance.html" aria-current="page">Tolerance</a>
+                <a href="about.html">About</a>
             </div>
         </nav>
 
         <main>
             <section class="tool-hero">
                 <div>
-                    <h1>公差查询</h1>
-                    <p>Basic size, tolerance class, fit result.</p>
+                    <h1>ISO Tolerance</h1>
+                    <p>Look up ISO 286 limit deviations and fit types by basic size and tolerance combination.</p>
                 </div>
-                <div class="tool-status" data-api-status>API checking</div>
+                <div class="tool-status" data-api-status>checking</div>
             </section>
 
             <section class="tool-grid">
                 <form class="tool-panel tool-form" data-tolerance-form>
-                    <h2>Tolerance</h2>
+                    <h2>Parameters</h2>
                     <div class="tool-field">
                         <label for="basic-size">Basic Size (mm)</label>
                         <input id="basic-size" name="basic_size" type="number" min="1" max="3150" step="0.001" value="25">
                     </div>
                     <div class="tool-field">
                         <label for="fit-combination">Fit Combination</label>
-                        <input id="fit-combination" name="fit_combination" type="text" value="H6/k5" list="fit-presets">
+                        <input id="fit-combination" name="fit_combination" type="text" value="H6/k5" list="fit-presets" placeholder="e.g. H7/g6">
                         <datalist id="fit-presets">
                             <option value="H6/k5"></option>
                             <option value="H7/g6"></option>
@@ -50,7 +50,7 @@
                         </datalist>
                     </div>
                     <div class="tool-field">
-                        <label for="preset">Preset</label>
+                        <label for="preset">Quick Select</label>
                         <select id="preset" name="preset">
                             <option value="">Custom</option>
                             <option value="H6/k5">H6/k5</option>
@@ -60,34 +60,30 @@
                             <option value="H8/f7">H8/f7</option>
                         </select>
                     </div>
-                    <button class="tool-button" type="submit">计算</button>
+                    <button class="tool-button" type="submit">Calculate</button>
                 </form>
 
                 <aside class="fit-cards" data-tolerance-result>
                     <section class="tool-panel">
                         <h2>Shaft</h2>
-                        <div class="metric-row"><span>Limits of Size</span><strong>-</strong></div>
-                        <div class="metric-row"><span>ei / es</span><strong>-</strong></div>
+                        <div class="tool-note">Enter parameters to see results.</div>
                     </section>
                     <section class="tool-panel">
                         <h2>Bore</h2>
-                        <div class="metric-row"><span>Limits of Size</span><strong>-</strong></div>
-                        <div class="metric-row"><span>EI / ES</span><strong>-</strong></div>
+                        <div class="tool-note">Enter parameters to see results.</div>
                     </section>
                     <section class="tool-panel">
                         <h2>Fit</h2>
-                        <div class="metric-row"><span>Type</span><strong>-</strong></div>
-                        <div class="metric-row"><span>Clearance</span><strong>-</strong></div>
-                        <div class="metric-row"><span>Interference</span><strong>-</strong></div>
+                        <div class="tool-note">Enter parameters to see results.</div>
                     </section>
                 </aside>
             </section>
         </main>
 
-        <footer>
-            © 2025 Daiyujin All rights reserved
-        </footer>
+        <footer>&copy; 2025 Daiyujin. All rights reserved.</footer>
     </div>
+
+    <script>window.DAIYUJIN_API_BASE = "http://127.0.0.1:5000";</script>
     <script src="js/api.js"></script>
     <script src="js/tolerance.js"></script>
 </body>
