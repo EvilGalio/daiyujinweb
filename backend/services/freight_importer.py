@@ -38,9 +38,17 @@ def _parse_matrix_sheet(ws, carrier: str) -> list[dict[str, Any]]:
             weight_columns.append((index, weight))
 
     records: list[dict[str, Any]] = []
+    seen_data = False
     for row_index, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
         country = row[0] if len(row) > 0 else None
         zone = row[1] if len(row) > 1 else None
+        if not country:
+            if seen_data:
+                break
+            continue
+        country_text = str(country).strip()
+        if "kg" in country_text.lower() or country_text.upper() == "KG":
+            break
         if not country or zone is None:
             continue
 
@@ -53,7 +61,7 @@ def _parse_matrix_sheet(ws, carrier: str) -> list[dict[str, Any]]:
             records.append(
                 {
                     "carrier": carrier,
-                    "country": str(country).strip(),
+                    "country": country_text,
                     "zone": str(zone).strip(),
                     "weight_kg": weight_kg,
                     "price": price,
@@ -62,6 +70,7 @@ def _parse_matrix_sheet(ws, carrier: str) -> list[dict[str, Any]]:
                     "source_row": row_index,
                 }
             )
+            seen_data = True
     return records
 
 

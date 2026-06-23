@@ -36,11 +36,17 @@
                     <h2>Freight</h2>
                     <div class="tool-field">
                         <label for="country">目的地国家/地区</label>
-                        <input id="country" name="country" type="text" placeholder="Germany">
+                        <input id="country" name="country" type="text" list="countries" placeholder="德国" autocomplete="off" required>
+                        <datalist id="countries" data-country-list>
+                            <option value="德国"></option>
+                            <option value="日本"></option>
+                            <option value="美国"></option>
+                            <option value="中国香港特别行政区"></option>
+                        </datalist>
                     </div>
                     <div class="tool-field">
                         <label for="weight">重量 (kg)</label>
-                        <input id="weight" name="weight" type="number" min="0.5" step="0.5" value="5">
+                        <input id="weight" name="weight" type="number" min="0.5" step="0.5" value="5" required>
                     </div>
                     <div class="tool-field">
                         <span class="tool-label">快递商</span>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>报价计算 | Daiyujin Precision Tools</title>
+    <title>Quote Calculator | Daiyujin Precision Tools</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/plugins.css">
 </head>
@@ -14,59 +14,71 @@
         <nav class="tool-nav">
             <div><strong>Daiyujin Precision</strong></div>
             <div class="tool-nav-links">
-                <a href="index.html">首页</a>
-                <a href="quote.html" aria-current="page">报价计算</a>
-                <a href="freight.html">运费查询</a>
-                <a href="tolerance.html">公差查询</a>
-                <a href="about.html">关于</a>
+                <a href="index.html">Home</a>
+                <a href="quote.html" aria-current="page">Quote</a>
+                <a href="freight.html">Freight</a>
+                <a href="tolerance.html">Tolerance</a>
+                <a href="about.html">About</a>
             </div>
         </nav>
 
         <main>
             <section class="tool-hero">
                 <div>
-                    <h1>报价计算</h1>
-                    <p>STEP 文件先变成体积、尺寸和缩略图，价格在工程复核之前只保持估价身份。</p>
+                    <h1>Quote Calculator</h1>
+                    <p>Upload a STEP file, confirm part metrics, then calculate a non-binding manufacturing estimate.</p>
                 </div>
                 <div class="tool-status" data-api-status>API checking</div>
             </section>
 
             <section class="tool-grid">
                 <form class="tool-panel tool-form" data-quote-form>
-                    <h2>Estimate</h2>
-                    <label class="tool-upload">
+                    <h2>Part & Process</h2>
+                    <label class="tool-upload" data-upload-label>
                         <input name="file" type="file" accept=".stp,.step">
-                        <span>选择 STEP 文件</span>
+                        <span>Choose STEP file</span>
                         <small>.stp / .step, max 50MB</small>
                     </label>
                     <div class="tool-field">
-                        <label for="material">材质</label>
-                        <select id="material" name="material">
-                            <option>Aluminum 6061-T6</option>
-                            <option>Stainless Steel 304</option>
-                            <option>Carbon Steel AISI 1045</option>
+                        <label for="material">Material</label>
+                        <select id="material" name="material_id" data-material-select>
+                            <option value="">Loading materials...</option>
                         </select>
                     </div>
                     <div class="tool-field">
-                        <label for="tolerance">公差等级</label>
-                        <select id="tolerance" name="tolerance">
-                            <option>IT8</option>
-                            <option>IT7</option>
-                            <option>IT6</option>
+                        <label for="tolerance">Tolerance Grade</label>
+                        <select id="tolerance" name="tolerance_grade" data-tolerance-select>
+                            <option value="">Loading grades...</option>
                         </select>
                     </div>
                     <div class="tool-field">
-                        <label for="quantity">数量</label>
+                        <span class="tool-label">Surface Treatment</span>
+                        <div class="tool-checks" data-treatment-options>
+                            <label><input type="checkbox" disabled> Loading</label>
+                        </div>
+                    </div>
+                    <div class="tool-field split-fields">
+                        <label for="quantity">Quantity</label>
                         <input id="quantity" name="quantity" type="number" min="1" step="1" value="100">
                     </div>
-                    <button class="tool-button" type="submit">上传并解析</button>
+                    <div class="tool-field">
+                        <label for="currency">Currency</label>
+                        <select id="currency" name="currency" data-currency-select>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <button class="tool-button" type="submit">Calculate Estimate</button>
                 </form>
 
-                <aside class="tool-panel">
-                    <h2>Part</h2>
-                    <div class="tool-result" data-quote-result>
+                <aside class="quote-stack" data-quote-result>
+                    <section class="tool-panel">
+                        <h2>Part</h2>
                         <div class="tool-note">Awaiting STEP analysis.</div>
-                    </div>
+                    </section>
+                    <section class="tool-panel">
+                        <h2>Estimate</h2>
+                        <div class="tool-note">Select parameters and calculate after upload.</div>
+                    </section>
                 </aside>
             </section>
         </main>

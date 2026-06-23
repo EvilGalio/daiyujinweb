@@ -5,11 +5,12 @@
     };
 
     async function request(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        if (options.body && !(options.body instanceof FormData)) {
+            headers["Content-Type"] = "application/json";
+        }
         const response = await fetch(`${config.baseUrl}${path}`, {
-            headers: {
-                ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-                ...(options.headers || {}),
-            },
+            headers,
             ...options,
         });
         const payload = await response.json().catch(() => ({}));

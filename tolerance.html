@@ -40,15 +40,24 @@
                     </div>
                     <div class="tool-field">
                         <label for="fit-combination">Fit Combination</label>
-                        <input id="fit-combination" name="fit_combination" type="text" value="H6/k5">
+                        <input id="fit-combination" name="fit_combination" type="text" value="H6/k5" list="fit-presets">
+                        <datalist id="fit-presets">
+                            <option value="H6/k5"></option>
+                            <option value="H7/g6"></option>
+                            <option value="H7/h6"></option>
+                            <option value="H7/p6"></option>
+                            <option value="H8/f7"></option>
+                        </datalist>
                     </div>
                     <div class="tool-field">
                         <label for="preset">Preset</label>
                         <select id="preset" name="preset">
                             <option value="">Custom</option>
+                            <option value="H6/k5">H6/k5</option>
                             <option value="H7/g6">H7/g6</option>
                             <option value="H7/h6">H7/h6</option>
                             <option value="H7/p6">H7/p6</option>
+                            <option value="H8/f7">H8/f7</option>
                         </select>
                     </div>
                     <button class="tool-button" type="submit">计算</button>
@@ -68,6 +77,8 @@
                     <section class="tool-panel">
                         <h2>Fit</h2>
                         <div class="metric-row"><span>Type</span><strong>-</strong></div>
+                        <div class="metric-row"><span>Clearance</span><strong>-</strong></div>
+                        <div class="metric-row"><span>Interference</span><strong>-</strong></div>
                     </section>
                 </aside>
             </section>

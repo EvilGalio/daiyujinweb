@@ -11,7 +11,9 @@ from flask_cors import CORS
 
 from api_utils import api_error, api_ok
 from database import init_db, shutdown_session
-from services.freight_importer import find_freight_workbook, parse_freight_workbook
+from services.freight import calculate_freight, get_countries, get_freight_summary
+from services.pricing import calculate_quote, get_quote_options, recalculate_weight, request_formal_quote
+from services.tolerance import calculate_fit, get_tolerance_presets, get_tolerance_zones
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -44,14 +46,62 @@ def create_app() -> Flask:
         return api_ok(
             ok=True,
             service="daiyujin-precision-tools",
-            phase="phase-0",
+            phase="phase-1a",
         )
 
     @app.get("/api/public/freight/prototype")
     def freight_prototype():
-        workbook_path = find_freight_workbook(PROJECT_ROOT)
-        summary = parse_freight_workbook(workbook_path, include_records=False)
-        return api_ok(summary)
+        return api_ok(get_freight_summary())
+
+    @app.get("/api/public/freight/countries")
+    def freight_countries():
+        return api_ok({"countries": get_countries()})
+
+    @app.post("/api/public/freight/calculate")
+    def freight_calculate():
+        payload = request.get_json(silent=True) or {}
+        try:
+            country = str(payload.get("country", ""))
+            weight_kg = float(payload.get("weight_kg", 0))
+            carriers = payload.get("carriers") or []
+            currency = str(payload.get("currency", "CNY"))
+            if not isinstance(carriers, list):
+                return api_error("invalid_carriers", "carriers must be a list", 400)
+            result = calculate_freight(
+                country=country,
+                weight_kg=weight_kg,
+                carriers=[str(carrier) for carrier in carriers],
+                currency=currency,
+                client_ip=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+        except ValueError as exc:
+            return api_error("invalid_freight_request", str(exc), 400)
+        return api_ok(result)
+
+    @app.get("/api/public/tolerance/tolerance-zones")
+    def tolerance_zones():
+        return api_ok(get_tolerance_zones())
+
+    @app.get("/api/public/tolerance/presets")
+    def tolerance_presets():
+        return api_ok(get_tolerance_presets())
+
+    @app.post("/api/public/tolerance/calculate")
+    def tolerance_calculate():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = calculate_fit(
+                basic_size_mm=payload.get("basic_size_mm", payload.get("basic_size")),
+                fit_combination=payload.get("fit_combination"),
+                hole_tolerance=payload.get("hole_tolerance"),
+                shaft_tolerance=payload.get("shaft_tolerance"),
+                client_ip=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+        except ValueError as exc:
+            return api_error("invalid_tolerance_request", str(exc), 400)
+        return api_ok(result)
 
     @app.post("/api/public/quote/upload")
     def quote_upload():
@@ -100,6 +150,48 @@ def create_app() -> Flask:
             analysis["data"]["thumbnail_url"] = f"/static/thumbnails/{thumbnail_name}"
         analysis["file_id"] = file_id
         return api_ok(analysis)
+
+    @app.get("/api/public/quote/options")
+    def quote_options():
+        return api_ok(get_quote_options())
+
+    @app.post("/api/public/quote/recalculate-weight")
+    def quote_recalculate_weight():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = recalculate_weight(
+                volume_mm3=payload.get("volume_mm3"),
+                material_id=payload.get("material_id"),
+            )
+        except ValueError as exc:
+            return api_error("invalid_quote_request", str(exc), 400)
+        return api_ok(result)
+
+    @app.post("/api/public/quote/calculate")
+    def quote_calculate():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = calculate_quote(
+                payload,
+                client_ip=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+        except ValueError as exc:
+            return api_error("invalid_quote_request", str(exc), 400)
+        return api_ok(result)
+
+    @app.post("/api/public/quote/request-formal")
+    def quote_request_formal():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = request_formal_quote(
+                payload,
+                client_ip=request.remote_addr,
+                user_agent=request.headers.get("User-Agent"),
+            )
+        except ValueError as exc:
+            return api_error("invalid_quote_request", str(exc), 400)
+        return api_ok(result)
 
     init_db()
 

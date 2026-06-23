@@ -214,6 +214,95 @@ body.tool-page {
     gap: 0.75rem;
 }
 
+.quote-stack {
+    display: grid;
+    gap: 1rem;
+}
+
+.quote-thumb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+    border: 1px solid var(--tool-line);
+    border-radius: var(--tool-radius);
+    background: var(--tool-soft);
+    margin-bottom: 1rem;
+}
+
+.quote-estimate h2 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.quote-estimate h2 small {
+    color: var(--tool-muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+}
+
+.quote-total {
+    margin-bottom: 1rem;
+    color: var(--tool-blue-dark);
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.quote-breakdown {
+    display: grid;
+    gap: 0.6rem;
+    margin: 1rem 0;
+}
+
+.carrier-card {
+    display: grid;
+    gap: 0.65rem;
+    border: 1px solid var(--tool-line);
+    border-radius: var(--tool-radius);
+    padding: 0.9rem;
+    background: #fff;
+}
+
+.carrier-card h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.tolerance-card h2 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.tolerance-card h2 small {
+    color: var(--tool-muted);
+    font-size: 0.82rem;
+}
+
+.fit-clearance {
+    border-top: 4px solid var(--tool-green);
+}
+
+.fit-transition {
+    border-top: 4px solid var(--tool-amber);
+}
+
+.fit-interference {
+    border-top: 4px solid #b42318;
+}
+
+.carrier-card.dhl {
+    border-top: 4px solid #d40511;
+}
+
+.carrier-card.fedex {
+    border-top: 4px solid #4d148c;
+}
+
 .metric-row {
     display: flex;
     align-items: baseline;
@@ -242,6 +331,11 @@ body.tool-page {
     padding: 0.8rem 0.9rem;
     color: var(--tool-muted);
     font-size: 0.92rem;
+}
+
+.tool-note.error {
+    border-left-color: #b42318;
+    color: #912018;
 }
 
 .fit-cards {
