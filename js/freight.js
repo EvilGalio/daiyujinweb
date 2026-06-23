@@ -18,31 +18,39 @@ document.addEventListener("DOMContentLoaded", () => {
                 countries = payload.countries;
                 input.placeholder = `Search ${countries.length} destinations…`;
             }
-        } catch (e) { /* keep static fallback */ }
+        } catch (e) {
+            input.placeholder = "Type to search destinations…";
+        }
     }
 
     function filter(query) {
         const q = query.toLowerCase().trim();
-        if (!q) return [];
-        return countries.filter(c =>
-            c.en.toLowerCase().includes(q) || (c.cn && c.cn.includes(q))
-        ).slice(0, 12);
+        if (!q) return countries.slice(0, 30);
+        return countries.filter(c => {
+            const en = (c.en || "").toLowerCase();
+            const cn = (c.cn || "").toLowerCase();
+            return en.includes(q) || cn.includes(q);
+        }).slice(0, 15);
     }
 
-    function renderDropdown(items) {
+    function renderDropdown(items, total) {
         if (!items.length) {
             dropdown.innerHTML = query
-                ? '<div class="country-item muted">No matching destination</div>'
+                ? '<div class="country-item muted">No matching destination — try a different spelling</div>'
                 : '';
             dropdown.classList.remove("open");
             return;
         }
-        dropdown.innerHTML = items.map((c, i) => `
+        let html = items.map((c, i) => `
             <div class="country-item" data-index="${i}" data-en="${escapeHtml(c.en)}">
                 <span class="country-en">${escapeHtml(c.en)}</span>
                 ${c.cn && c.cn !== c.en ? `<span class="country-cn">${escapeHtml(c.cn)}</span>` : ""}
             </div>
         `).join("");
+        if (total > items.length) {
+            html += `<div class="country-item muted">${total - items.length} more — type to refine</div>`;
+        }
+        dropdown.innerHTML = html;
         dropdown.classList.add("open");
     }
 
@@ -51,21 +59,21 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = item.dataset.en;
         selected = item.dataset.en;
         dropdown.classList.remove("open");
-        dropdown.innerHTML = "";
     }
 
     input.addEventListener("input", () => {
         selected = null;
-        const items = filter(input.value);
-        renderDropdown(items);
+        const q = input.value.trim();
+        const matches = filter(q);
+        renderDropdown(matches, countries.length);
     });
 
     input.addEventListener("focus", () => {
         if (input.value && !selected) {
-            const items = filter(input.value);
-            if (items.length) renderDropdown(items);
+            const matches = filter(input.value.trim());
+            if (matches.length) renderDropdown(matches, countries.length);
         } else if (!input.value) {
-            renderDropdown(countries.slice(0, 8));
+            renderDropdown(countries.slice(0, 30), countries.length);
         }
     });
 
@@ -87,8 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             if (current) { selectCountry(current); return; }
             if (items.length === 1) { selectCountry(items[0]); return; }
-            form.dispatchEvent(new Event("submit", { cancelable: true }));
-            return;
         } else if (e.key === "Escape") {
             dropdown.classList.remove("open");
             return;
@@ -158,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+        return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
     }
 
     hydrateCountries();
