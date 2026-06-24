@@ -1,6 +1,6 @@
 # PRD: Instant Quoting 报价系统更新迭代
 
-> 版本：v0.1  
+> 版本：v0.2  
 > 日期：2026-06-24  
 > 目标页面：`quote.html`  
 > 目标后端：`backend/services/pricing.py`、`backend/services/step_analyzer.py`、`backend/models.py`、`backend/scripts/seed_data.py`
@@ -18,6 +18,14 @@
 这个系统适合展示“自动报价体验”，但价格模型仍偏粗糙。它把很多复杂因素压缩成全局系数，容易产生一种“看起来精确，实际不稳”的结果。
 
 经过和专业报价员沟通后，新的方向应从“多因素连乘模型”升级为“工艺时间模型 + 风险分级 + 历史报价校准”。报价页面仍可以保持快速、漂亮、自动化，但内部要更像一个工程估算器。
+
+本次审查后的关键优化：
+
+1. 增加成功指标和能力边界，避免 PRD 只有方法论、缺少验收尺子。
+2. 明确毛坯策略、最低收费、setup 摊销和 review gate，这是报价员实际判断里最容易被低估的部分。
+3. 把几何特征增强拆成可测试的阶段，先做 OpenCascade 能稳定给出的特征，再做风险代理。
+4. 增加模型版本、回测和人工报价回填，为未来校准留下数据结构。
+5. 明确客户侧只看价格区间、置信度和复核提示，内部才保存成本拆分。
 
 ## 2. 行业调研结论
 
@@ -53,7 +61,7 @@ Protolabs 官网把流程描述为：上传 3D CAD 文件，获得 DFM 分析和
 
 ### 2.3 Protolabs Network / Hubs
 
-Protolabs Network 首页强调 instant quoting with free design analysis、100+ 材料和表面处理组合、CNC 公差能力、低批量和生产批量，且背后有制造商网络。
+Protolabs Network 首页强调 instant quoting with free design analysis、100+ 材料和表面处理组合、CNC 公差能力、低批量和生产批量，且背后有制造商网络。它的 CNC 页面还明确描述会用机器学习算法把上传的 CAD 文件和数百万个过往制造零件比较，再根据材料、制造要求、交期、供应商可用性和历史成本等因素生成报价。
 
 可观察结论：
 
@@ -62,7 +70,7 @@ Protolabs Network 首页强调 instant quoting with free design analysis、100+ 
 | 报价输入 | CAD + 材料 + 表面处理 + 数量 |
 | 报价能力 | 不是孤立价格，而是材料、后处理、质量标准、交期共同配置 |
 | 复杂件 | 依赖网络内专门工厂能力 |
-| 可借鉴 | 我们的第一版不建网络，但要建立“能力边界”和“需人工复核”的提示 |
+| 可借鉴 | 我们的第一版不建网络，但要建立“能力边界”“历史数据回填”和“需人工复核”的提示 |
 
 来源：[Protolabs Network](https://www.hubs.com/)
 
@@ -139,6 +147,16 @@ Protolabs Network 首页强调 instant quoting with free design analysis、100+ 
 
 这个结构更接近报价员思维，也更容易被历史报价校准。
 
+### 3.3 审查后的执行原则
+
+| 原则 | 说明 |
+|---|---|
+| 先代理，后精细 | 先用体积、毛坯、去除率、表面积等稳定特征做代理，不急着识别每一个孔和倒角 |
+| 先区间，后单点 | 没有足够历史数据前，区间价比单点价诚实 |
+| 先规则，后学习 | 规则模型先形成可解释基线，历史数据积累后再用 ML 修正残差 |
+| 先复核门槛，后自动承诺 | 高风险件必须进入人工复核，不让系统硬算一个不可靠数字 |
+| 先内部可追溯，后客户简洁 | 内部保存成本拆分和模型版本，客户只看到必要结果 |
+
 ## 4. 产品定位
 
 ### 4.1 页面定位
@@ -208,6 +226,42 @@ Engineering Review Required
 | 风险 flags | 人工复核 |
 | 模型版本 | 回归测试 |
 | 人工最终报价 | 未来训练 |
+
+### 4.4 成功指标
+
+第一版不以“完全自动报准”为目标，而以“可解释、可复核、可积累数据”为目标。
+
+| 阶段 | 指标 |
+|---|---|
+| Q1 几何特征 | STEP 上传成功后返回完整 geometry feature payload，旧上传流程兼容 |
+| Q2 成本模型 | 常规样例返回价格区间，数量增加时单件价格下降，材料更难加工时价格上升 |
+| Q3 风险分级 | 高风险样例触发 review_required，普通样例不误触发 |
+| Q4 前端 | 客户能明确看到 estimate range、confidence、review 状态 |
+| Q5 数据回填 | 每条正式询盘能回填人工最终报价并导出 CSV |
+
+有 30 条人工回填前，不用 MAPE 作为硬指标。达到 30 条后开始看误差分布；达到 100 条后再讨论 ML 校准。
+
+### 4.5 能力边界
+
+第一版只覆盖：
+
+```text
+CNC milling 代理报价
+常见金属/塑料材料
+STEP 几何特征可解析的实体模型
+一般公差等级和常见表面处理
+```
+
+第一版遇到以下情况应触发人工复核或拒绝自动报价：
+
+| 场景 | 处理 |
+|---|---|
+| 需要车削、线切割、钣金、注塑等非 milling 工艺 | review_required |
+| 薄壁、深腔、长细件、高去除率 | review_required 或 low confidence |
+| 精密公差但没有 2D 图纸 | review_required |
+| 后处理可能影响尺寸稳定 | review_required |
+| STEP 解析失败或几何特征不完整 | 不自动报价 |
+| 超出机床尺寸、重量或材料能力边界 | 不自动报价 |
 
 ## 5. 当前工程可行性
 
@@ -287,6 +341,40 @@ Engineering Review Required
 | `aspect_ratio` | max_dim / min_dim | 长细件装夹风险 |
 | `compactness` | volume / stock_volume | 形状复杂度代理 |
 
+### 6.2.1 毛坯策略
+
+毛坯是价格模型的地基，不能简单把成品净体积当材料成本。
+
+第一版毛坯估算：
+
+```text
+stock_x = obb_x + stock_allowance_mm * 2
+stock_y = obb_y + stock_allowance_mm * 2
+stock_z = obb_z + stock_allowance_mm * 2
+stock_volume_mm3 = stock_x * stock_y * stock_z
+```
+
+默认：
+
+```text
+stock_allowance_mm = 2
+```
+
+材料成本用毛坯重量：
+
+```text
+stock_weight_kg = stock_volume_mm3 * density_gcm3 / 1_000_000
+```
+
+保护规则：
+
+```text
+if stock_volume_mm3 < part_volume_mm3:
+    stock_volume_mm3 = part_volume_mm3 * 1.05
+```
+
+后续可以按材料棒料、板料、圆棒、方料进一步细化。第一版只用 OBB 加余量，胜在稳定、可解释、工程成本低。
+
 ### 6.3 风险特征
 
 第一版本地算法无法可靠识别所有孔、螺纹、深腔、倒扣。可以先用代理特征和用户输入生成风险 flags。
@@ -302,6 +390,51 @@ Engineering Review Required
 | `treatment_tolerance_risk` | 后处理影响尺寸稳定 |
 | `missing_drawing_risk` | 选择精密公差但未上传 2D 图纸 |
 | `review_required` | 多个风险同时出现 |
+
+### 6.3.1 Review gate
+
+`review_required` 不是一个普通提示，而是报价系统的安全阀。
+
+建议第一版规则：
+
+```text
+hard_review_required =
+  missing_geometry
+  or unsupported_process
+  or unsupported_material
+  or max_dim_mm > configured_machine_limit
+  or tight_tolerance_risk and not drawing_available
+```
+
+```text
+soft_risk_score =
+  tiny_part_risk
+  + thin_part_risk
+  + slender_part_risk
+  + high_removal_risk
+  + complex_surface_risk
+  + treatment_tolerance_risk
+```
+
+```text
+if hard_review_required:
+    estimate_mode = "review_required"
+elif soft_risk_score >= 3:
+    estimate_mode = "range_with_review"
+elif soft_risk_score >= 1:
+    estimate_mode = "range"
+else:
+    estimate_mode = "range_high_confidence"
+```
+
+客户侧文案：
+
+| estimate_mode | 展示 |
+|---|---|
+| `range_high_confidence` | 显示区间和 High confidence |
+| `range` | 显示区间和 Medium confidence |
+| `range_with_review` | 显示较宽区间和 Review recommended |
+| `review_required` | 不显示价格或显示询盘 CTA，提示工程复核 |
 
 ### 6.4 成本模型
 
@@ -473,6 +606,30 @@ selling_unit_price = (unit_cost + risk_buffer) * margin_factor
 | Low | 25% |
 | Review Required | 不给单点价，给宽区间或要求询盘 |
 
+#### 6.4.10 最低收费
+
+报价系统必须有最低收费，否则小件、小批量会被模型低估。
+
+建议配置：
+
+```text
+minimum_order_usd
+minimum_unit_usd
+minimum_setup_usd
+minimum_programming_usd
+minimum_postprocess_lot_usd
+```
+
+应用顺序：
+
+```text
+one_time_cost = max(programming_cost + setup_cost, minimum_setup_usd + minimum_programming_usd)
+unit_cost = max(unit_cost, minimum_unit_usd)
+total_center = max(unit_cost * quantity, minimum_order_usd)
+```
+
+这比在最后粗暴乘一个“小件系数”更稳定，也更贴近报价员对最小开机、最小编程、最小订单的判断。
+
 ### 6.5 价格区间
 
 不要只返回单点价格。
@@ -490,6 +647,38 @@ high = center * (1 + uncertainty)
 | 中等复杂，缺少图纸 | 20% |
 | 高风险，后处理影响公差 | 35% |
 | 超出能力边界 | 不自动报价 |
+
+### 6.6 模型版本和回测
+
+每次成本模型参数变化，都要保留版本号。
+
+```text
+pricing_model_version = quote-engine-v2.0
+config_version = 2026-06-24-seed
+geometry_feature_version = geom-v2.0
+```
+
+所有 quote inquiry 保存：
+
+```text
+model_version
+config_version
+input_payload
+geometry_features
+internal_cost_model
+customer_result
+```
+
+每次修改模型后，必须跑固定 fixtures：
+
+| Fixture | 用途 |
+|---|---|
+| cube_simple | 检查 compactness、低风险、价格基础 |
+| long_bar | 检查 aspect_ratio 和装夹风险 |
+| thin_plate | 检查 thin_part_risk |
+| high_removal_block | 检查 removal_ratio 与粗加工成本 |
+| small_part | 检查 minimum_unit_usd |
+| precision_no_drawing | 检查 review_required |
 
 ## 7. API 设计
 
@@ -527,11 +716,18 @@ high = center * (1 + uncertainty)
   "pricing_model_version": "quote-engine-v2.0",
   "currency": "USD",
   "confidence": "medium",
+  "estimate_mode": "range",
   "review_required": false,
+  "model_versions": {
+    "pricing_model": "quote-engine-v2.0",
+    "geometry_features": "geom-v2.0",
+    "config": "2026-06-24-seed"
+  },
   "part": {
     "file_id": "unit-test-file",
     "volume_mm3": 12500,
     "stock_volume_mm3": 27648,
+    "removal_volume_mm3": 15148,
     "removal_ratio": 0.548,
     "surface_area_mm2": 6200,
     "max_dim_mm": 48,
@@ -602,6 +798,7 @@ high = center * (1 + uncertainty)
 | min_dim_mm | float |
 | aspect_ratio | float |
 | compactness | float |
+| geometry_feature_version | string |
 | created_at | datetime |
 
 ### 8.2 新增 `quote_model_configs`
@@ -613,6 +810,24 @@ high = center * (1 + uncertainty)
 | value_type | string | number |
 | model_version | string | `quote-engine-v2.0` |
 | description | string | 说明 |
+
+第一批配置必须覆盖：
+
+```text
+machine_rate_usd_hour
+engineering_rate_usd_hour
+base_setup_min
+setup_time_per_setup_min
+base_programming_min
+programming_complexity_min
+base_inspection_min
+minimum_order_usd
+minimum_unit_usd
+minimum_setup_usd
+minimum_programming_usd
+stock_allowance_mm
+machine_max_dim_mm
+```
 
 ### 8.3 新增 `material_process_rates`
 
@@ -626,7 +841,25 @@ high = center * (1 + uncertainty)
 | machinability_factor | float |
 | scrap_factor | float |
 
-### 8.4 新增 `quote_review_flags`
+### 8.4 新增 `quote_model_runs`
+
+保存每次估价所用模型和内部结果，便于回测。
+
+| 字段 | 类型 |
+|---|---|
+| id | int |
+| inquiry_id | int |
+| pricing_model_version | string |
+| geometry_feature_version | string |
+| config_version | string |
+| estimate_mode | string |
+| confidence | string |
+| review_required | bool |
+| internal_cost_json | text |
+| customer_result_json | text |
+| created_at | datetime |
+
+### 8.5 新增 `quote_review_flags`
 
 | 字段 | 类型 |
 |---|---|
@@ -636,7 +869,7 @@ high = center * (1 + uncertainty)
 | severity | string |
 | message | string |
 
-### 8.5 新增 `quote_actuals`
+### 8.6 新增 `quote_actuals`
 
 用于后续机器学习校准。
 
@@ -650,6 +883,18 @@ high = center * (1 + uncertainty)
 | accepted | bool | 客户是否接受 |
 | notes | text | 报价员说明 |
 | created_at | datetime | 创建时间 |
+
+### 8.7 数据保留和隐私
+
+上传文件和报价记录要分层保存：
+
+| 数据 | 保存策略 |
+|---|---|
+| STEP 原文件 | 仅用于工程复核，后续可配置过期清理 |
+| geometry features | 长期保存，用于模型校准 |
+| customer result | 长期保存，用于报价追踪 |
+| internal cost model | 仅内部可见，不返回前端 |
+| final quote actuals | 长期保存，用于误差分析 |
 
 ## 9. 前端设计
 
@@ -733,11 +978,39 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
 2. 确认第一版只做 CNC milling 代理模型。
 3. 确认输出区间，不输出单点正式价。
 4. 确认工程复核触发条件。
+5. 确认最低收费默认参数。
+6. 确认 machine/material 初始参数来自 seed，而非前端。
 
 验收：
 
 ```text
 用户确认 PRD 方向。
+最低收费、review gate、模型版本策略已确认。
+```
+
+### Phase Q0.5: 参数初稿和测试夹具
+
+目标：在改代码前先固定一组可回归样例和参数表。
+
+任务：
+
+1. 新建 `backend/docs/quote_engine_v2_parameters.md`。
+2. 新建或生成 6 个 STEP fixture：
+   - cube_simple
+   - long_bar
+   - thin_plate
+   - high_removal_block
+   - small_part
+   - precision_no_drawing
+3. 确认第一批材料 MRR 和 finish rate 初始值。
+4. 确认 minimum charge 初始值。
+
+验收：
+
+```text
+fixtures 文件或生成脚本存在。
+参数文档存在。
+后续 Q1/Q2 测试可以引用这些固定样例。
 ```
 
 ### Phase Q1: 几何特征增强
@@ -752,12 +1025,14 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
 4. 计算 aspect ratio、compactness、surface_to_volume_ratio。
 5. 更新上传接口响应。
 6. 更新 smoke test。
+7. 增加 geometry feature version。
 
 验收：
 
 ```text
 上传 STEP 后返回 v2 geometry features。
 旧 quote 上传流程不破坏。
+fixtures 中至少 4 个样例能稳定解析。
 ```
 
 ### Phase Q2: 成本模型 v2
@@ -776,7 +1051,9 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
    - material MRR
    - finish surface rate
    - risk rates
-5. `calculate_quote()` 返回区间价格和 confidence。
+   - minimum charges
+5. 实现 `estimate_mode`。
+6. `calculate_quote()` 返回区间价格和 confidence。
 
 验收：
 
@@ -784,6 +1061,7 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
 phase1A smoke test 更新后通过。
 结果有 low/center/high。
 结果不暴露内部费率。
+小件不会低于 minimum_unit_usd。
 ```
 
 ### Phase Q3: 风险分级和人工复核
@@ -796,11 +1074,13 @@ phase1A smoke test 更新后通过。
 2. 高风险件返回 `review_required = true`。
 3. 前端结果展示 review 状态。
 4. `request_formal_quote` 保存 review flags。
+5. `review_required` 时不输出看似确定的价格中心值。
 
 验收：
 
 ```text
 薄件、长细件、高去除率、精密公差无图纸等场景能触发 review。
+普通 cube_simple 不触发 review_required。
 ```
 
 ### Phase Q4: 前端体验升级
@@ -815,12 +1095,14 @@ phase1A smoke test 更新后通过。
 4. 显示 review recommended/required。
 5. 增加 Advanced 区域。
 6. 保留进度条体验。
+7. review_required 时主 CTA 指向 formal quote。
 
 验收：
 
 ```text
 桌面和移动端无文本溢出。
 客户能明确知道这是 estimate。
+review_required 状态不会显示误导性的精准总价。
 ```
 
 ### Phase Q5: 历史报价校准准备
@@ -837,6 +1119,7 @@ phase1A smoke test 更新后通过。
    - absolute error
    - percentage error
 4. 当样本量达到 100 条后，考虑线性回归或 GBDT 残差校准。
+5. 增加按材料、尺寸、confidence 分组的误差统计。
 
 验收：
 
@@ -851,10 +1134,12 @@ phase1A smoke test 更新后通过。
 
 | Case | 预期 |
 |---|---|
-| 简单立方体 | compactness 接近 1 |
-| 细长件 | aspect_ratio 高 |
-| 高去除代理件 | removal_ratio 高 |
-| 小件 | tiny_part_risk |
+| cube_simple | compactness 接近 1，review_required false |
+| long_bar | aspect_ratio 高，slender_part_risk |
+| thin_plate | thin_part_risk |
+| high_removal_block | removal_ratio 高，加工成本上升 |
+| small_part | tiny_part_risk，触发 minimum_unit_usd |
+| precision_no_drawing | missing_drawing_risk，review_required true |
 
 ### 11.2 成本模型测试
 
@@ -865,6 +1150,9 @@ phase1A smoke test 更新后通过。
 | removal_ratio 上升 | 加工成本上升 |
 | 精密公差 | inspection 和 risk 上升 |
 | 后处理影响公差 | review flag |
+| 小件低成本 | unit price 不低于 minimum_unit_usd |
+| 低数量订单 | total 不低于 minimum_order_usd |
+| 模型版本变更 | quote_model_runs 记录新版本 |
 
 ### 11.3 API 测试
 
@@ -874,7 +1162,9 @@ phase1A smoke test 更新后通过。
 | 高风险件 | review_required true |
 | quantity = 0 | 400 |
 | unsupported currency | 400 |
-| 响应扫描 | 不包含 machine_rate、margin、MRR |
+| 响应扫描 | 不包含 machine_rate、margin、MRR、internal_cost_model |
+| 模型版本 | 响应含 model_versions |
+| review_required | estimate_mode 为 review_required 或 range_with_review |
 
 ### 11.4 前端测试
 
@@ -884,6 +1174,8 @@ phase1A smoke test 更新后通过。
 | review_required | 显示人工复核提示 |
 | 移动端 | 卡片不挤压、不溢出 |
 | 后端失败 | 保留错误状态 |
+| Advanced 默认折叠 | 主流程仍然清爽 |
+| 不展示内部数据 | 页面不显示 MRR、machine rate、margin |
 
 ## 12. 关键决策
 
@@ -925,9 +1217,10 @@ LLM 负责解释、询盘摘要、报价员辅助
 
 确认本 PRD 后，从 Phase Q1 开始：
 
-1. 增强 `step_analyzer.py` 的几何特征输出。
-2. 保持旧报价接口兼容。
-3. 新建 v2 成本模型，但先不改变前端展示。
-4. 用测试确认新旧接口都能运行。
+1. 先做 Phase Q0.5，固定参数初稿和 STEP fixtures。
+2. 增强 `step_analyzer.py` 的几何特征输出。
+3. 保持旧报价接口兼容。
+4. 新建 v2 成本模型，但先不改变前端展示。
+5. 用测试确认新旧接口都能运行。
 
 完成 Q1/Q2 后，再升级前端结果卡。
