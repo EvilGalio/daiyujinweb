@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!form || !result || !fitInput) return;
 
     hydratePresets();
-    renderEmpty();
 
     if (presetSelect) {
         presetSelect.addEventListener("change", () => {
@@ -24,14 +23,14 @@ document.addEventListener("DOMContentLoaded", () => {
             basic_size_mm: Number(formData.get("basic_size")),
             fit_combination: String(formData.get("fit_combination") || "").trim(),
         };
-        renderLoading();
+        result.innerHTML = '<div class="tolerance-loading">Analyzing tolerance stack&hellip;</div>';
         try {
             const data = await window.DaiyujinAPI.request("/api/public/tolerance/calculate", {
                 method: "POST", body: JSON.stringify(payload),
             });
             renderResult(data);
         } catch (error) {
-            renderError(error.message);
+            result.innerHTML = `<div class="tool-note error">${esc(error.message)}</div>`;
         }
     });
 
@@ -42,206 +41,175 @@ document.addEventListener("DOMContentLoaded", () => {
             if (presetList) presetList.innerHTML = data.presets.map(p => `<option value="${esc(p)}"></option>`).join("");
             if (presetSelect) {
                 const cur = presetSelect.value;
-                presetSelect.innerHTML = ['<option value="">Custom</option>', ...data.presets.map(p => `<option value="${esc(p)}">${esc(p)}</option>`)].join("");
+                presetSelect.innerHTML = [
+                    '<option value="">Custom</option>',
+                    ...data.presets.map(p => `<option value="${esc(p)}">${esc(p)}</option>`),
+                ].join("");
                 presetSelect.value = cur;
             }
         } catch (e) {}
     }
 
-    function renderEmpty() {
-        result.innerHTML = zoneCard("Shaft", null, null) + zoneCard("Bore", null, null) + fitCard(null);
-    }
+    /* ── Shared coordinate system ─────────────── */
 
-    function renderLoading() {
-        result.innerHTML = '<section class="tool-panel"><div class="tool-note">Calculating&hellip;</div></section>';
-    }
-
-    function renderResult(data) {
-        result.innerHTML =
-            chartsPanel(data) +
-            zoneCard("Shaft", data.shaft, data.basic_size_mm) +
-            zoneCard("Bore", data.hole, data.basic_size_mm) +
-            fitCard(data.fit, data.fit_combination, data.size_range);
-    }
-
-    function renderError(msg) {
-        result.innerHTML = `<section class="tool-panel"><div class="tool-note error">${esc(msg)}</div></section>`;
-    }
-
-    /* ── Three-panel zone chart ───────────────── */
-
-    function chartsPanel(data) {
-        const h = data.hole, s = data.shaft, f = data.fit, basic = data.basic_size_mm;
-
+    function coord(data) {
+        const h = data.hole, s = data.shaft;
         const all = [h.lower_deviation_um, h.upper_deviation_um, s.lower_deviation_um, s.upper_deviation_um, 0];
         const dMin = Math.min(...all), dMax = Math.max(...all);
         const span = dMax - dMin || 20;
-        const pad = Math.max(span * 0.3, 15);
-        const rMin = dMin - pad, rMax = dMax + pad;
+        const pad = Math.max(span * 0.3, 12);
+        return { rMin: dMin - pad, rMax: dMax + pad };
+    }
 
-        const shared = { rMin, rMax, basic, h, s, f };
+    function y(val, c) {
+        const rng = c.rMax - c.rMin;
+        const H = 180, P = 16;
+        return P + ((c.rMax - val) / rng) * (H - 2 * P);
+    }
 
-        return `
-        <section class="tool-panel">
-            <h2>Deviation Diagram <small>zero = ${basic.toFixed(3)} mm</small></h2>
-            <div class="zone-charts">
-                ${singleChart("Shaft", s.tolerance, s.lower_deviation_um, s.upper_deviation_um, shared, "#dc5c26", s.grade, s.it_um)}
-                ${singleChart("Bore", h.tolerance, h.lower_deviation_um, h.upper_deviation_um, shared, "#0066cc", h.grade, h.it_um)}
-                ${overlayChart(shared)}
+    /* ── Render ───────────────────────────────── */
+
+    function renderResult(data) {
+        const c = coord(data);
+        const h = data.hole, s = data.shaft, f = data.fit;
+        const y0 = y(0, c);
+        const steps = niceSteps(c.rMin, c.rMax);
+
+        result.innerHTML = `
+        <div class="tolerance-columns">
+            ${col("Shaft", s.tolerance, s.lower_deviation_um, s.upper_deviation_um, s.grade, s.it_um,
+                s.min_size_mm, s.max_size_mm, "#dc5c26", c, y0, steps, false)}
+            ${col("Bore", h.tolerance, h.lower_deviation_um, h.upper_deviation_um, h.grade, h.it_um,
+                h.min_size_mm, h.max_size_mm, "#0066cc", c, y0, steps, false)}
+            ${fitCol(data, c, y0, steps)}
+        </div>
+        <div class="tolerance-summary fit-${esc(f.type)}">
+            <div class="fit-summary-type">
+                <span class="fit-dot fit-dot-${esc(f.type)}"></span>
+                ${esc(f.label)} &mdash; ${esc(data.fit_combination)}
             </div>
-        </section>`;
-    }
-
-    function singleChart(label, code, lo, hi, s, color, grade, it) {
-        const box = svgBox(s.rMin, s.rMax);
-        const y0 = y(0, box);
-        const yLo = y(lo, box), yHi = y(hi, box);
-        const barW = 48, x = (box.w - barW) / 2;
-
-        return `
-        <div class="zone-chart">
-            <div class="zone-chart-title">${label}<span>${esc(code)}</span></div>
-            <svg viewBox="0 0 ${box.w} ${box.h}" class="zone-svg">
-                <line x1="0" y1="${y0}" x2="${box.w}" y2="${y0}" stroke="#cbd5e1" stroke-dasharray="5 3" stroke-width="1"/>
-                ${ticks(box, y0)}
-                <rect class="zone-bar zone-anim" x="${x}" y="${Math.min(yLo, yHi)}" width="${barW}" height="${Math.abs(yHi - yLo)}" rx="3" fill="${color}" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(yLo, yHi)}" data-anim-h="${Math.abs(yHi - yLo)}"/>
-                <text x="${x + barW / 2}" y="${Math.min(yLo, yHi) - 5}" text-anchor="middle" fill="${color}" font-size="11" font-weight="700">${fmtSigned(hi)}</text>
-                <text x="${x + barW / 2}" y="${Math.max(yLo, yHi) + 14}" text-anchor="middle" fill="${color}" font-size="11" font-weight="700">${fmtSigned(lo)}</text>
-            </svg>
-            <div class="zone-chart-meta">${esc(grade)} = ${it} μm</div>
-        </div>`;
-    }
-
-    function overlayChart(s) {
-        const box = svgBox(s.rMin, s.rMax);
-        const y0 = y(0, box);
-        const hLo = y(s.h.lower_deviation_um, box), hHi = y(s.h.upper_deviation_um, box);
-        const sLo = y(s.s.lower_deviation_um, box), sHi = y(s.s.upper_deviation_um, box);
-        const barW = 40, hX = 24, sX = box.w - 24 - barW;
-
-        /* clearance / interference shading */
-        let shade = "";
-        const holeTop = Math.min(hLo, hHi), holeBot = Math.max(hLo, hHi);
-        const shaftTop = Math.min(sLo, sHi), shaftBot = Math.max(sLo, sHi);
-        const clearY = Math.min(holeBot, shaftTop);
-        const clearH = Math.abs(shaftTop - holeBot);
-        const interY = Math.min(holeTop, shaftBot);
-        const interH = Math.abs(shaftBot - holeTop);
-
-        if (s.f.type === "clearance" && clearH > 0.5) {
-            shade = `<rect x="0" y="${clearY}" width="${box.w}" height="${clearH}" fill="#22c55e" opacity="0.12" rx="1"/>`;
-        } else if (s.f.type === "interference" && interH > 0.5) {
-            shade = `<rect x="0" y="${interY}" width="${box.w}" height="${interH}" fill="#ef4444" opacity="0.14" rx="1"/>`;
-        } else {
-            if (s.f.max_clearance_um > 0 && clearH > 0.5)
-                shade += `<rect x="0" y="${clearY}" width="${box.w}" height="${clearH}" fill="#22c55e" opacity="0.10" rx="1"/>`;
-            if (s.f.max_interference_um > 0 && interH > 0.5)
-                shade += `<rect x="0" y="${interY}" width="${box.w}" height="${interH}" fill="#ef4444" opacity="0.12" rx="1"/>`;
-        }
-
-        return `
-        <div class="zone-chart">
-            <div class="zone-chart-title">Fit<span>${esc(s.f.type)}</span></div>
-            <svg viewBox="0 0 ${box.w} ${box.h}" class="zone-svg">
-                <line x1="0" y1="${y0}" x2="${box.w}" y2="${y0}" stroke="#0f172a" stroke-width="1.2"/>
-                ${ticks(box, y0)}
-                ${shade}
-                <!-- Hole -->
-                <rect class="zone-bar zone-anim" x="${hX}" y="${Math.min(hLo, hHi)}" width="${barW}" height="${Math.abs(hHi - hLo)}" rx="3" fill="#0066cc" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(hLo, hHi)}" data-anim-h="${Math.abs(hHi - hLo)}"/>
-                <text x="${hX + barW / 2}" y="${Math.min(hLo, hHi) - 5}" text-anchor="middle" fill="#0066cc" font-size="11" font-weight="700">${esc(s.h.tolerance)}</text>
-                <!-- Shaft -->
-                <rect class="zone-bar zone-anim" x="${sX}" y="${Math.min(sLo, sHi)}" width="${barW}" height="${Math.abs(sHi - sLo)}" rx="3" fill="#dc5c26" opacity="0.82" data-anim-from="${y0}" data-anim-to="${Math.min(sLo, sHi)}" data-anim-h="${Math.abs(sHi - sLo)}"/>
-                <text x="${sX + barW / 2}" y="${Math.min(sLo, sHi) - 5}" text-anchor="middle" fill="#dc5c26" font-size="11" font-weight="700">${esc(s.s.tolerance)}</text>
-            </svg>
-            <div class="zone-chart-meta">
-                <span class="tag tag-clearance">Clr ${s.f.max_clearance_um} μm</span>
-                <span class="tag tag-interference">Int ${s.f.max_interference_um} μm</span>
+            <div class="fit-summary-metrics">
+                <span class="fit-metric">Max Clearance <strong>${f.max_clearance_um} μm</strong></span>
+                <span class="fit-metric">Max Interference <strong>${f.max_interference_um} μm</strong></span>
+                <span class="fit-metric">Size Range <strong>${esc(data.size_range)} mm</strong></span>
             </div>
         </div>`;
-    }
 
-    function svgBox(rMin, rMax) {
-        const rng = rMax - rMin;
-        return { w: 140, h: 220, pad: 18, rMin, rMax, rng };
-    }
-
-    function y(val, box) {
-        return box.pad + ((box.rMax - val) / box.rng) * (box.h - 2 * box.pad);
-    }
-
-    function ticks(box, y0) {
-        const step = niceStep(box.rMin, box.rMax, 5);
-        let html = "";
-        for (let v = Math.ceil(box.rMin / step) * step; v <= box.rMax; v += step) {
-            const yv = y(v, box);
-            if (Math.abs(yv - y0) < 6) continue;
-            html += `<text x="${box.w - 4}" y="${yv + 4}" text-anchor="end" fill="#94a3b8" font-size="9" font-family="SF Mono, monospace">${v > 0 ? "+" : ""}${Math.round(v)}</text>`;
-        }
-        return html;
-    }
-
-    function niceStep(min, max, n) {
-        const rough = (max - min) / (n - 1);
-        const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-        const r = rough / mag;
-        const step = r <= 1.5 ? mag : r <= 3.5 ? 2 * mag : r <= 7.5 ? 5 * mag : 10 * mag;
-        return Math.max(step, 1);
-    }
-
-    /* ── Animation ────────────────────────────── */
-
-    function animateCharts() {
-        document.querySelectorAll(".zone-anim").forEach(el => {
-            const from = parseFloat(el.dataset.animFrom);
-            const to = parseFloat(el.dataset.animTo);
-            const h = parseFloat(el.dataset.animH);
-            el.setAttribute("y", from);
-            el.setAttribute("height", "0");
-            requestAnimationFrame(() => {
-                el.style.transition = "y 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)";
-                el.setAttribute("y", to);
-                el.setAttribute("height", h);
+        /* animate bars from zero line */
+        requestAnimationFrame(() => {
+            document.querySelectorAll(".tz-bar").forEach(el => {
+                const from = parseFloat(el.dataset.from);
+                const to = parseFloat(el.dataset.to);
+                const hgt = Math.abs(to - from);
+                el.setAttribute("y", from);
+                el.setAttribute("height", "0");
+                requestAnimationFrame(() => {
+                    el.style.transition = "y 0.45s cubic-bezier(0.22, 1, 0.36, 1), height 0.45s cubic-bezier(0.22, 1, 0.36, 1)";
+                    el.setAttribute("y", Math.min(from, to));
+                    el.setAttribute("height", hgt);
+                });
             });
         });
     }
 
-    /* ── Cards ────────────────────────────────── */
+    /* ── Single column (Shaft / Bore) ─────────── */
 
-    function zoneCard(title, item, basic) {
-        if (!item) return `<section class="tool-panel"><h2>${title}</h2><div class="tool-note">Enter parameters.</div></section>`;
+    function col(label, code, lo, hi, grade, it, minS, maxS, color, c, y0, steps, isFit) {
+        const yLo = y(lo, c), yHi = y(hi, c);
+        const barW = 52, x = (140 - barW) / 2;
         return `
-        <section class="tool-panel">
-            <h2>${title} <small>${esc(item.tolerance)}</small></h2>
-            <div class="metric-row"><span>Limits</span><strong>${fmtMm(item.min_size_mm)} – ${fmtMm(item.max_size_mm)} mm</strong></div>
-            <div class="metric-row"><span>Deviations</span><strong>${fmtSigned(item.lower_deviation_um)} / ${fmtSigned(item.upper_deviation_um)} μm</strong></div>
-            <div class="metric-row"><span>Grade</span><strong>${esc(item.grade)} = ${item.it_um} μm</strong></div>
-        </section>`;
+        <div class="tz-col">
+            <div class="tz-col-head">
+                <span class="tz-col-label">${label}</span>
+                <span class="tz-col-code" style="color:${color}">${esc(code)}</span>
+            </div>
+            <svg viewBox="0 0 140 180" class="tz-svg">
+                ${gridLines(c, y0, steps)}
+                <line x1="0" y1="${y0}" x2="140" y2="${y0}" stroke="#0f172a" stroke-width="1.2"/>
+                <text x="2" y="${y0 - 4}" fill="#0f172a" font-size="9" font-weight="700">0</text>
+                <rect class="tz-bar" x="${x}" y="${y0}" width="${barW}" height="0" rx="3" fill="${color}" opacity="0.85"
+                    data-from="${y0}" data-to="${yLo}" style="will-change:transform"/>
+            </svg>
+            <div class="tz-col-data">
+                <div class="tz-data-row"><span>Deviations</span><strong>${fs(lo)} / ${fs(hi)} μm</strong></div>
+                <div class="tz-data-row"><span>Limits</span><strong>${fm(minS)} – ${fm(maxS)} mm</strong></div>
+                <div class="tz-data-meta">${esc(grade)} = ${it} μm</div>
+            </div>
+        </div>`;
     }
 
-    function fitCard(fit, combo, range) {
-        if (!fit) return '<section class="tool-panel"><h2>Fit</h2><div class="tool-note">Enter parameters.</div></section>';
+    /* ── Fit overlay column ───────────────────── */
+
+    function fitCol(data, c, y0, steps) {
+        const h = data.hole, s = data.shaft, f = data.fit;
+        const hLo = y(h.lower_deviation_um, c), hHi = y(h.upper_deviation_um, c);
+        const sLo = y(s.lower_deviation_um, c), sHi = y(s.upper_deviation_um, c);
+        const barW = 36, hX = 30, sX = 74;
+        const holeTop = Math.min(hLo, hHi), holeBot = Math.max(hLo, hHi);
+        const shaftTop = Math.min(sLo, sHi), shaftBot = Math.max(sLo, sHi);
+
+        let shade = "";
+        if (f.type === "clearance") {
+            shade = `<rect x="0" y="${holeBot}" width="140" height="${shaftTop - holeBot}" fill="#22c55e" opacity="0.12" rx="1"/>`;
+        } else if (f.type === "interference") {
+            shade = `<rect x="0" y="${shaftBot}" width="140" height="${holeTop - shaftBot}" fill="#ef4444" opacity="0.14" rx="1"/>`;
+        } else {
+            if (f.max_clearance_um > 1) shade += `<rect x="0" y="${holeBot}" width="140" height="${Math.max(shaftTop - holeBot, 0)}" fill="#22c55e" opacity="0.10" rx="1"/>`;
+            if (f.max_interference_um > 1) shade += `<rect x="0" y="${Math.min(holeTop, shaftBot)}" width="140" height="${Math.abs(shaftBot - holeTop)}" fill="#ef4444" opacity="0.12" rx="1"/>`;
+        }
+
         return `
-        <section class="tool-panel fit-card fit-${esc(fit.type)}">
-            <h2>Fit <small>${esc(combo)}</small></h2>
-            <div class="metric-row"><span>Type</span><strong>${esc(fit.label)}</strong></div>
-            <div class="metric-row"><span>Max Clearance</span><strong>${fit.max_clearance_um} μm</strong></div>
-            <div class="metric-row"><span>Max Interference</span><strong>${fit.max_interference_um} μm</strong></div>
-            <div class="metric-row"><span>Size Range</span><strong>${esc(range)} mm</strong></div>
-        </section>`;
+        <div class="tz-col">
+            <div class="tz-col-head">
+                <span class="tz-col-label">Fit</span>
+                <span class="tz-col-code">${esc(f.type)}</span>
+            </div>
+            <svg viewBox="0 0 140 180" class="tz-svg">
+                ${gridLines(c, y0, steps)}
+                <line x1="0" y1="${y0}" x2="140" y2="${y0}" stroke="#0f172a" stroke-width="1.2"/>
+                <text x="2" y="${y0 - 4}" fill="#0f172a" font-size="9" font-weight="700">0</text>
+                ${shade}
+                <rect class="tz-bar" x="${hX}" y="${y0}" width="${barW}" height="0" rx="3" fill="#0066cc" opacity="0.8"
+                    data-from="${y0}" data-to="${holeTop}"/>
+                <text x="${hX + barW / 2}" y="${holeTop - 5}" text-anchor="middle" fill="#0066cc" font-size="9" font-weight="700">${esc(h.tolerance)}</text>
+                <rect class="tz-bar" x="${sX}" y="${y0}" width="${barW}" height="0" rx="3" fill="#dc5c26" opacity="0.8"
+                    data-from="${y0}" data-to="${shaftTop}"/>
+                <text x="${sX + barW / 2}" y="${shaftTop - 5}" text-anchor="middle" fill="#dc5c26" font-size="9" font-weight="700">${esc(s.tolerance)}</text>
+            </svg>
+            <div class="tz-col-data">
+                <div class="tz-data-row"><span>Max Clearance</span><strong>${f.max_clearance_um} μm</strong></div>
+                <div class="tz-data-row"><span>Max Interference</span><strong>${f.max_interference_um} μm</strong></div>
+            </div>
+        </div>`;
+    }
+
+    /* ── SVG helpers ──────────────────────────── */
+
+    function gridLines(c, y0, steps) {
+        let html = "";
+        for (const v of steps) {
+            const yv = y(v, c);
+            if (Math.abs(yv - y0) < 4) continue;
+            html += `<line x1="0" y1="${yv}" x2="140" y2="${yv}" stroke="#e2e8f0" stroke-width="0.5"/>
+                     <text x="138" y="${yv + 4}" text-anchor="end" fill="#94a3b8" font-size="9" font-family="SF Mono, monospace">${v > 0 ? "+" : ""}${Math.round(v)}</text>`;
+        }
+        return html;
+    }
+
+    function niceSteps(min, max) {
+        const rough = (max - min) / 4;
+        const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+        const r = rough / mag;
+        const step = r <= 1.5 ? mag : r <= 3.5 ? 2 * mag : r <= 7.5 ? 5 * mag : 10 * mag;
+        const s = Math.max(step, 1);
+        const steps = [];
+        for (let v = Math.ceil(min / s) * s; v <= max + s * 0.5; v += s) steps.push(v);
+        return steps;
     }
 
     /* ── Helpers ──────────────────────────────── */
 
-    function fmtMm(v) { return Number(v).toFixed(3); }
-    function fmtSigned(v) { const n = Number(v); return n > 0 ? `+${n}` : `${n}`; }
-    function esc(v) {
-        return String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-    }
-
-    /* ── Wire animation trigger ───────────────── */
-
-    const observer = new MutationObserver(() => {
-        if (document.querySelector(".zone-anim")) { animateCharts(); }
-    });
-    observer.observe(result, { childList: true, subtree: true });
+    function fm(v) { return Number(v).toFixed(3); }
+    function fs(v) { const n = Number(v); return n > 0 ? `+${n}` : `${n}`; }
+    function esc(v) { return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
 });

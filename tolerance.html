@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tolerance Calculator — Daiyujin Precision</title>
+    <title>ISO Tolerance — Daiyujin Precision</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/plugins.css">
 </head>
@@ -26,58 +26,39 @@
             <section class="tool-hero">
                 <div>
                     <h1>ISO Tolerance</h1>
-                    <p>Look up ISO 286 limit deviations and fit types by basic size and tolerance combination.</p>
+                    <p>ISO 286 limit deviations and fit types. Enter a basic size and tolerance combination.</p>
                 </div>
                 <div class="tool-status" data-api-status>checking</div>
             </section>
 
-            <section class="tool-grid">
-                <form class="tool-panel tool-form" data-tolerance-form>
-                    <h2>Parameters</h2>
-                    <div class="tool-field">
-                        <label for="basic-size">Basic Size (mm)</label>
+            <form class="tolerance-bar" data-tolerance-form autocomplete="off">
+                <div class="tolerance-inputs">
+                    <div class="tolerance-field">
+                        <label for="basic-size">Basic Size</label>
                         <input id="basic-size" name="basic_size" type="number" min="1" max="3150" step="0.001" value="25">
+                        <span class="tolerance-unit">mm</span>
                     </div>
-                    <div class="tool-field">
+                    <div class="tolerance-field">
                         <label for="fit-combination">Fit Combination</label>
                         <input id="fit-combination" name="fit_combination" type="text" value="H6/k5" list="fit-presets" placeholder="e.g. H7/g6">
-                        <datalist id="fit-presets">
-                            <option value="H6/k5"></option>
-                            <option value="H7/g6"></option>
-                            <option value="H7/h6"></option>
-                            <option value="H7/p6"></option>
-                            <option value="H8/f7"></option>
-                        </datalist>
+                        <datalist id="fit-presets"></datalist>
                     </div>
-                    <div class="tool-field">
+                    <div class="tolerance-field">
                         <label for="preset">Quick Select</label>
                         <select id="preset" name="preset">
                             <option value="">Custom</option>
-                            <option value="H6/k5">H6/k5</option>
-                            <option value="H7/g6">H7/g6</option>
-                            <option value="H7/h6">H7/h6</option>
-                            <option value="H7/p6">H7/p6</option>
-                            <option value="H8/f7">H8/f7</option>
                         </select>
                     </div>
-                    <button class="tool-button" type="submit">Calculate</button>
-                </form>
+                </div>
+                <button class="tool-button" type="submit">Calculate</button>
+            </form>
 
-                <aside class="fit-cards" data-tolerance-result>
-                    <section class="tool-panel">
-                        <h2>Shaft</h2>
-                        <div class="tool-note">Enter parameters to see results.</div>
-                    </section>
-                    <section class="tool-panel">
-                        <h2>Bore</h2>
-                        <div class="tool-note">Enter parameters to see results.</div>
-                    </section>
-                    <section class="tool-panel">
-                        <h2>Fit</h2>
-                        <div class="tool-note">Enter parameters to see results.</div>
-                    </section>
-                </aside>
-            </section>
+            <div class="tolerance-results" data-tolerance-result>
+                <div class="tolerance-empty">
+                    <div class="tolerance-placeholder-icon">&Oslash;</div>
+                    <p>Enter basic size and fit combination above to see ISO 286 deviations.</p>
+                </div>
+            </div>
         </main>
 
         <footer>&copy; 2025 Daiyujin. All rights reserved.</footer>

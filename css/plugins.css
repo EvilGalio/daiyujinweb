@@ -488,28 +488,120 @@ body.tool-page {
     gap: 1rem;
 }
 
-/* ── Tolerance charts ──────────────────────── */
+/* ── Tolerance: input bar ──────────────────── */
 
-.zone-charts {
+.tolerance-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
+}
+
+.tolerance-inputs {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.tolerance-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 120px;
+}
+
+.tolerance-field label {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.tolerance-field input,
+.tolerance-field select {
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 0.55rem 0.65rem;
+    font: inherit;
+    font-size: 0.92rem;
+}
+
+.tolerance-field input:focus,
+.tolerance-field select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.tolerance-field input[type="number"] {
+    font-family: var(--font-mono);
+    width: 120px;
+}
+
+.tolerance-unit {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+}
+
+/* ── Tolerance: empty state ────────────────── */
+
+.tolerance-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+}
+
+.tolerance-placeholder-icon {
+    font-size: 3rem;
+    font-weight: 300;
+    color: #cbd5e1;
+    margin-bottom: 0.75rem;
+}
+
+.tolerance-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+}
+
+/* ── Tolerance: three-column results ────────── */
+
+.tolerance-results {
+    margin-top: 1.5rem;
+}
+
+.tolerance-columns {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-    padding: 0.5rem 0 0.75rem;
+    gap: 1rem;
 }
 
-.zone-chart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
+.tz-col {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
 }
 
-.zone-chart-title {
+.tz-col-head {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.15rem;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.75rem 1rem 0;
     font-family: var(--font-display);
     font-size: 0.82rem;
     font-weight: 700;
@@ -518,61 +610,135 @@ body.tool-page {
     color: var(--ink-soft);
 }
 
-.zone-chart-title span {
+.tz-col-code {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
-    padding: 0.12rem 0.4rem;
-    border-radius: 3px;
-    background: var(--surface);
-    color: var(--muted);
 }
 
-.zone-svg {
+.tz-svg {
     display: block;
     width: 100%;
-    max-width: 180px;
+    height: auto;
+    margin: 0.25rem 0;
 }
 
-.zone-bar {
-    transition: y 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+.tz-bar {
+    will-change: transform;
 }
 
-.zone-chart-meta {
+.tz-col-data {
+    padding: 0.5rem 1rem 0.85rem;
+}
+
+.tz-data-row {
     display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    font-size: 0.76rem;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.82rem;
+}
+
+.tz-data-row:last-of-type {
+    border-bottom: 0;
+}
+
+.tz-data-row span {
     color: var(--muted);
 }
 
-.tag {
-    padding: 0.15rem 0.45rem;
-    border-radius: 3px;
+.tz-data-row strong {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
     font-weight: 600;
+    font-size: 0.84rem;
+    color: var(--ink);
 }
 
-.tag-clearance { background: #ecfdf5; color: #065f46; }
-.tag-interference { background: #fef2f2; color: #991b1b; }
+.tz-data-meta {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+}
 
-.fit-card { border-left: 3px solid var(--line); }
-.fit-card.fit-clearance { border-left-color: #22c55e; }
-.fit-card.fit-transition { border-left-color: var(--warn); }
-.fit-card.fit-interference { border-left-color: #ef4444; }
+/* ── Tolerance: fit summary bar ─────────────── */
 
-@media (max-width: 600px) {
-    .zone-charts {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.35rem;
+.tolerance-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    flex-wrap: wrap;
+}
+
+.tolerance-summary.fit-clearance { background: #f0fdf4; border-color: #bbf7d0; }
+.tolerance-summary.fit-transition { background: #fffbeb; border-color: #fde68a; }
+.tolerance-summary.fit-interference { background: #fef2f2; border-color: #fecaca; }
+
+.fit-summary-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.fit-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.fit-dot-clearance { background: #22c55e; }
+.fit-dot-transition { background: #f59e0b; }
+.fit-dot-interference { background: #ef4444; }
+
+.fit-summary-metrics {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.fit-metric {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+}
+
+.fit-metric strong {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--ink);
+    margin-left: 0.25rem;
+}
+
+/* ── Responsive ─────────────────────────────── */
+
+@media (max-width: 720px) {
+    .tolerance-columns {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
-    .zone-svg { max-width: 120px; }
-    .zone-chart-title { font-size: 0.7rem; }
+    .tolerance-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .tolerance-inputs {
+        flex-direction: column;
+    }
+    .tolerance-summary {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .tolerance-card.fit-clearance {
