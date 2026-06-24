@@ -4,7 +4,7 @@
             <section class="tool-hero">
                 <div>
                     <h1>Freight Estimate</h1>
-                    <p>Compare DHL and FedEx rates from China to over 230 destinations worldwide.</p>
+                    <p>DHL rates from China to over 230 destinations worldwide.</p>
                 </div>
                 <div class="tool-status" data-api-status>checking</div>
             </section>
@@ -22,44 +22,6 @@
                         <input id="weight" name="weight" type="number" min="0.5" step="0.5" value="5" required>
                     </div>
                     <div class="tool-field">
-                        <span class="tool-label">Cargo Type</span>
-                        <div class="tool-checks" data-cargo-type>
-                            <label class="active"><input type="radio" name="cargo_type" value="package" checked> Package</label>
-                            <label><input type="radio" name="cargo_type" value="document"> Document</label>
-                        </div>
-                    </div>
-                    <div class="tool-field">
-                        <span class="tool-label">Carrier</span>
-                        <div class="tool-checks">
-                            <label><input type="checkbox" name="carrier" value="DHL" checked> DHL</label>
-                            <label><input type="checkbox" name="carrier" value="FedEx" checked> FedEx</label>
-                        </div>
-                    </div>
-
-                    <details class="tool-advanced" data-advanced-section>
-                        <summary>Advanced Dimensions <small>optional</small></summary>
-                        <div class="tool-field-row">
-                            <div class="tool-field">
-                                <label for="length">Length (cm)</label>
-                                <input id="length" name="length" type="number" min="0" step="1" placeholder="e.g. 30">
-                            </div>
-                            <div class="tool-field">
-                                <label for="width">Width (cm)</label>
-                                <input id="width" name="width" type="number" min="0" step="1" placeholder="e.g. 20">
-                            </div>
-                            <div class="tool-field">
-                                <label for="height">Height (cm)</label>
-                                <input id="height" name="height" type="number" min="0" step="1" placeholder="e.g. 15">
-                            </div>
-                        </div>
-                        <div class="tool-field">
-                            <label for="boxes">Number of boxes</label>
-                            <input id="boxes" name="boxes" type="number" min="1" step="1" value="1">
-                        </div>
-                        <div class="tool-note" data-vol-preview style="display:none; margin-top:0.5rem;"></div>
-                    </details>
-
-                    <div class="tool-field">
                         <label for="currency">Display Currency</label>
                         <select id="currency" name="currency">
                             <option value="CNY">CNY</option>
@@ -67,13 +29,14 @@
                             <option value="EUR">EUR</option>
                         </select>
                     </div>
-                    <button class="tool-button" type="submit">Get Rates</button>
+                    <button class="tool-button" type="submit">Get Estimate</button>
                 </form>
 
-                <aside class="tool-panel">
-                    <h2>Rates</h2>
-                    <div class="tool-result" data-freight-result>
-                        <div class="tool-note">Enter destination and weight to compare.</div>
+                <aside class="tool-panel" data-result-panel>
+                    <h2>DHL Freight</h2>
+                    <div class="dhl-result" data-freight-result>
+                        <div class="dhl-result-amount">USD $0.00</div>
+                        <div class="dhl-result-meta">Ready for estimate</div>
                     </div>
                 </aside>
             </section>

@@ -66,20 +66,7 @@ def create_app() -> Flask:
 
     @app.get("/api/public/freight/prototype")
     def freight_prototype():
-        summary = get_freight_summary()
-        # Also include v1 stats for backwards compat
-        from database import SessionLocal
-        from sqlalchemy import func, select
-        from models import FreightRate
-        s = SessionLocal()
-        try:
-            v1 = {
-                "v1_record_count": s.execute(select(func.count(FreightRate.id))).scalar_one(),
-                "v1_carriers": [r[0] for r in s.execute(select(FreightRate.carrier).distinct()).all()],
-            }
-        finally:
-            s.close()
-        return api_ok({**summary, **v1})
+        return api_ok({"version": "dhl-v3-20260624", **get_freight_summary()})
 
     @app.get("/api/public/freight/countries")
     def freight_countries():
@@ -91,18 +78,11 @@ def create_app() -> Flask:
         try:
             country = str(payload.get("country", ""))
             weight_kg = float(payload.get("weight_kg", 0))
-            carriers = payload.get("carriers") or []
-            currency = str(payload.get("currency", "CNY"))
-            if not isinstance(carriers, list):
-                return api_error("invalid_carriers", "carriers must be a list", 400)
+            currency = str(payload.get("currency", "USD"))
             result = calculate_freight(
                 country=country,
                 weight_kg=weight_kg,
-                carriers=[str(carrier) for carrier in carriers],
                 currency=currency,
-                actual_weight_kg=payload.get("actual_weight_kg"),
-                cargo_type=str(payload.get("cargo_type", "package")),
-                advanced=payload.get("advanced"),
             )
         except ValueError as exc:
             return api_error("invalid_freight_request", str(exc), 400)

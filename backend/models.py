@@ -134,6 +134,44 @@ class FreightSurchargeConfig(Base):
     source_note: Mapped[str | None] = mapped_column(String(255))
 
 
+# ═══════════════════════════════════════════
+# DHL-only tables (A重量运费重制版.xlsx)
+# ═══════════════════════════════════════════
+
+
+class DhlZone(Base):
+    __tablename__ = "dhl_zones"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    country: Mapped[str] = mapped_column(String(160), nullable=False)
+    country_cn: Mapped[str] = mapped_column(String(160), nullable=False)
+    zone_code: Mapped[str] = mapped_column(String(10), nullable=False)
+
+
+class DhlSmallRate(Base):
+    __tablename__ = "dhl_small_rates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    country: Mapped[str] = mapped_column(String(160), nullable=False)
+    zone_code: Mapped[str] = mapped_column(String(10), nullable=False)
+    charge_weight: Mapped[float] = mapped_column(Float, nullable=False)
+    base_price_cny: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class DhlHeavyRate(Base):
+    __tablename__ = "dhl_heavy_rates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tier: Mapped[str] = mapped_column(String(20), nullable=False)
+    zone_text: Mapped[str] = mapped_column(String(10), nullable=False)
+    base_unit_price_cny: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class DhlConfig(Base):
+    __tablename__ = "dhl_configs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255))
+
+
 class FreightRate(Base, TimestampMixin):
     __tablename__ = "freight_rates"
 
