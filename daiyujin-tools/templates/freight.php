@@ -30,6 +30,15 @@
                         </select>
                     </div>
                     <button class="tool-button" type="submit">Get Estimate</button>
+                    <div class="freight-progress" data-progress-bar style="display:none;">
+                        <div class="quote-progress-bar">
+                            <div class="quote-progress-fill" data-progress-fill style="width:0%"></div>
+                        </div>
+                        <div class="quote-progress-text">
+                            <span class="quote-progress-phase" data-progress-phase></span>
+                            <span class="quote-progress-pct" data-progress-pct>0%</span>
+                        </div>
+                    </div>
                 </form>
 
                 <aside class="tool-panel" data-result-panel>

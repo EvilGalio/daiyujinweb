@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import random
 from typing import Any
 
 from sqlalchemy import select
@@ -9,6 +11,13 @@ from database import SessionLocal
 from models import DhlSmallRate, DhlHeavyRate, DhlZone, DhlConfig
 
 DEFAULT_CURRENCY = "USD"
+
+
+def _dynamic_factor(country: str, weight_kg: float) -> float:
+    """Deterministic random perturbation, ±0.8%. Never shown to users."""
+    seed = hashlib.sha256(f"{country}|{weight_kg}".encode()).digest()
+    rng = random.Random(int.from_bytes(seed[:8], "big"))
+    return round(0.992 + rng.random() * 0.016, 4)
 
 
 def _packaging_small(weight: float) -> float:
@@ -120,6 +129,10 @@ def calculate_dhl(country: str, weight_kg: float, currency: str = DEFAULT_CURREN
             amount = round(rmb_total / eur_div, 2)
         else:
             amount = round(rmb_total / usd_div, 2)
+
+        # Apply dynamic perturbation (always hidden from users)
+        factor = _dynamic_factor(resolved_country, weight_kg)
+        amount = round(amount * factor, 2)
 
         return {
             "country": resolved_country,

@@ -102,6 +102,64 @@ document.addEventListener("DOMContentLoaded", () => {
         resultEl.classList.remove("error", "loading");
     }
 
+    // ── Progress bar ──
+    function startProgress() {
+        const bar = document.querySelector("[data-progress-bar]");
+        const fill = document.querySelector("[data-progress-fill]");
+        const phase = document.querySelector("[data-progress-phase]");
+        const pct = document.querySelector("[data-progress-pct]");
+        if (!bar || !fill || !phase) return () => {};
+
+        bar.style.display = "";
+        const phases = [
+            "Routing network analyzing",
+            "Carrier rate matching",
+            "Zone classification verifying",
+            "Dynamic quotation generating",
+        ];
+        let currentPct = 0;
+        let phaseIdx = 1;
+        let stopped = false;
+        let timer = null;
+
+        function render(p, text) {
+            fill.style.width = p + "%";
+            fill.classList.toggle("done", p >= 100);
+            phase.textContent = text;
+            if (pct) pct.textContent = Math.round(p) + "%";
+        }
+
+        function tick() {
+            if (stopped) return;
+            if (currentPct < 70) {
+                currentPct += 12 + Math.random() * 10;
+                phaseIdx = Math.min(Math.floor(currentPct / 20), phases.length - 2);
+            } else if (currentPct < 92) {
+                currentPct += 2 + Math.random() * 3;
+                phaseIdx = phases.length - 1;
+            } else {
+                currentPct += Math.random() * 0.5;
+                currentPct = Math.min(currentPct, 96);
+            }
+            render(currentPct, phases[phaseIdx]);
+            timer = setTimeout(tick, 600 + Math.random() * 900);
+        }
+
+        render(0, phases[0]);
+        timer = setTimeout(tick, 400);
+
+        return function finish(success) {
+            stopped = true;
+            clearTimeout(timer);
+            if (success) {
+                render(100, "Assessment complete", true);
+                setTimeout(() => { bar.style.display = "none"; }, 1200);
+            } else {
+                bar.style.display = "none";
+            }
+        };
+    }
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const formData = new FormData(form);
@@ -125,15 +183,19 @@ document.addEventListener("DOMContentLoaded", () => {
         resultEl.classList.add("loading");
         if (metaEl) metaEl.textContent = "Calculating\u2026";
 
+        const finishProgress = startProgress();
+
         try {
             const data = await window.DaiyujinAPI.request("/api/public/freight/calculate", {
                 method: "POST",
                 body: JSON.stringify({ country: countryValue, weight_kg: weight, currency }),
             });
+            finishProgress(true);
             if (amountEl) amountEl.textContent = `${data.currency} $${data.amount.toFixed(2)}`;
             if (metaEl) metaEl.textContent = `${data.country} \u00b7 ${data.weight_kg} kg`;
             resultEl.classList.remove("error", "loading");
         } catch (error) {
+            finishProgress(false);
             if (amountEl) amountEl.textContent = "USD $0.00";
             const msg = error.message || "Freight service is temporarily unavailable.";
             if (metaEl) metaEl.textContent = msg;
