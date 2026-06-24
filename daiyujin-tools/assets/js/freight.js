@@ -5,6 +5,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultEl = document.querySelector("[data-freight-result]");
     const amountEl = resultEl?.querySelector(".dhl-result-amount");
     const metaEl = resultEl?.querySelector(".dhl-result-meta");
+    const resultMain = resultEl?.querySelector(".dhl-result-main");
+    const progressBar = document.querySelector("[data-progress-bar]");
+    const progressFill = document.querySelector("[data-progress-fill]");
+    const progressPhase = document.querySelector("[data-progress-phase]");
+    const progressPct = document.querySelector("[data-progress-pct]");
     const searchRoot = document.querySelector("[data-country-search]");
     const input = document.querySelector("#country");
     const dropdown = document.querySelector("[data-country-dropdown]");
@@ -63,21 +68,11 @@ document.addEventListener("DOMContentLoaded", () => {
         dropdown.classList.remove("open");
     }
 
-    input.addEventListener("input", () => {
-        selected = null;
-        const q = input.value.trim();
-        renderDropdown(filter(q), countries.length);
-    });
-
+    input.addEventListener("input", () => { selected = null; renderDropdown(filter(input.value.trim()), countries.length); });
     input.addEventListener("focus", () => {
-        if (input.value && !selected) {
-            const matches = filter(input.value.trim());
-            if (matches.length) renderDropdown(matches, countries.length);
-        } else if (!input.value) {
-            renderDropdown(countries.slice(0, 30), countries.length);
-        }
+        if (input.value && !selected) { const m = filter(input.value.trim()); if (m.length) renderDropdown(m, countries.length); }
+        else if (!input.value) renderDropdown(countries.slice(0, 30), countries.length);
     });
-
     input.addEventListener("keydown", (e) => {
         const items = dropdown.querySelectorAll(".country-item:not(.muted)");
         if (!items.length) return;
@@ -89,59 +84,59 @@ document.addEventListener("DOMContentLoaded", () => {
         else if (e.key === "Escape") { dropdown.classList.remove("open"); return; }
         if (idx >= 0 && items[idx]) { items.forEach(el => el.classList.remove("active")); items[idx].classList.add("active"); items[idx].scrollIntoView({ block: "nearest" }); }
     });
-
     document.addEventListener("click", (e) => { if (!searchRoot.contains(e.target)) dropdown.classList.remove("open"); });
     dropdown.addEventListener("mousedown", (e) => {
         const item = e.target.closest(".country-item");
         if (item && !item.classList.contains("muted")) { e.preventDefault(); selectCountry(item); }
     });
 
+    // ── State machine ──
+    function setState(state) {
+        resultEl.dataset.state = state;
+    }
+
     function resetResult() {
         if (amountEl) amountEl.textContent = "USD $0.00";
         if (metaEl) metaEl.textContent = "Ready for estimate";
-        resultEl.classList.remove("error", "loading");
+        if (progressBar) progressBar.hidden = true;
+        if (resultMain) resultMain.hidden = false;
+        setState("idle");
     }
 
-    // ── Progress bar ──
+    // ── Progress bar (inside result panel) ──
     function startProgress() {
-        const bar = document.querySelector("[data-progress-bar]");
-        const fill = document.querySelector("[data-progress-fill]");
-        const phase = document.querySelector("[data-progress-phase]");
-        const pct = document.querySelector("[data-progress-pct]");
-        if (!bar || !fill || !phase) return () => {};
+        if (!progressBar || !progressFill || !progressPhase) return () => {};
 
-        bar.style.display = "";
+        setState("loading");
+        if (resultMain) resultMain.hidden = true;
+        progressBar.hidden = false;
+        progressFill.style.width = "0%";
+        progressFill.classList.remove("done");
+
         const phases = [
             "Routing network analyzing",
             "Carrier rate matching",
             "Zone classification verifying",
             "Dynamic quotation generating",
         ];
-        let currentPct = 0;
+        let pct = 0;
         let phaseIdx = 1;
         let stopped = false;
         let timer = null;
 
         function render(p, text) {
-            fill.style.width = p + "%";
-            fill.classList.toggle("done", p >= 100);
-            phase.textContent = text;
-            if (pct) pct.textContent = Math.round(p) + "%";
+            progressFill.style.width = p + "%";
+            progressFill.classList.toggle("done", p >= 100);
+            progressPhase.textContent = text;
+            if (progressPct) progressPct.textContent = Math.round(p) + "%";
         }
 
         function tick() {
             if (stopped) return;
-            if (currentPct < 70) {
-                currentPct += 12 + Math.random() * 10;
-                phaseIdx = Math.min(Math.floor(currentPct / 20), phases.length - 2);
-            } else if (currentPct < 92) {
-                currentPct += 2 + Math.random() * 3;
-                phaseIdx = phases.length - 1;
-            } else {
-                currentPct += Math.random() * 0.5;
-                currentPct = Math.min(currentPct, 96);
-            }
-            render(currentPct, phases[phaseIdx]);
+            if (pct < 70) { pct += 12 + Math.random() * 10; phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2); }
+            else if (pct < 92) { pct += 2 + Math.random() * 3; phaseIdx = phases.length - 1; }
+            else { pct += Math.random() * 0.5; pct = Math.min(pct, 96); }
+            render(pct, phases[phaseIdx]);
             timer = setTimeout(tick, 600 + Math.random() * 900);
         }
 
@@ -153,13 +148,20 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(timer);
             if (success) {
                 render(100, "Assessment complete", true);
-                setTimeout(() => { bar.style.display = "none"; }, 1200);
+                setTimeout(() => {
+                    progressBar.hidden = true;
+                    if (resultMain) resultMain.hidden = false;
+                    setState("done");
+                }, 800);
             } else {
-                bar.style.display = "none";
+                progressBar.hidden = true;
+                if (resultMain) resultMain.hidden = false;
+                setState("error");
             }
         };
     }
 
+    // ── Form submit ──
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const formData = new FormData(form);
@@ -170,18 +172,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!countryValue) {
             if (amountEl) amountEl.textContent = "USD $0.00";
             if (metaEl) metaEl.textContent = "Please select a destination.";
-            resultEl.classList.add("error");
+            setState("error");
+            if (progressBar) progressBar.hidden = true;
+            if (resultMain) resultMain.hidden = false;
             return;
         }
         if (!weight || weight <= 0) {
             if (amountEl) amountEl.textContent = "USD $0.00";
             if (metaEl) metaEl.textContent = "Enter a valid cargo weight.";
-            resultEl.classList.add("error");
+            setState("error");
+            if (progressBar) progressBar.hidden = true;
+            if (resultMain) resultMain.hidden = false;
             return;
         }
-
-        resultEl.classList.add("loading");
-        if (metaEl) metaEl.textContent = "Calculating\u2026";
 
         const finishProgress = startProgress();
 
@@ -193,13 +196,10 @@ document.addEventListener("DOMContentLoaded", () => {
             finishProgress(true);
             if (amountEl) amountEl.textContent = `${data.currency} $${data.amount.toFixed(2)}`;
             if (metaEl) metaEl.textContent = `${data.country} \u00b7 ${data.weight_kg} kg`;
-            resultEl.classList.remove("error", "loading");
         } catch (error) {
             finishProgress(false);
             if (amountEl) amountEl.textContent = "USD $0.00";
-            const msg = error.message || "Freight service is temporarily unavailable.";
-            if (metaEl) metaEl.textContent = msg;
-            resultEl.classList.add("error");
+            if (metaEl) metaEl.textContent = (error.message || "Freight service is temporarily unavailable.");
         }
     });
 

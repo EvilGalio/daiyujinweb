@@ -30,22 +30,24 @@
                         </select>
                     </div>
                     <button class="tool-button" type="submit">Get Estimate</button>
-                    <div class="freight-progress" data-progress-bar style="display:none;">
-                        <div class="quote-progress-bar">
-                            <div class="quote-progress-fill" data-progress-fill style="width:0%"></div>
-                        </div>
-                        <div class="quote-progress-text">
-                            <span class="quote-progress-phase" data-progress-phase></span>
-                            <span class="quote-progress-pct" data-progress-pct>0%</span>
-                        </div>
-                    </div>
                 </form>
 
                 <aside class="tool-panel" data-result-panel>
                     <h2>DHL Freight</h2>
-                    <div class="dhl-result" data-freight-result>
-                        <div class="dhl-result-amount">USD $0.00</div>
-                        <div class="dhl-result-meta">Ready for estimate</div>
+                    <div class="dhl-result" data-freight-result data-state="idle">
+                        <div class="dhl-result-main">
+                            <div class="dhl-result-amount">USD $0.00</div>
+                            <div class="dhl-result-meta">Ready for estimate</div>
+                        </div>
+                        <div class="freight-progress" data-progress-bar hidden>
+                            <div class="freight-progress-bar">
+                                <div class="freight-progress-fill" data-progress-fill></div>
+                            </div>
+                            <div class="freight-progress-text">
+                                <span class="freight-progress-phase" data-progress-phase></span>
+                                <span class="freight-progress-pct" data-progress-pct>0%</span>
+                            </div>
+                        </div>
                     </div>
                 </aside>
             </section>

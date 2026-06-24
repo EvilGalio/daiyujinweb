@@ -906,31 +906,116 @@ body.tool-page {
 }
 
 /* ── DHL result card ────────────────────────── */
+
+.dhl-result {
+    position: relative;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 1.5rem 0;
+    padding: 1rem 0;
+}
+
+.dhl-result-main {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.dhl-result[data-state="loading"] .dhl-result-main {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.dhl-result[data-state="done"] .dhl-result-main {
+    animation: dhlFadeIn 0.4s ease forwards;
+}
+
+@keyframes dhlFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .dhl-result-amount {
-    font-family: var(--font-display);
-    font-size: 2.2rem;
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 2.4rem;
     font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    transition: color 0.2s;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--ink, #0f172a);
+    transition: color 0.25s;
 }
 
 .dhl-result-meta {
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
     font-size: 0.85rem;
-    color: var(--muted);
-    font-family: var(--font-body);
+    color: var(--muted, #64748b);
+    font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    transition: color 0.25s;
 }
 
-.dhl-result.loading .dhl-result-amount { color: var(--muted); }
-.dhl-result.error .dhl-result-amount { color: var(--ink); }
-.dhl-result.error .dhl-result-meta { color: var(--danger); }
+.dhl-result[data-state="error"] .dhl-result-amount { color: var(--ink, #0f172a); }
+.dhl-result[data-state="error"] .dhl-result-meta { color: var(--danger, #dc2626); }
 
-.freight-progress { margin-top: 0.5rem; }
+/* ── Freight progress bar (inside result card) ─ */
+
+.freight-progress {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 1.25rem;
+    animation: dhlFadeIn 0.25s ease;
+}
+
+.freight-progress[hidden] {
+    display: none;
+}
+
+.freight-progress-bar {
+    width: 100%;
+    max-width: 220px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line, #e2e8f0);
+    overflow: hidden;
+}
+
+.freight-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent, #0066cc), #3b82f6);
+    width: 0%;
+    transition: width 0.35s ease;
+}
+
+.freight-progress-fill.done {
+    background: linear-gradient(90deg, var(--success, #0d8c4a), #22c55e);
+}
+
+.freight-progress-text {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 220px;
+    margin-top: 0.55rem;
+    font-size: 0.78rem;
+}
+
+.freight-progress-phase {
+    color: var(--ink-soft, #334155);
+    font-weight: 500;
+    font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    white-space: nowrap;
+}
+
+.freight-progress-pct {
+    font-family: var(--font-mono, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace);
+    color: var(--muted, #64748b);
+}
 
 /* ── Country search dropdown ───────────────── */
 
