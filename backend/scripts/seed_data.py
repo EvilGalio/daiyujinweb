@@ -10,7 +10,8 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from database import DATA_DIR, SessionLocal, init_db
-from models import AdminUser, ExchangeRate, Material, QuantityTier, SizeCost, SurfaceTreatment, ToleranceGrade
+from models import (AdminUser, ExchangeRate, FreightRuleConfig, FreightSurchargeConfig,
+                         Material, QuantityTier, SizeCost, SurfaceTreatment, ToleranceGrade)
 
 
 def seed() -> None:
@@ -147,6 +148,41 @@ def seed() -> None:
                 session.add(SizeCost(max_dim_mm=max_dim, base_cost_usd=base_cost))
             else:
                 size_cost.base_cost_usd = base_cost
+
+        session.commit()
+
+        # ── Freight rule configs ──
+        freight_rules = [
+            ("default_display_currency", "USD", "string", "Default display currency for freight"),
+            ("volumetric_divisor_default", "5000", "number", "Default volumetric weight divisor for DHL/FedEx"),
+            ("dhl_heavy_threshold_kg", "30", "number", "DHL threshold to switch to heavy cargo pricing"),
+            ("fedex_heavy_threshold_kg", "20.5", "number", "FedEx threshold to switch to heavy cargo pricing"),
+            ("dhl_packaging_rules", '[{"max":33,"adjust":null},{"max":70,"adjust":7.5},{"max":300,"adjust":12.5},{"max":99999,"factor":1.0822}]', "json", "DHL packaging weight rules from Excel"),
+            ("fedex_packaging_rules", '[{"max":21.9,"adjust":null},{"max":40,"adjust":4},{"max":70,"adjust":7.5},{"max":300,"adjust":12.5},{"max":99999,"factor":1.0822}]', "json", "FedEx packaging weight rules from Excel"),
+            ("dhl_billing_weight_rules", '[{"max":5,"step":1.5},{"max":10,"step":2},{"max":20,"step":3},{"max":30,"cap":true}]', "json", "DHL billing weight rounding rules from Excel"),
+        ]
+        for key, value, value_type, desc in freight_rules:
+            existing = session.query(FreightRuleConfig).filter_by(key=key).one_or_none()
+            if existing is None:
+                session.add(FreightRuleConfig(key=key, value=value, value_type=value_type, description=desc))
+
+        # ── Freight surcharge configs (default 0, structure ready) ──
+        for carrier in ["DHL", "FedEx"]:
+            for stype in ["fuel", "infrastructure"]:
+                key = f"{carrier}_{stype}"
+                existing = session.query(FreightSurchargeConfig).filter_by(
+                    carrier=carrier, surcharge_type=stype
+                ).one_or_none()
+                if existing is None:
+                    session.add(FreightSurchargeConfig(
+                        carrier=carrier,
+                        surcharge_type=stype,
+                        calculation_type="percentage",
+                        rate=0,
+                        applies_to="base_freight",
+                        enabled=True,
+                        source_note="Default seed: 0%. Update when actual rates are confirmed.",
+                    ))
 
         session.commit()
     finally:

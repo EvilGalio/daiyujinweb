@@ -833,6 +833,78 @@ body.tool-page {
     transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Advanced dimensions ────────────────────────── */
+
+.tool-advanced {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0;
+    overflow: hidden;
+}
+
+.tool-advanced summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    user-select: none;
+}
+
+.tool-advanced summary small {
+    font-weight: 400;
+    color: var(--muted);
+}
+
+.tool-advanced summary:hover {
+    background: var(--surface);
+}
+
+.tool-advanced .tool-field-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+}
+
+.tool-advanced .tool-field {
+    padding: 0 0 0.75rem;
+}
+
+.tool-advanced .tool-field input {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 0.5rem 0.65rem;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+}
+
+.tool-advanced .tool-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.tool-advanced .tool-field input::placeholder {
+    color: #cbd5e1;
+}
+
+/* ── Cargo type segmented control ────────────── */
+
+.tool-checks label.active {
+    border-color: var(--accent);
+    background: #ebf4ff;
+    color: var(--accent);
+}
+
 /* ── Country search dropdown ───────────────── */
 
 .country-search {

@@ -68,6 +68,72 @@ class ExchangeRate(Base, TimestampMixin):
     rate: Mapped[float] = mapped_column(Float, nullable=False)
 
 
+# ═══════════════════════════════════════════
+# Freight v2 tables
+# ═══════════════════════════════════════════
+
+
+class FreightZone(Base):
+    """Country → carrier zone/code mapping."""
+    __tablename__ = "freight_zones"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    carrier: Mapped[str] = mapped_column(String(40), nullable=False)
+    country: Mapped[str] = mapped_column(String(160), nullable=False)
+    country_cn: Mapped[str | None] = mapped_column(String(160))
+    zone_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_sheet: Mapped[str | None] = mapped_column(String(80))
+    source_row: Mapped[int | None] = mapped_column(Integer)
+
+
+class FreightRateCard(Base):
+    """Unified rate card: small matrix, document, heavy per-kg."""
+    __tablename__ = "freight_rate_cards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    carrier: Mapped[str] = mapped_column(String(40), nullable=False)
+    cargo_type: Mapped[str] = mapped_column(String(20), default="package", nullable=False)
+    pricing_mode: Mapped[str] = mapped_column(String(40), nullable=False)
+    zone_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    weight_min: Mapped[float] = mapped_column(Float, nullable=False)
+    weight_max: Mapped[float | None] = mapped_column(Float)
+    charge_weight: Mapped[float | None] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY", nullable=False)
+    price_type: Mapped[str] = mapped_column(String(10), default="fixed", nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    source_sheet: Mapped[str | None] = mapped_column(String(80))
+    source_row: Mapped[int | None] = mapped_column(Integer)
+
+
+class FreightRuleConfig(Base):
+    """Tunable rules (thresholds, packaging, currency)."""
+    __tablename__ = "freight_rule_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    value_type: Mapped[str] = mapped_column(String(20), default="string", nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255))
+
+
+class FreightSurchargeConfig(Base):
+    """Fuel, infrastructure, and other surcharges."""
+    __tablename__ = "freight_surcharge_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    carrier: Mapped[str] = mapped_column(String(40), nullable=False)
+    surcharge_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    calculation_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    rate: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    fixed_amount: Mapped[float | None] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    applies_to: Mapped[str] = mapped_column(String(40), default="base_freight", nullable=False)
+    effective_from: Mapped[str | None] = mapped_column(String(20))
+    effective_to: Mapped[str | None] = mapped_column(String(20))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    source_note: Mapped[str | None] = mapped_column(String(255))
+
+
 class FreightRate(Base, TimestampMixin):
     __tablename__ = "freight_rates"
 

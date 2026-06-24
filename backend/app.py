@@ -20,7 +20,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
-DEFAULT_OCC_PYTHON = Path(r"D:\anaconda\envs\occ\python.exe")
+def _occ_python_path():
+    env_file = BACKEND_ROOT / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("OCC_PYTHON="):
+                return Path(line.split("=", 1)[1].strip())
+    return Path(os.environ.get("OCC_PYTHON", r"D:\anaconda\envs\occ\python.exe"))
+
+DEFAULT_OCC_PYTHON = _occ_python_path()
 
 
 def _cors_origins():
@@ -58,7 +66,20 @@ def create_app() -> Flask:
 
     @app.get("/api/public/freight/prototype")
     def freight_prototype():
-        return api_ok(get_freight_summary())
+        summary = get_freight_summary()
+        # Also include v1 stats for backwards compat
+        from database import SessionLocal
+        from sqlalchemy import func, select
+        from models import FreightRate
+        s = SessionLocal()
+        try:
+            v1 = {
+                "v1_record_count": s.execute(select(func.count(FreightRate.id))).scalar_one(),
+                "v1_carriers": [r[0] for r in s.execute(select(FreightRate.carrier).distinct()).all()],
+            }
+        finally:
+            s.close()
+        return api_ok({**summary, **v1})
 
     @app.get("/api/public/freight/countries")
     def freight_countries():
@@ -79,6 +100,9 @@ def create_app() -> Flask:
                 weight_kg=weight_kg,
                 carriers=[str(carrier) for carrier in carriers],
                 currency=currency,
+                actual_weight_kg=payload.get("actual_weight_kg"),
+                cargo_type=str(payload.get("cargo_type", "package")),
+                advanced=payload.get("advanced"),
             )
         except ValueError as exc:
             return api_error("invalid_freight_request", str(exc), 400)
