@@ -1,0 +1,9 @@
+{
+  "engine_version": "iso286-reference-v2",
+  "public_repo_safe": true,
+  "notes": [
+    "Schema documentation only. Do not commit licensed ISO tables.",
+    "Calculation values derived from ISO 286-1:2010 public formulas.",
+    "Fundamental deviations from standard engineering references."
+  ]
+}

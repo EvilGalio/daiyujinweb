@@ -1,0 +1,19 @@
+{
+  "rules": [
+    {"kind": "hole", "zone": "H",  "method": "lower_zero",    "lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "hole", "zone": "JS", "method": "centered_on_zero","lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "hole", "zone": "G",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "hole", "zone": "K",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "hole", "zone": "N",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "hole", "zone": "P",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
+    {"kind": "shaft", "zone": "h",  "method": "upper_zero",    "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "js", "method": "centered_on_zero","lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "f",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "g",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "k",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "n",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "p",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "r",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
+    {"kind": "shaft", "zone": "s",  "method": "table",         "lower": "ei", "upper": "es", "verified": true}
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "hole": [
+    {"code": "H6"}, {"code": "H7"}, {"code": "H8"}, {"code": "H9"}, {"code": "H11"},
+    {"code": "JS6"}, {"code": "JS7"}, {"code": "JS9"},
+    {"code": "G7"},
+    {"code": "K7"},
+    {"code": "N7"},
+    {"code": "P7"}
+  ],
+  "shaft": [
+    {"code": "f7"},
+    {"code": "g6"},
+    {"code": "h6"}, {"code": "h7"}, {"code": "h9"}, {"code": "h11"},
+    {"code": "js6"}, {"code": "js7"},
+    {"code": "k5"}, {"code": "k6"},
+    {"code": "n6"},
+    {"code": "p6"},
+    {"code": "r6"},
+    {"code": "s6"}
+  ]
+}

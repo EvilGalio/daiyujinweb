@@ -13,7 +13,7 @@ from api_utils import api_error, api_ok
 from database import init_db, shutdown_session
 from services.freight import calculate_freight, get_countries, get_freight_summary
 from services.pricing import calculate_quote, get_quote_options, recalculate_weight, request_formal_quote
-from services.tolerance import calculate_fit, get_tolerance_presets, get_tolerance_zones
+from services.tolerance import calculate_tolerance, get_tolerance_presets, get_tolerance_zones, get_tolerance_capabilities
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -90,24 +90,29 @@ def create_app() -> Flask:
 
     @app.get("/api/public/tolerance/tolerance-zones")
     def tolerance_zones():
-        return api_ok(get_tolerance_zones())
+        return api_ok({"tolerance_zones": get_tolerance_zones()})
 
     @app.get("/api/public/tolerance/presets")
     def tolerance_presets():
-        return api_ok(get_tolerance_presets())
+        return api_ok({"presets": get_tolerance_presets()})
+
+    @app.get("/api/public/tolerance/capabilities")
+    def tolerance_capabilities():
+        return api_ok(get_tolerance_capabilities())
 
     @app.post("/api/public/tolerance/calculate")
     def tolerance_calculate():
         payload = request.get_json(silent=True) or {}
         try:
-            result = calculate_fit(
-                basic_size_mm=payload.get("basic_size_mm", payload.get("basic_size")),
-                fit_combination=payload.get("fit_combination"),
-                hole_tolerance=payload.get("hole_tolerance"),
-                shaft_tolerance=payload.get("shaft_tolerance"),
-                client_ip=request.remote_addr,
-                user_agent=request.headers.get("User-Agent"),
-            )
+            from services.tolerance_engine.parser import TolError
+            result = calculate_tolerance(payload)
+        except TolError as exc:
+            return jsonify({
+                "error": True,
+                "code": exc.code,
+                "message": str(exc),
+                "details": exc.details,
+            }), 400
         except ValueError as exc:
             return api_error("invalid_tolerance_request", str(exc), 400)
         return api_ok(result)

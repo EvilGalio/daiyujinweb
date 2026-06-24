@@ -1,0 +1,7 @@
+{
+  "hole_basis": {
+    "clearance":    ["H7/g6", "H7/h6", "H8/f7", "H8/h7", "H9/e8"],
+    "transition":   ["H6/k5", "H7/js6", "H7/k6", "H7/n6"],
+    "interference": ["H7/p6", "H7/r6", "H7/s6"]
+  }
+}
