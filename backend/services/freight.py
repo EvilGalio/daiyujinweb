@@ -34,7 +34,17 @@ def get_countries() -> list[dict[str, str]]:
             .distinct()
             .order_by(FreightZone.country)
         ).all()
-        return [{"en": row[0], "cn": row[1] or row[0]} for row in rows]
+        # Filter out non-country entries like weight tiers
+        import re
+        def is_valid_country(name: str) -> bool:
+            if not name:
+                return False
+            if re.match(r'^[\d.]+\s*-\s*[\d.]+$', name):
+                return False
+            if re.match(r'^[\d.]+-\d+$', name):
+                return False
+            return True
+        return [{"en": row[0], "cn": row[1] or row[0]} for row in rows if is_valid_country(row[0])]
     finally:
         session.close()
 

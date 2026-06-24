@@ -208,13 +208,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             let html = quote.results.map(r => {
+                const total = r.converted_total ?? r.converted_amount ?? 0;
+                const ccy = r.display_currency || r.currency || "CNY";
+                const origCcy = r.original_currency || "CNY";
+                const base = r.base_freight ?? r.freight_amount ?? 0;
                 const modeLabel = { small_matrix: "Small Parcel", document: "Document", heavy_per_kg: "Heavy Cargo" }[r.pricing_mode] || r.pricing_mode;
                 const surchargeRows = r.surcharges?.filter(s => s.amount > 0) || [];
                 return `
                 <section class="carrier-card ${r.carrier.toLowerCase()}">
                     <h3>${r.carrier} <small>${modeLabel}</small></h3>
-                    <div class="quote-total">${r.display_currency} ${r.converted_total.toFixed(2)}</div>
-                    <div class="metric-row"><span>Base Freight</span><strong>${r.original_currency} ${r.base_freight.toFixed(2)}</strong></div>
+                    <div class="quote-total">${ccy} ${total.toFixed(2)}</div>
+                    <div class="metric-row"><span>Base Freight</span><strong>${origCcy} ${base.toFixed(2)}</strong></div>
                     ${surchargeRows.map(s => `
                     <div class="metric-row"><span>${escapeHtml(s.label)}</span><strong>${s.currency} ${s.amount.toFixed(2)}</strong></div>
                     `).join("")}

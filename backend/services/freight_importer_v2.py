@@ -45,10 +45,14 @@ def _text(v: Any) -> str:
 
 def parse_zone_mappings(ws, carrier: str) -> list[dict[str, Any]]:
     """Extract country → zone_code from a matrix sheet."""
+    import re
     zones = []
     for row_idx in range(2, ws.max_row + 1):
         country = _text(ws.cell(row=row_idx, column=1).value)
         if not country or "kg" in country.lower():
+            continue
+        # Skip weight tier rows that got mixed in (e.g. "21-44", "100-299")
+        if re.match(r'^[\d.]+\s*-\s*[\d.]+$', country):
             continue
         zone_code = _text(ws.cell(row=row_idx, column=2).value)
         if not zone_code:
