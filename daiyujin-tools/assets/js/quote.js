@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 state.fileName = file.name;
             }
 
-            setProgressPhase("Cost matrix evaluating");
+            setProgressPhase("Cost assessment");
             const estimate = await calculateEstimate();
             state.estimate = estimate;
 
@@ -73,32 +73,26 @@ document.addEventListener("DOMContentLoaded", () => {
             const options = await window.DaiyujinAPI.request("/api/public/quote/options");
             state.options = options;
 
-            /* Materials */
             materialSelect.innerHTML = options.materials
                 .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
                 .join("");
 
-            /* Processes */
             if (processSelect) {
                 processSelect.innerHTML = (options.processes || [])
-                    .filter(p => p.public !== false)
-                    .map((item) => `<option value="${escapeHtml(item.id)}"${item.id === "CNC" ? " selected" : ""}>${escapeHtml(item.name)}</option>`)
+                    .map((item) => `<option value="${escapeHtml(item.id)}"${item.id === "CNC" ? " selected" : ""}>${escapeHtml(item.label || item.name)}</option>`)
                     .join("");
             }
 
-            /* Tolerance (general only) */
             toleranceSelect.innerHTML = (options.tolerance_grades || [])
                 .map((item) => `<option value="${escapeHtml(item.grade)}">${escapeHtml(item.label)}</option>`)
                 .join("");
 
-            /* Postprocess */
             if (postprocessSelect) {
                 postprocessSelect.innerHTML = (options.postprocess_groups || [])
-                    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${item.fee_rmb > 0 ? '+' + item.fee_rmb + ' RMB' : 'included'})</option>`)
+                    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label || item.name)}</option>`)
                     .join("");
             }
 
-            /* Currency */
             currencySelect.innerHTML = (options.currencies || [])
                 .map((currency) => `<option value="${escapeHtml(currency)}"${currency === "USD" ? " selected" : ""}>${escapeHtml(currency)}</option>`)
                 .join("");
@@ -111,16 +105,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const body = new FormData();
         body.append("file", file);
         const response = await window.DaiyujinAPI.request("/api/public/quote/upload", {
-            method: "POST",
-            body,
+            method: "POST", body,
         });
         if (!response.success || !response.data) {
             throw new Error(response.error || "STEP analysis failed.");
         }
-        return {
-            file_id: response.file_id,
-            ...response.data,
-        };
+        return { file_id: response.file_id, ...response.data };
     }
 
     async function calculateEstimate() {
@@ -153,48 +143,51 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!state.analysis) {
             return `<section class="tool-panel">
                     <h2>Part</h2>
-                    <div class="tool-note">Awaiting STEP analysis.</div>
+                    <div class="tool-note">Upload a STEP file to begin.</div>
                 </section>`;
         }
         const thumb = state.analysis.thumbnail_url ? thumbnailMarkup(state.analysis.thumbnail_url, state.analysis.name) : "";
+        const sel = (state.estimate && state.estimate.selections) || {};
         return `<section class="tool-panel quote-part">
-            <h2>Part</h2>
+            <h2>Part Analyzed</h2>
             ${thumb}
-            <div class="metric-row"><span>Name</span><strong>${escapeHtml(state.analysis.name)}</strong></div>
-            <div class="metric-row"><span>OBB</span><strong>${escapeHtml(state.analysis.obb_dimensions_mm)} mm</strong></div>
-            <div class="metric-row"><span>Volume</span><strong>${formatNumber(state.analysis.volume_mm3)} mm3</strong></div>
+            <div class="metric-row"><span>File</span><strong>${escapeHtml(state.analysis.name)}</strong></div>
+            <div class="metric-row"><span>Bounding Size</span><strong>${escapeHtml(state.analysis.obb_dimensions_mm)} mm</strong></div>
+            <div class="metric-row"><span>Volume</span><strong>${formatNumber(state.analysis.volume_mm3)} mm&sup3;</strong></div>
         </section>`;
     }
 
     function estimateCard() {
         if (!state.estimate) {
-            return `<section class="tool-panel">
-                    <h2>Estimate</h2>
-                    <div class="tool-note">Select parameters and calculate after upload.</div>
-                </section>`;
+            return `<section class="tool-panel quote-estimate">
+                <h2>Estimated Total</h2>
+                <div class="quote-total">USD 0.00</div>
+                <div class="metric-row"><span>Unit Price</span><strong>USD 0.00 / pc</strong></div>
+                <div class="metric-row"><span>Status</span><strong>Waiting for STEP file</strong></div>
+                <div class="tool-note">Upload a STEP file and complete the manufacturing details to generate an estimate.</div>
+            </section>`;
         }
         const e = state.estimate;
         const sel = e.selections || {};
-        const warnings = (e.warnings || []).map(w => `<div class="tool-note warn">${escapeHtml(w)}</div>`).join("");
+        const warningMsgs = (e.warnings || []).map(w => `<div class="tool-note warn">${escapeHtml(w)}</div>`).join("");
 
         return `<section class="tool-panel quote-estimate">
-            <h2>Estimate</h2>
+            <h2>Estimated Total</h2>
             <div class="quote-total">${escapeHtml(e.total.display)}</div>
             <div class="metric-row"><span>Unit Price</span><strong>${escapeHtml(e.unit_price.display)} / pc</strong></div>
-            <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
-            <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
-            <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material || {}).name || "-")}</strong></div>
-            <div class="metric-row"><span>Postprocess</span><strong>${escapeHtml(sel.postprocess_group)}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
-            <div class="metric-row"><span>Model</span><strong>${escapeHtml(e.pricing_model_version)}</strong></div>
-            <div class="quote-breakdown">
-                ${(e.breakdown || []).map((line) => `
-                    <div class="metric-row"><span>${escapeHtml(line.label)}</span><strong>${escapeHtml(line.display)}</strong></div>
-                `).join("")}
+            <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
+            <div class="metric-row"><span>Status</span><strong>Reference estimate</strong></div>
+            <div class="metric-row"><span>Review</span><strong style="color:var(--warn,#c9780c);">Engineering review required</strong></div>
+            <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
+                <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material || {}).name || "-")}</strong></div>
+                <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
+                <div class="metric-row"><span>Postprocess</span><strong>${escapeHtml(sel.postprocess_group)}</strong></div>
+                <div class="metric-row"><span>Tolerance</span><strong>${escapeHtml(sel.tolerance_grade)}</strong></div>
             </div>
-            ${warnings || '<div class="tool-note" style="margin-top:0.5rem;">' + escapeHtml(e.disclaimer || "") + '</div>'}
-            ${warnings ? "" : '<div class="tool-note" style="margin-top:0.5rem;">' + escapeHtml(e.disclaimer || "") + '</div>'}
-            <a class="tool-button secondary" href="mailto:" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Email Us for Formal Quote</a>
+            ${warningMsgs}
+            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "Reference estimate. Final quote requires engineering review.")}</div>
+            <a class="tool-button" href="mailto:" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
 
@@ -206,11 +199,11 @@ document.addEventListener("DOMContentLoaded", () => {
     /* ── Progress bar ── */
     function startProgress() {
         const phases = [
-            "Intelligent system compiling",
-            "Geometric model parsing",
-            "Manufacturing feature analysis",
-            "Cost matrix evaluating",
-            "Dynamic quotation generating",
+            "Secure file intake",
+            "Geometry assessment",
+            "Manufacturing review",
+            "Cost assessment",
+            "Estimate preparation",
         ];
         let phaseIdx = 1;
         let pct = 0;
@@ -259,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderProgress(pct, text, done) {
         result.innerHTML = `<section class="tool-panel">
-            <h2>Assessment in Progress</h2>
+            <h2>Secure Assessment</h2>
             <div class="quote-progress">
                 <div class="quote-progress-bar">
                     <div class="quote-progress-fill${done ? " done" : ""}" style="width:${pct}%"></div>

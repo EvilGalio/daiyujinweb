@@ -12,7 +12,7 @@ from typing import Any
 
 from database import SessionLocal
 from models import Inquiry
-from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2
+from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2, public_quote_response
 
 
 def get_quote_options() -> dict:
@@ -20,17 +20,19 @@ def get_quote_options() -> dict:
 
 
 def calculate_quote(payload: dict, *, client_ip: str = "", user_agent: str = "") -> dict:
-    """Calculate quote using v2.1 additive formula, log inquiry."""
+    """Calculate quote using v2.1 additive formula, log full inquiry, return public-safe."""
     result = calculate_quote_v2(payload)
     _record_inquiry(payload, result, client_ip, user_agent)
-    return result
+    return public_quote_response(result)
 
 
-def recalculate_weight(payload: dict) -> dict:
-    """V2 does not have a separate weight recalc. Return existing part info or empty."""
+def recalculate_weight(volume_mm3: float = 0, material_id: str = "", **_kwargs) -> dict:
+    """Legacy weight recalc. V2 uses OBB, not net volume."""
     return {
-        "volume_mm3": payload.get("volume_mm3", 0),
-        "obb_dimensions_mm": payload.get("obb_dimensions_mm", ""),
+        "volume_mm3": volume_mm3,
+        "material_id": material_id,
+        "weight_kg": None,
+        "note": "Weight recalc not supported in v2.1. OBB dimensions used for quote calculation.",
     }
 
 

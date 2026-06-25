@@ -100,7 +100,7 @@ def _find_process(process_id: str) -> str:
     aliases = _load_csv("process_aliases.csv")
     for a in aliases:
         if a.get("alias", "").strip() == process_id.strip():
-            resolved = a.get("group", "").strip()
+            resolved = a.get("process_norm", "").strip()
             if resolved in coef.get("material_markup_by_process", {}):
                 return resolved
     raise ValueError(f"Unsupported process: {process_id!r}")
@@ -108,15 +108,28 @@ def _find_process(process_id: str) -> str:
 
 def _find_postprocess(postprocess_id: str) -> str:
     coef = coefficients()
+    # 1. Direct match in coefficients (group name)
     if postprocess_id in coef.get("postprocess_fee_by_group", {}):
         return postprocess_id
+
+    # 2. Alias → postprocess_norm
     aliases = _load_csv("postprocess_aliases.csv")
+    norm = None
     for a in aliases:
         if a.get("alias", "").strip() == postprocess_id.strip():
-            resolved = a.get("group", "").strip()
-            if resolved in coef.get("postprocess_fee_by_group", {}):
-                return resolved
-    # Fallback to 其他后处理
+            norm = a.get("postprocess_norm", "").strip()
+            break
+
+    # 3. postprocess_norm → group (from postprocess_groups.csv)
+    if norm:
+        groups_csv = _load_csv("postprocess_groups.csv")
+        for g in groups_csv:
+            if g.get("postprocess_norm", "").strip() == norm:
+                group = g.get("postprocess_group", "").strip()
+                if group in coef.get("postprocess_fee_by_group", {}):
+                    return group
+
+    # 4. Fallback: 其他后处理
     fallback = "\u5176\u4ed6\u540e\u5904\u7406"  # 其他后处理
     if fallback in coef.get("postprocess_fee_by_group", {}):
         return fallback
@@ -155,60 +168,66 @@ def _postprocess_sample_count(postprocess_group: str) -> int:
     return int(coef.get("postprocess_group_counts", {}).get(postprocess_group, 0))
 
 
+# ── Public labels ────────────────────────────────
+
+_PROCESS_LABELS = {
+    "CNC": "CNC Machining",
+    "\u8f66\u5e8a": "Turning",
+    "\u8f66\u94e3\u590d\u5408": "Mill-Turn Machining",
+    "\u677f\u91d1": "Sheet Metal Fabrication",
+}
+
+_POSTPROCESS_LABELS = {
+    "\u53bb\u6bdb\u523a": "Deburring",
+    "\u949d\u5316": "Passivation",
+    "\u7535\u89e3\u629b\u5149": "Electropolishing",
+    "\u55b7\u7802\u629b\u5149": "Bead Blasting / Polishing",
+    "\u9633\u6781\u6c27\u5316": "Anodizing",
+    "\u956d\u96d5": "Laser Marking",
+    "\u70ed\u5904\u7406": "Heat Treatment",
+    "\u7535\u9540\u6d82\u5c42": "Plating / Coating",
+}
+
+
+def _process_label(pg: str) -> str:
+    return _PROCESS_LABELS.get(pg, pg)
+
+
+def _postprocess_label(pg: str) -> str:
+    return _POSTPROCESS_LABELS.get(pg, pg)
+
+
 # ── Main calculate ──────────────────────────────
 
 def get_quote_options_v2() -> dict:
     coef = coefficients()
     mat_list = materials()
 
-    # Materials (active only)
     mats = []
     for m in mat_list:
         if m.get("is_active", "1") != "0":
             mats.append({
                 "id": m["material_norm"].strip(),
                 "name": m["material_norm"].strip(),
-                "density_g_cm3": float(m.get("density_g_cm3", 0)),
-                "price_rmb_per_kg": float(m.get("price_rmb_per_kg", 0)),
-                "price_effective_date": m.get("price_effective_date", "").strip(),
             })
 
-    # Processes
     procs = []
     for pg in coef.get("material_markup_by_process", {}):
-        count = _process_sample_count(pg)
-        if pg == "\u5176\u4ed6\u5de5\u827a":  # 其他工艺
-            continue  # Not exposed publicly
-        procs.append({
-            "id": pg, "name": pg,
-            "sample_count": count,
-            "public": count >= 3,
-        })
+        if pg == "\u5176\u4ed6\u5de5\u827a":
+            continue
+        procs.append({"id": pg, "label": _process_label(pg)})
 
-    # Postprocess groups
     pp_groups = []
     for pg in coef.get("postprocess_fee_by_group", {}):
-        count = _postprocess_sample_count(pg)
         if pg in ("\u672a\u6807\u6ce8\u540e\u5904\u7406", "\u5176\u4ed6\u540e\u5904\u7406"):
-            continue  # Not exposed publicly
-        pp_groups.append({
-            "id": pg,
-            "name": pg,
-            "fee_rmb": float(coef["postprocess_fee_by_group"][pg]),
-            "sample_count": count,
-        })
+            continue
+        pp_groups.append({"id": pg, "label": _postprocess_label(pg)})
 
     return {
-        "model": {
-            "version": "v2.1_additive",
-            "pricing_mode": "deterministic_calculation",
-            "currency_basis": "RMB",
-            "safety_multiplier": SAFETY_MULTIPLIER,
-        },
         "materials": mats,
         "processes": procs,
         "postprocess_groups": pp_groups,
-        "tolerance_grades": [{"grade": "GENERAL", "label": "General tolerance"}],
+        "tolerance_grades": [{"grade": "GENERAL", "label": "General Tolerance"}],
         "currencies": ["USD", "CNY", "EUR"],
         "default_currency": "USD",
     }
@@ -219,7 +238,7 @@ def calculate_quote_v2(payload: dict) -> dict:
     if quantity < 1 or quantity > 100000:
         raise ValueError("Quantity must be 1–100,000")
 
-    dims = parse_obb_dimensions(payload["obb_dimensions_mm"])
+    dims = parse_obb_dimensions(payload.get("obb_dimensions_mm", ""))
     l, w, h = dims
 
     material_id = str(payload.get("material_id", ""))
@@ -269,12 +288,15 @@ def calculate_quote_v2(payload: dict) -> dict:
         + pp_fee
     ) * delta
 
-    suggested_unit = raw_unit_price * SAFETY_MULTIPLIER
-    suggested_total = suggested_unit * quantity
+    suggested_unit = round(raw_unit_price * SAFETY_MULTIPLIER, 2)
+    suggested_total = round(suggested_unit * quantity, 2)
 
     # Currency conversion
     usd_cny = 7.20
     usd_eur = 0.92
+    if currency not in ("CNY", "USD", "EUR"):
+        raise ValueError(f"Unsupported currency: {currency!r}. Supported: CNY, USD, EUR.")
+
     if currency == "CNY":
         unit_display = round(suggested_unit, 2)
         total_display = round(suggested_total, 2)
@@ -354,3 +376,45 @@ def calculate_quote_v2(payload: dict) -> dict:
         "warnings": warnings,
         "disclaimer": "This is a deterministic reference estimate based on v2.1 historical quote coefficients. Final pricing is confirmed after engineering review.",
     }
+
+
+# ── Public response sanitizer ───────────────────
+
+def public_quote_response(result: dict) -> dict:
+    """Strip internal fields from the public API response."""
+    sel = result.get("selections", {})
+    mat = sel.get("material", {})
+    return {
+        "quote_status": result.get("quote_status"),
+        "valid_until": result.get("valid_until"),
+        "currency": result.get("currency"),
+        "part": {
+            "name": result.get("part", {}).get("name"),
+            "stp_filename": result.get("part", {}).get("stp_filename"),
+            "obb_dimensions_mm": result.get("part", {}).get("obb_dimensions_mm"),
+        },
+        "selections": {
+            "material": {"id": mat.get("id"), "name": mat.get("name")},
+            "process": _process_label(sel.get("process", "")),
+            "postprocess_group": _postprocess_label(sel.get("postprocess_group", "")),
+            "quantity": sel.get("quantity"),
+            "tolerance_grade": sel.get("tolerance_grade"),
+        },
+        "unit_price": result.get("unit_price", {}),
+        "total": result.get("total", {}),
+        "warnings": _public_warnings(result.get("warnings", [])),
+        "review_note": "Estimated pricing is subject to engineering review before order confirmation.",
+        "disclaimer": "This estimate is for reference only. Final pricing and lead time will be confirmed after engineering review.",
+    }
+
+
+def _public_warnings(warnings: list[str]) -> list[str]:
+    public = []
+    for w in warnings:
+        if "low sample count" in w.lower():
+            public.append("This configuration may require manual engineering review.")
+        elif "mapped to" in w.lower():
+            continue
+        else:
+            public.append(w)
+    return list(dict.fromkeys(public))
