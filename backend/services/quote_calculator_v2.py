@@ -235,7 +235,7 @@ def get_quote_options_v2() -> dict:
         "processes": procs,
         "postprocess_groups": pp_groups,
         "tolerance_grades": [{"grade": "GENERAL", "label": "General Tolerance"}],
-        "currencies": ["USD", "CNY", "EUR"],
+        "currencies": ["USD", "EUR"],
         "default_currency": "USD",
     }
 
@@ -401,9 +401,9 @@ def _display_amount(rmb: float, currency: str, usd_cny: float, usd_eur: float) -
     if currency == "CNY":
         return rmb
     elif currency == "EUR":
-        return rmb / usd_cny * usd_eur
+        return round(rmb / usd_cny * usd_eur, 2)
     else:
-        return rmb / usd_cny
+        return round(rmb / usd_cny, 2)
 
 
 # ── Public response sanitizer ───────────────────
