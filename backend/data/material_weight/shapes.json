@@ -1,0 +1,79 @@
+{
+  "round_bar": {
+    "label": "Round Bar",
+    "dimensions": [
+      {"key": "diameter", "label": "Diameter"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "square_bar": {
+    "label": "Square Bar",
+    "dimensions": [
+      {"key": "side", "label": "Side"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "rectangular_bar": {
+    "label": "Rectangular Bar / Plate",
+    "dimensions": [
+      {"key": "width", "label": "Width"},
+      {"key": "thickness", "label": "Thickness"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "sheet": {
+    "label": "Sheet / Plate",
+    "dimensions": [
+      {"key": "length", "label": "Length"},
+      {"key": "width", "label": "Width"},
+      {"key": "thickness", "label": "Thickness"}
+    ]
+  },
+  "round_tube": {
+    "label": "Round Tube / Pipe",
+    "dimensions": [
+      {"key": "outer_diameter", "label": "Outer Diameter"},
+      {"key": "wall_thickness", "label": "Wall Thickness"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "square_tube": {
+    "label": "Square Tube",
+    "dimensions": [
+      {"key": "outer_side", "label": "Outer Side"},
+      {"key": "wall_thickness", "label": "Wall Thickness"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "rectangular_tube": {
+    "label": "Rectangular Tube",
+    "dimensions": [
+      {"key": "outer_width", "label": "Outer Width"},
+      {"key": "outer_height", "label": "Outer Height"},
+      {"key": "wall_thickness", "label": "Wall Thickness"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "hex_bar": {
+    "label": "Hex Bar",
+    "dimensions": [
+      {"key": "across_flats", "label": "Across Flats"},
+      {"key": "length", "label": "Length"}
+    ]
+  },
+  "ring": {
+    "label": "Ring",
+    "dimensions": [
+      {"key": "outer_diameter", "label": "Outer Diameter"},
+      {"key": "inner_diameter", "label": "Inner Diameter"},
+      {"key": "thickness", "label": "Thickness"}
+    ]
+  },
+  "disc": {
+    "label": "Disc / Circle",
+    "dimensions": [
+      {"key": "diameter", "label": "Diameter"},
+      {"key": "thickness", "label": "Thickness"}
+    ]
+  }
+}

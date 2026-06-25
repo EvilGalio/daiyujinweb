@@ -1,0 +1,15 @@
+material_id,material_family,common_name,ISO,EN,DIN,ANSI_AA_USA,UNS,JIS_JP,BS_GB,AFNOR_FR,UNE_ES,CSA_CA,SIS_SE,notes,confidence,review_status,source_ids
+al_6061,Aluminum alloy,Aluminum 6061,Al-Mg1SiCu,EN AW-6061,3.3211,6061,A96061,A6061,6061,6061,6061,6061,6061,"T6 temper most common. Verify temper for structural use.",high,verified,src1
+al_7075,Aluminum alloy,Aluminum 7075,Al-Zn6MgCu,EN AW-7075,3.4365,7075,A97075,A7075,7075,7075,7075,7075,7075,"High-strength alloy. Verify temper condition.",high,verified,src1
+ss_304,Stainless steel,Stainless 304,X5CrNi18-10,1.4301,1.4301,304,S30400,SUS304,304S31,Z6CN18-09,F3551,304,2333,"Austenitic stainless. Verify grade for welding/corrosion.",high,verified,src1
+ss_316,Stainless steel,Stainless 316,X5CrNiMo17-12-2,1.4401,1.4401,316,S31600,SUS316,316S31,Z6CND17-11,F3534,316,2347,"Molybdenum-bearing. Verify for marine/chemical use.",high,verified,src1
+ss_303,Stainless steel,Stainless 303,X8CrNiS18-9,1.4305,1.4305,303,S30300,SUS303,303S21,Z10CNF18-09,F3508,303,2346,"Free-machining. Not for welding.",high,verified,src1
+carbon_1045,Carbon steel,Carbon Steel 1045,C45,1.0503,1.0503,1045,G10450,S45C,C45,XC48,F1140,1045,1672,"Medium carbon. Verify for heat treatment.",medium,needs_review,src1
+alloy_4140,Alloy steel,Alloy Steel 4140,42CrMo4,1.7225,1.7225,4140,G41400,SCM440,708M40,42CD4,F1252,4140,2244,"Verify temper for strength requirements.",medium,needs_review,src1
+ti_gr5,Titanium,Titanium Gr5,Ti-6Al-4V,3.7165,3.7165,Grade 5,R56400,TAB6400,TA10-13,TA6V,Grade 5,TA6V,"Aerospace/medical grade.",medium,needs_review,src1
+brass_ms58,Brass / Copper,Brass MS58,CuZn39Pb3,CW614N,2.0401,C36000,C36000,C3601,CZ121,CW614N,C36000,,,"Free-machining brass.",medium,needs_review,src1
+copper_cw004a,Brass / Copper,Copper E-Cu,Cu-ETP,CW004A,2.0060,C11000,C11000,C1100,C101,CW004A,C11000,,,"Electrolytic tough pitch copper.",medium,needs_review,src1
+pom,Engineering plastic,POM / Delrin,,,,,,,,,,,,,medium,needs_review,src1
+nylon_pa,Engineering plastic,Nylon / PA,,,,,,,,,,,,,medium,needs_review,src1
+ptfe,Engineering plastic,PTFE / Teflon,,,,,,,,,,,,,medium,needs_review,src1
+peek,High-perf plastic,PEEK,,,,,,,,,,,,,medium,needs_review,src1

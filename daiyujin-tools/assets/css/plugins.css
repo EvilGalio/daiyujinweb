@@ -822,6 +822,103 @@ body.tool-page {
     .material-card-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Material standards lookup ──────────────── */
+
+.mat-search-bar {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.mat-search-input {
+    flex: 1;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 0.65rem 0.85rem;
+    font-family: var(--font-mono, "SF Mono", monospace);
+    font-size: 1.05rem;
+}
+
+.mat-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.mat-results { margin-top: 1.5rem; }
+
+.mat-result-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow-card);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.mat-result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.mat-result-name {
+    font-family: var(--font-display, "SF Pro Display", sans-serif);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.mat-result-family {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.mat-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+}
+
+.mat-badge.ok { background: #ecfdf5; color: #065f46; }
+.mat-badge.warn { background: #fffbeb; color: #92400e; }
+
+.mat-standards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+}
+
+.mat-std-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+}
+
+.mat-std-key {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+}
+
+.mat-std-val {
+    font-family: var(--font-mono, "SF Mono", monospace);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
 /* ── Quote specific ─────────────────────────── */
 
 .quote-stack {

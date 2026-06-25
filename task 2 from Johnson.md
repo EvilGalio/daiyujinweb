@@ -62,4 +62,4 @@
 
 # 材料计算器
 
-参考https://www.onlinemetals.com/en/weight-calculator?srsltid=AfmBOorKmOYaQxAJ1uI17LuWvlgkjbIEdLlDcFXnXgjMrr0j5SZdZQSI，我们也要做一个这样的计算器。Enter Material and quantity below，包括材料及alloy、形状（参考它的），它还有参考图，然后输入size information，就可以计算重量。
+参考https://www.onlinemetals.com/en/weight-calculator?srsltid=AfmBOorKmOYaQxAJ1uI17LuWvlgkjbIEdLlDcFXnXgjMrr0j5SZdZQSI，我们也要做一个这样的计算器。Enter Material and quantity below，包括材料及alloy、形状（参考它的），它还有svg参考图，然后输入size information，就可以计算重量。

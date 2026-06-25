@@ -1,0 +1,16 @@
+material_id,family,label,density_g_cm3,density_lb_in3,source,is_active
+aluminum_6061,Aluminum,Aluminum 6061,2.70,0.0975,standard_reference,1
+aluminum_7075,Aluminum,Aluminum 7075,2.81,0.1015,standard_reference,1
+stainless_304,Stainless Steel,Stainless 304,7.93,0.2865,standard_reference,1
+stainless_316,Stainless Steel,Stainless 316,8.00,0.2890,standard_reference,1
+carbon_steel,Carbon Steel,Carbon Steel,7.85,0.2836,standard_reference,1
+alloy_steel,Alloy Steel,Alloy Steel,7.85,0.2836,standard_reference,1
+titanium_gr5,Titanium,Titanium Gr5,4.43,0.1600,standard_reference,1
+brass,Brass / Copper,Brass,8.50,0.3070,standard_reference,1
+copper,Brass / Copper,Copper,8.96,0.3236,standard_reference,1
+pom,Engineering Plastic,POM / Delrin,1.41,0.0509,standard_reference,1
+nylon_pa,Engineering Plastic,Nylon / PA,1.15,0.0415,standard_reference,1
+ptfe,Engineering Plastic,PTFE / Teflon,2.20,0.0795,standard_reference,1
+peek,Engineering Plastic,PEEK,1.32,0.0477,standard_reference,1
+abs,Plastic Materials,ABS,1.05,0.0379,standard_reference,1
+polycarbonate,Plastic Materials,Polycarbonate / PC,1.20,0.0433,standard_reference,1

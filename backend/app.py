@@ -14,6 +14,8 @@ from database import init_db, shutdown_session
 from services.freight import calculate_freight, get_countries, get_freight_summary
 from services.pricing import calculate_quote, get_quote_options, recalculate_weight, request_formal_quote
 from services.tolerance import calculate_tolerance, get_tolerance_presets, get_tolerance_zones, get_tolerance_capabilities
+from services.material_standards import search as material_standards_search, get_families as material_standards_families
+from services.material_weight import get_options as material_weight_options, calculate as material_weight_calculate
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -115,6 +117,31 @@ def create_app() -> Flask:
             }), 400
         except ValueError as exc:
             return api_error("invalid_tolerance_request", str(exc), 400)
+        return api_ok(result)
+
+    # ── Material Standards ──
+    @app.get("/api/public/material-standards/search")
+    def material_standards_search_route():
+        q = request.args.get("q", "")
+        limit = int(request.args.get("limit", 10))
+        return api_ok(material_standards_search(q, limit))
+
+    @app.get("/api/public/material-standards/families")
+    def material_standards_families_route():
+        return api_ok(material_standards_families())
+
+    # ── Material Weight ──
+    @app.get("/api/public/material-weight/options")
+    def material_weight_options_route():
+        return api_ok(material_weight_options())
+
+    @app.post("/api/public/material-weight/calculate")
+    def material_weight_calculate_route():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = material_weight_calculate(payload)
+        except ValueError as exc:
+            return api_error("invalid_weight_request", str(exc), 400)
         return api_ok(result)
 
     @app.post("/api/public/quote/upload")
