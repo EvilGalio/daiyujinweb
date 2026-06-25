@@ -47,16 +47,22 @@
                         </select>
                     </div>
                     <div class="tool-field">
-                        <label for="tolerance">Tolerance Grade</label>
+                        <label for="process">Process</label>
+                        <select id="process" name="process" data-process-select>
+                            <option value="">Loading&hellip;</option>
+                        </select>
+                    </div>
+                    <div class="tool-field">
+                        <label for="tolerance">General Tolerance</label>
                         <select id="tolerance" name="tolerance_grade" data-tolerance-select>
                             <option value="">Loading&hellip;</option>
                         </select>
                     </div>
                     <div class="tool-field">
-                        <span class="tool-label">Surface Treatment</span>
-                        <div class="tool-checks" data-treatment-options>
-                            <label><input type="checkbox" disabled> Loading</label>
-                        </div>
+                        <label for="postprocess">Postprocess</label>
+                        <select id="postprocess" name="postprocess_group" data-postprocess-select>
+                            <option value="">Loading&hellip;</option>
+                        </select>
                     </div>
                     <div class="tool-field">
                         <label for="quantity">Quantity</label>

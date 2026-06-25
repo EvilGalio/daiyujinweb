@@ -341,6 +341,34 @@ STEP 几何特征可解析的实体模型
 | `aspect_ratio` | max_dim / min_dim | 长细件装夹风险 |
 | `compactness` | volume / stock_volume | 形状复杂度代理 |
 
+### 6.2.0 几何失败和降级策略
+
+STEP 解析存在失败概率。报价引擎必须把几何失败当成一等状态处理，不能让后续成本模型拿缺失值继续算。
+
+| 场景 | 处理 |
+|---|---|
+| STEP 读取失败 | `quote_status = "geometry_failed"`，不自动报价 |
+| 文件非 solid 或无法取得有效体积 | `review_required = true`，提示上传可制造实体模型 |
+| 多实体 STEP | 如果可合并为 compound 则继续并加 `multi_body_risk`，否则人工复核 |
+| 单位异常或尺寸极端异常 | `review_required = true`，提示确认单位 |
+| OBB 失败但 AABB 可用 | 使用 AABB 作为临时毛坯代理，并降低 confidence |
+| surface area 失败 | 使用 AABB 表面积代理，并加入 `surface_area_proxy_used` warning |
+| thumbnail 失败但几何特征成功 | 可以继续估价，但前端显示缩略图不可用 |
+
+后端响应必须返回 `geometry_quality`：
+
+```json
+{
+  "geometry_quality": {
+    "status": "ok",
+    "used_proxy_fields": [],
+    "warnings": []
+  }
+}
+```
+
+如果 `status` 异常，成本模型必须根据 warning 降低 confidence 或触发 review gate。
+
 ### 6.2.1 毛坯策略
 
 毛坯是价格模型的地基，不能简单把成品净体积当材料成本。
@@ -435,6 +463,39 @@ else:
 | `range` | 显示区间和 Medium confidence |
 | `range_with_review` | 显示较宽区间和 Review recommended |
 | `review_required` | 不显示价格或显示询盘 CTA，提示工程复核 |
+
+### 6.3.2 状态字段边界
+
+`confidence`、`estimate_mode`、`review_required` 必须分工明确，避免前端、后端和销售理解混乱。
+
+| 字段 | 含义 | 生成逻辑 | 前端用途 |
+|---|---|---|---|
+| `confidence` | 模型对估价区间的把握 | 由几何质量、风险数量、参数完整度决定 | 显示 High / Medium / Low |
+| `review_required` | 是否必须人工复核 | hard gate 或严重风险触发 | 决定是否显示正式估价 CTA |
+| `estimate_mode` | 客户侧展示模式 | 由 `confidence` 和 `review_required` 映射 | 决定展示区间、宽区间、复核提示或不展示价格 |
+
+推荐映射：
+
+```text
+if review_required:
+    confidence = "low"
+    estimate_mode = "review_required"
+elif soft_risk_score >= 3:
+    confidence = "low"
+    estimate_mode = "range_with_review"
+elif soft_risk_score >= 1 or geometry_quality has warnings:
+    confidence = "medium"
+    estimate_mode = "range"
+else:
+    confidence = "high"
+    estimate_mode = "range_high_confidence"
+```
+
+约束：
+
+1. `review_required = true` 时，客户侧不显示看似确定的 center price。
+2. `confidence = low` 不必然等于 `review_required = true`，低置信度也可以显示宽区间和复核建议。
+3. `estimate_mode` 是展示策略，不参与成本计算。
 
 ### 6.4 成本模型
 
@@ -576,6 +637,14 @@ treatment_tolerance_risk = true
 inspection_time += extra_inspection_time
 ```
 
+第一版后处理要保守建模：
+
+1. 优先使用 `fixed_lot_cost + per_part_cost`。
+2. 只有当 surface area 可靠时才启用面积成本。
+3. 对阳极、镀镍、发黑、热处理等可能影响尺寸或外协交期的处理，默认增加 review flag。
+4. 后处理外协最低收费必须独立于 `minimum_order_usd`，避免小批量被低估。
+5. 不在客户侧展示外协单价、供应商费率或内部 margin。
+
 #### 6.4.8 批量摊销
 
 ```text
@@ -634,19 +703,29 @@ total_center = max(unit_cost * quantity, minimum_order_usd)
 
 不要只返回单点价格。
 
+价格区间不应默认对称。制造报价的风险通常偏上行：低价空间有限，高价风险更大。因此第一版建议使用非对称区间。
+
 ```text
-low = center * (1 - uncertainty)
-high = center * (1 + uncertainty)
+low = center * (1 - downside_rate)
+high = center * (1 + upside_rate)
 ```
 
-`uncertainty` 根据风险和数据完整度：
+推荐参数：
 
-| 情况 | uncertainty |
-|---|---:|
-| 常规件，材料常见，公差普通 | 10% |
-| 中等复杂，缺少图纸 | 20% |
-| 高风险，后处理影响公差 | 35% |
-| 超出能力边界 | 不自动报价 |
+| 情况 | downside_rate | upside_rate |
+|---|---:|---:|
+| 常规件，材料常见，公差普通 | 6% | 12% |
+| 中等复杂，缺少图纸 | 10% | 25% |
+| 高风险，后处理影响公差 | 15% | 40% |
+| `review_required` | 不展示 center | 不展示 center |
+| 超出能力边界 | 不自动报价 | 不自动报价 |
+
+约束：
+
+1. `center` 只作为内部成本模型中心值和后续回测字段。
+2. 客户侧主要展示 `low - high`。
+3. `review_required` 时不返回客户可见的 `center`，只返回复核 CTA 和必要说明。
+4. 后续有历史数据后，`downside_rate` 和 `upside_rate` 应按材料、尺寸、工艺风险分组校准。
 
 ### 6.6 模型版本和回测
 
@@ -780,6 +859,21 @@ customer_result
 ```
 
 ## 8. 数据库设计
+
+### 8.0 分阶段落库策略
+
+数据库不要一次性重构过大。第一轮实现以“可追踪、可回测”为目标，先保存 JSON 快照，再逐步拆成结构化表。
+
+建议顺序：
+
+| 阶段 | 落库范围 | 目的 |
+|---|---|---|
+| Q2 最小落库 | 在现有 inquiry 上保存 `model_versions`、`customer_result_json`、`internal_cost_json` | 先让 v2 模型可回放 |
+| Q3 风险落库 | 新增或扩展 `quote_review_flags` | 支持人工复核和风险统计 |
+| Q5 校准落库 | 新增 `quote_actuals` | 支持人工最终报价回填 |
+| 后续结构化 | 拆出 `quote_geometry_features`、`quote_model_runs` 等表 | 支持更细的分析和训练 |
+
+下面的表结构是目标设计，不要求 Q2 一次全部完成。
 
 ### 8.1 新增 `quote_geometry_features`
 
@@ -992,6 +1086,8 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
 
 目标：在改代码前先固定一组可回归样例和参数表。
 
+这是进入编码前的第一步。没有参数初稿和 fixtures，Q1/Q2 的结果无法判断变好还是变坏。
+
 任务：
 
 1. 新建 `backend/docs/quote_engine_v2_parameters.md`。
@@ -1011,6 +1107,7 @@ Estimate considers geometry, selected material, quantity, tolerance and surface 
 fixtures 文件或生成脚本存在。
 参数文档存在。
 后续 Q1/Q2 测试可以引用这些固定样例。
+下一阶段开始前，至少能说明每个 fixture 的预期风险和价格趋势。
 ```
 
 ### Phase Q1: 几何特征增强
@@ -1054,6 +1151,7 @@ fixtures 中至少 4 个样例能稳定解析。
    - minimum charges
 5. 实现 `estimate_mode`。
 6. `calculate_quote()` 返回区间价格和 confidence。
+7. 先以 JSON 快照方式记录 v2 模型运行结果，完整结构化表延后到 Q5 或后续阶段。
 
 验收：
 
@@ -1062,6 +1160,8 @@ phase1A smoke test 更新后通过。
 结果有 low/center/high。
 结果不暴露内部费率。
 小件不会低于 minimum_unit_usd。
+`review_required` 时客户侧不返回 center price。
+至少 6 个 fixtures 的价格趋势符合预期。
 ```
 
 ### Phase Q3: 风险分级和人工复核
@@ -1215,12 +1315,13 @@ LLM 负责解释、询盘摘要、报价员辅助
 
 ## 14. 下一步
 
-确认本 PRD 后，从 Phase Q1 开始：
+确认本 PRD 后，从 Phase Q0.5 开始：
 
-1. 先做 Phase Q0.5，固定参数初稿和 STEP fixtures。
-2. 增强 `step_analyzer.py` 的几何特征输出。
-3. 保持旧报价接口兼容。
-4. 新建 v2 成本模型，但先不改变前端展示。
-5. 用测试确认新旧接口都能运行。
+1. 固定参数初稿和 STEP fixtures。
+2. 为每个 fixture 写清楚预期风险、价格趋势和 review 预期。
+3. 增强 `step_analyzer.py` 的几何特征输出。
+4. 保持旧报价接口兼容。
+5. 新建 v2 成本模型，但先不改变前端展示。
+6. 用测试确认新旧接口都能运行。
 
 完成 Q1/Q2 后，再升级前端结果卡。

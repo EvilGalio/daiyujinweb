@@ -1,0 +1,43 @@
+material_norm,density_g_cm3,price_rmb_per_kg,price_effective_date,source,is_active
+Al 6061,2.70,28.0,2026-01-01,internal,TRUE
+Al 6082,2.70,30.0,2026-01-01,internal,TRUE
+AlMgSi1,2.70,28.0,2026-01-01,internal,TRUE
+AISI 303,7.93,28.0,2026-01-01,internal,TRUE
+AISI 304,7.93,22.0,2026-01-01,internal,TRUE
+AISI 316,8.00,45.0,2026-01-01,internal,TRUE
+AISI 316L,8.00,48.0,2026-01-01,internal,TRUE
+AISI 420,7.75,30.0,2026-01-01,internal,TRUE
+AISI 420F,7.75,35.0,2026-01-01,internal,TRUE
+16MnCr5,7.85,18.0,2026-01-01,internal,TRUE
+42CrMo,7.85,16.0,2026-01-01,internal,TRUE
+C45,7.85,8.0,2026-01-01,internal,TRUE
+C40,7.85,8.0,2026-01-01,internal,TRUE
+S235JR,7.85,7.5,2026-01-01,internal,TRUE
+E-Cu CW004A,8.96,85.0,2026-01-01,internal,TRUE
+Brass MS58,8.47,55.0,2026-01-01,internal,TRUE
+Hastelloy C-276,8.89,320.0,2026-01-01,internal,TRUE
+POM,1.41,18.0,2026-01-01,internal,TRUE
+PTFE,2.20,65.0,2026-01-01,internal,TRUE
+PEEK,1.32,450.0,2026-01-01,internal,TRUE
+Titanium Gr5,4.43,200.0,2026-01-01,internal,TRUE
+Titanium Gr1,4.51,160.0,2026-01-01,internal,TRUE
+AISI 1020,7.85,7.0,2026-01-01,internal,TRUE
+AISI 12L14,7.85,12.0,2026-01-01,internal,TRUE
+S355J2,7.85,9.0,2026-01-01,internal,TRUE
+DC01,7.85,7.0,2026-01-01,internal,TRUE
+38NiCrMo4,7.85,18.0,2026-01-01,internal,TRUE
+34CrNiMo6,7.85,20.0,2026-01-01,internal,TRUE
+SCM435,7.85,16.0,2026-01-01,internal,TRUE
+11SMn30,7.85,14.0,2026-01-01,internal,TRUE
+1.4112,7.70,25.0,2026-01-01,internal,TRUE
+1.4031,7.70,22.0,2026-01-01,internal,TRUE
+1.4057,7.70,28.0,2026-01-01,internal,TRUE
+1.2379,7.78,30.0,2026-01-01,internal,TRUE
+Al 7075,2.81,45.0,2026-01-01,internal,TRUE
+AlMg4_5Mn,2.66,35.0,2026-01-01,internal,TRUE
+Nylon,1.15,25.0,2026-01-01,internal,TRUE
+Al 6060,2.70,27.0,2026-01-01,internal,TRUE
+AISI 1018,7.87,7.5,2026-01-01,internal,TRUE
+S50C,7.85,9.0,2026-01-01,internal,TRUE
+Tin Bronze,8.80,70.0,2026-01-01,internal,TRUE
+Tungsten Carbide,15.0,350.0,2026-01-01,internal,TRUE
