@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const form = document.querySelector("[data-quote-form]");
     const result = document.querySelector("[data-quote-result]");
-    const materialSelect = document.querySelector("[data-material-select]");
+    const materialCardList = document.querySelector("[data-material-category-list]");
     const processSelect = document.querySelector("[data-process-select]");
     const toleranceSelect = document.querySelector("[data-tolerance-select]");
     const postprocessSelect = document.querySelector("[data-postprocess-select]");
@@ -73,9 +73,25 @@ document.addEventListener("DOMContentLoaded", () => {
             const options = await window.DaiyujinAPI.request("/api/public/quote/options");
             state.options = options;
 
-            materialSelect.innerHTML = options.materials
-                .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
-                .join("");
+            /* Material category cards */
+            if (materialCardList) {
+                const cats = options.material_categories || [];
+                materialCardList.innerHTML = cats.map((item, i) => `
+                    <label class="material-card${i === 0 ? ' active' : ''}">
+                        <input type="radio" name="material_category" value="${escapeHtml(item.id)}"${i === 0 ? ' checked' : ''}>
+                        <span class="material-card-title">${escapeHtml(item.label)}</span>
+                        ${item.description ? `<span class="material-card-desc">${escapeHtml(item.description)}</span>` : ''}
+                    </label>
+                `).join("");
+
+                /* Radio change → update active state */
+                materialCardList.addEventListener("change", (e) => {
+                    const radio = e.target.closest("input[type=radio]");
+                    if (!radio) return;
+                    materialCardList.querySelectorAll(".material-card").forEach(c => c.classList.remove("active"));
+                    radio.closest(".material-card")?.classList.add("active");
+                });
+            }
 
             if (processSelect) {
                 processSelect.innerHTML = (options.processes || [])
@@ -115,13 +131,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function calculateEstimate() {
         const formData = new FormData(form);
+        const catRadio = document.querySelector("input[name=material_category]:checked");
         const payload = {
             file_id: state.analysis.file_id,
             part_name: state.analysis.name,
             stp_filename: state.fileName,
             volume_mm3: state.analysis.volume_mm3,
             obb_dimensions_mm: state.analysis.obb_dimensions_mm,
-            material_id: String(formData.get("material_id") || ""),
+            material_category: catRadio ? catRadio.value : "aluminum_alloy",
             process: String(formData.get("process") || "CNC"),
             postprocess_group: String(formData.get("postprocess_group") || "去毛刺"),
             tolerance_grade: String(formData.get("tolerance_grade") || "GENERAL"),
@@ -147,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 </section>`;
         }
         const thumb = state.analysis.thumbnail_url ? thumbnailMarkup(state.analysis.thumbnail_url, state.analysis.name) : "";
-        const sel = (state.estimate && state.estimate.selections) || {};
         return `<section class="tool-panel quote-part">
             <h2>Part Analyzed</h2>
             ${thumb}
@@ -160,9 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function estimateCard() {
         if (!state.estimate) {
             return `<section class="tool-panel quote-estimate">
-                <h2>Estimated Total</h2>
-                <div class="quote-total">USD 0.00</div>
-                <div class="metric-row"><span>Unit Price</span><strong>USD 0.00 / pc</strong></div>
+                <h2>Estimated Range</h2>
+                <div class="quote-total">USD 0 &ndash; 0</div>
+                <div class="metric-row"><span>Unit Range</span><strong>USD 0 / pc</strong></div>
                 <div class="metric-row"><span>Status</span><strong>Waiting for STEP file</strong></div>
                 <div class="tool-note">Upload a STEP file and complete the manufacturing details to generate an estimate.</div>
             </section>`;
@@ -171,22 +187,25 @@ document.addEventListener("DOMContentLoaded", () => {
         const sel = e.selections || {};
         const warningMsgs = (e.warnings || []).map(w => `<div class="tool-note warn">${escapeHtml(w)}</div>`).join("");
 
+        const totalRng = e.total_range || {};
+        const unitRng = e.unit_range || {};
+
         return `<section class="tool-panel quote-estimate">
-            <h2>Estimated Total</h2>
-            <div class="quote-total">${escapeHtml(e.total.display)}</div>
-            <div class="metric-row"><span>Unit Price</span><strong>${escapeHtml(e.unit_price.display)} / pc</strong></div>
+            <h2>Estimated Range</h2>
+            <div class="quote-total">${escapeHtml(totalRng.display || "—")}</div>
+            <div class="metric-row"><span>Unit Range</span><strong>${escapeHtml(unitRng.display || "—")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
             <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
-            <div class="metric-row"><span>Status</span><strong>Reference estimate</strong></div>
-            <div class="metric-row"><span>Review</span><strong style="color:var(--warn,#c9780c);">Engineering review required</strong></div>
+            <div class="metric-row"><span>Status</span><strong>Reference range</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
-                <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material || {}).name || "-")}</strong></div>
+                <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material_category || {}).label || "-")}</strong></div>
                 <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
                 <div class="metric-row"><span>Postprocess</span><strong>${escapeHtml(sel.postprocess_group)}</strong></div>
                 <div class="metric-row"><span>Tolerance</span><strong>${escapeHtml(sel.tolerance_grade)}</strong></div>
             </div>
             ${warningMsgs}
-            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "Reference estimate. Final quote requires engineering review.")}</div>
+            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "This range is for early cost evaluation. Exact pricing depends on material grade, tolerance, finish, and lead time.")}</div>
+            <div class="tool-note" style="margin-top:0.25rem;">${escapeHtml(e.review_note || "Need an exact price? Contact our engineers for a fast formal quote.")}</div>
             <a class="tool-button" href="mailto:" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
@@ -212,16 +231,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         function tick() {
             if (stopped) return;
-            if (pct < 70) {
-                pct += 12 + Math.random() * 10;
-                phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2);
-            } else if (pct < 92) {
-                pct += 2 + Math.random() * 3;
-                phaseIdx = phases.length - 1;
-            } else {
-                pct += Math.random() * 0.5;
-                pct = Math.min(pct, 96);
-            }
+            if (pct < 70) { pct += 12 + Math.random() * 10; phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2); }
+            else if (pct < 92) { pct += 2 + Math.random() * 3; phaseIdx = phases.length - 1; }
+            else { pct += Math.random() * 0.5; pct = Math.min(pct, 96); }
             renderProgress(pct, phases[phaseIdx]);
             timer = setTimeout(tick, 600 + Math.random() * 900);
         }
@@ -232,11 +244,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return function finish(success) {
             stopped = true;
             clearTimeout(timer);
-            if (success) {
-                renderProgress(100, "Assessment complete", true);
-            } else {
-                result.innerHTML = "";
-            }
+            if (success) { renderProgress(100, "Assessment complete", true); }
+            else { result.innerHTML = ""; }
         };
     }
 
@@ -254,9 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
         result.innerHTML = `<section class="tool-panel">
             <h2>Secure Assessment</h2>
             <div class="quote-progress">
-                <div class="quote-progress-bar">
-                    <div class="quote-progress-fill${done ? " done" : ""}" style="width:${pct}%"></div>
-                </div>
+                <div class="quote-progress-bar"><div class="quote-progress-fill${done ? " done" : ""}" style="width:${pct}%"></div></div>
                 <div class="quote-progress-text">
                     <span class="quote-progress-phase">${escapeHtml(text)}</span>
                     <span class="quote-progress-pct">${Math.round(pct)}%</span>
@@ -270,10 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
         result.innerHTML = `<section class="tool-panel"><div class="tool-note error">${escapeHtml(message)}</div></section>`;
     }
 
-    function formatNumber(value) {
-        return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
-    }
-
+    function formatNumber(value) { return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, (char) => ({
             "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",

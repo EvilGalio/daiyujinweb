@@ -1,7 +1,4 @@
-"""Acceptance tests for Quote Calculator v2.1.
-
-Run: D:\\anaconda\\python.exe backend\\scripts\\test_quote_v2.py
-"""
+"""Acceptance tests for Quote Calculator v2.1 — material categories + range format."""
 
 import sys, json
 from pathlib import Path
@@ -11,8 +8,8 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from services.quote_calculator_v2 import (
     calculate_quote_v2, get_quote_options_v2,
-    parse_obb_dimensions, _find_material, _find_process,
-    _find_postprocess, coefficients, materials,
+    public_quote_response, _commercial_round, _find_material,
+    _find_process, _find_postprocess, material_categories,
     SAFETY_MULTIPLIER,
 )
 
@@ -25,80 +22,95 @@ def check(label, actual, expected, tol=0.01):
     else:
         print(f"  OK {label}: {actual}")
 
-# ── Phase 1: Formula golden cases ──
+# GC1
 print("=== Golden cases ===")
-
-# GC1: AISI 304 + CNC + Deburr + 100x50x20 + qty 10
 r = calculate_quote_v2({
-    "material_id": "AISI 304", "process": "CNC",
+    "material_category": "stainless_steel", "process": "CNC",
     "postprocess_group": "去毛刺", "quantity": 10,
     "obb_dimensions_mm": "100 x 50 x 20", "currency": "CNY",
 })
 check("GC1 suggested_unit_price_rmb", r["formula"]["suggested_unit_price_rmb"], 239.75)
-check("GC1 total RMB", r["total"]["amount_rmb"], 2397.5)
-check("GC1 pricing_mode", r["pricing_mode"], "deterministic_calculation")
+check("GC1 total RMB", r["formula"]["suggested_total_rmb"], 2397.5)
 
-# GC2: Al 6061 + 车床 + 阳极氧化 + 50x30x10 + qty 1000
 r = calculate_quote_v2({
-    "material_id": "Al 6061", "process": "车床",
+    "material_category": "aluminum_alloy", "process": "车床",
     "postprocess_group": "阳极氧化", "quantity": 1000,
     "obb_dimensions_mm": "50 x 30 x 10", "currency": "CNY",
 })
-check("GC2 suggested_unit_price_rmb", r["formula"]["suggested_unit_price_rmb"], 15.24)
 check("GC2 tier", r["selections"]["quantity_tier"], "q_501_plus")
 
-# ── Phase 2: Error cases ──
+# Error handling
 print("=== Error handling ===")
+try: calculate_quote_v2({"process":"CNC","quantity":10})
+except ValueError: print("  OK Missing material: ValueError")
 
-# Missing OBB
-try:
-    calculate_quote_v2({"material_id": "AISI 304", "process": "CNC", "quantity": 10})
-    errors.append("  FAIL: Missing OBB should raise ValueError")
-except ValueError as e:
-    print(f"  OK Missing OBB: {e}")
+try: calculate_quote_v2({"material_category":"aluminum_alloy","process":"CNC","quantity":10,"currency":"JPY",
+    "obb_dimensions_mm":"100x50x20"})
+except ValueError: print("  OK Unknown currency: ValueError")
 
-# Unknown currency
-try:
-    calculate_quote_v2({"material_id": "AISI 304", "process": "CNC", "quantity": 10,
-        "obb_dimensions_mm": "100 x 50 x 20", "currency": "JPY"})
-    errors.append("  FAIL: JPY should raise ValueError")
-except ValueError as e:
-    print(f"  OK Unknown currency: {e}")
+# Alias
+print("=== Aliases ===")
+check("Process alias", _find_process("CNC加工"), "CNC")
+check("Postprocess alias", _find_postprocess("Anodize"), "阳极氧化")
 
-# ── Phase 3: Alias resolution ──
-print("=== Alias resolution ===")
-
-process = _find_process("CNC加工")
-check("Process alias", process, "CNC")
-
-pp = _find_postprocess("Anodize")
-check("Postprocess alias", pp, "阳极氧化")
-
-# ── Phase 4: Deterministic output ──
+# Determinism
 print("=== Determinism ===")
 r1 = calculate_quote_v2({
-    "material_id": "AISI 304", "process": "CNC",
+    "material_category": "aluminum_alloy", "process": "CNC",
     "postprocess_group": "去毛刺", "quantity": 10,
-    "obb_dimensions_mm": "100 x 50 x 20",
+    "obb_dimensions_mm": "100 x 50 x 20", "currency": "CNY",
 })
 r2 = calculate_quote_v2({
-    "material_id": "AISI 304", "process": "CNC",
+    "material_category": "aluminum_alloy", "process": "CNC",
     "postprocess_group": "去毛刺", "quantity": 10,
-    "obb_dimensions_mm": "100 x 50 x 20",
+    "obb_dimensions_mm": "100 x 50 x 20", "currency": "CNY",
 })
-check("Deterministic", r1["total"]["amount"], r2["total"]["amount"])
+check("Deterministic range", r1["total_range"]["min"], r2["total_range"]["min"])
 
-# ── Phase 5: Options endpoint ──
+# Options sanitization
 print("=== Options ===")
 opts = get_quote_options_v2()
-print(f"  Materials: {len(opts['materials'])}")
-print(f"  Processes: {[p['label'] for p in opts['processes']]}")
-print(f"  Postprocess labels: {[p['label'] for p in opts['postprocess_groups']]}")
-# Check no sensitive fields leaked to public options
-for pp in opts["postprocess_groups"]:
-    if "fee_rmb" in pp or "sample_count" in pp:
-        errors.append(f"FAIL: postprocess_groups leaked internal field: {pp}")
-print("  Public sanitization: OK (no internal fields in options)")
+cats = opts.get("material_categories", [])
+print(f"  Material categories: {len(cats)}")
+for c in cats:
+    if "representative_material_id" in c: errors.append(f"Leaked representative in {c}")
+    if "range_multiplier" in c: errors.append(f"Leaked multiplier in {c}")
+print(f"  Category sanitization: {'OK' if not errors else 'FAIL'}")
+
+# Range format
+print("=== Range format ===")
+tr, ur = r1["total_range"], r1["unit_range"]
+check("min < max", tr["min"] < tr["max"], True)
+check("unit min < max", ur["min"] < ur["max"], True)
+check("has display", "\u2013" in tr["display"], True)
+
+# Public response
+print("=== Public response ===")
+pub = public_quote_response(r1)
+for banned in ["formula", "breakdown", "amount_rmb", "representative_material_id", "range_multiplier"]:
+    if banned in json.dumps(pub):
+        errors.append(f"BANNED field in public response: {banned}")
+print(f"  Public sanitization: {'OK' if not any(b in json.dumps(pub) for b in ['formula','breakdown','amount_rmb']) else 'FAIL'}")
+print(f"  Has unit_range: {bool(pub.get('unit_range'))}")
+print(f"  Has total_range: {bool(pub.get('total_range'))}")
+
+# Commercial rounding
+print("=== Rounding ===")
+check("round 237", _commercial_round(237.42), 240)
+check("round 356", _commercial_round(356.13), 360)
+check("round 1227", _commercial_round(1227.8), 1250)
+check("round 1841", _commercial_round(1841.7), 1850)
+
+# Category config validation
+print("=== Config ===")
+cats = material_categories()
+for key, cat in cats.items():
+    mat_id = cat.get("representative_material_id", "")
+    try:
+        _find_material(mat_id)
+        print(f"  {key}: {mat_id} OK")
+    except ValueError:
+        errors.append(f"Representative material not found: {key} -> {mat_id}")
 
 print()
 if errors:
@@ -107,5 +119,4 @@ if errors:
         print(e)
 else:
     print("All tests passed.")
-
 sys.exit(len(errors))

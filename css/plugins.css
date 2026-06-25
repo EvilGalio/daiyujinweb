@@ -770,6 +770,58 @@ body.tool-page {
     .tol-summary { flex-direction: column; gap: 0.75rem; }
 }
 
+/* ── Material category cards ────────────────── */
+
+.material-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.material-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.material-card:hover {
+    border-color: var(--accent);
+}
+
+.material-card.active {
+    border-color: var(--accent);
+    background: #ebf4ff;
+}
+
+.material-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.material-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.material-card-desc {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+@media (max-width: 600px) {
+    .material-card-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Quote specific ─────────────────────────── */
 
 .quote-stack {
