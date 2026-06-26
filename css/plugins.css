@@ -926,6 +926,11 @@ body.tool-page {
 .shape-body { fill: #f8fafc; stroke: #334155; stroke-width: 2; }
 .shape-edge { fill: none; stroke: #334155; stroke-width: 1.5; }
 .shape-cut { fill: #ffffff; stroke: #334155; stroke-width: 1.8; }
+.shape-face-front { fill: #f8fafc; }
+.shape-face-back { fill: #f3f6fa; }
+.shape-face-top { fill: #f1f5f9; }
+.shape-face-side { fill: #eef3f8; }
+.shape-face-bottom { fill: #e8eef5; }
 .shape-body, .shape-edge, .shape-cut, .shape-dim-line, .shape-extension-line { vector-effect: non-scaling-stroke; }
 .shape-dim-line { stroke: #0066cc; stroke-width: 1.6; stroke-linecap: round; }
 .shape-extension-line { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 4; stroke-linecap: round; }
