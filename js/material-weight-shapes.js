@@ -1,8 +1,9 @@
-/* Material weight calculator — SVG shape diagrams.
-   One unified SHAPE_SPECS drives both input fields and SVG labels. */
+/* Material weight calculator — SVG shape diagrams (v2).
+   Every shape: front cross-section + extrusion depth + anchored dimension lines + labels in viewBox. */
 
 const SHAPE_SPECS = {
 
+  /* ── round_bar ────────────────────────────── */
   round_bar: {
     label: "Round Bar",
     dimensions: [
@@ -10,26 +11,31 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const da = activeDimensionKey === "diameter" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
-      return svg("round-bar", "Round bar: circle front face with Diameter and Length", `
-        <path class="shape-body" d="M 85 62 L 230 62 C 258 62 258 158 230 158 L 85 158 C 58 158 58 62 85 62 Z"/>
-        <ellipse class="shape-body" cx="85" cy="110" rx="28" ry="48"/>
-        <ellipse class="shape-cut" cx="85" cy="110" rx="14" ry="24" opacity="0.18"/>
+      const da = activeDimensionKey === "diameter";
+      const la = activeDimensionKey === "length";
+      return svg("round-bar", "Round bar: circular cross-section with Diameter and Length", `
+        <!-- body: cylinder side + front face -->
+        <path class="shape-body" d="M 72 60 L 220 60 C 248 60 248 160 220 160 L 72 160 C 45 160 45 60 72 60 Z"/>
+        <ellipse class="shape-body" cx="72" cy="110" rx="28" ry="50"/>
 
-        <line class="shape-extension-line" x1="85" y1="160" x2="85" y2="190"/>
-        <line class="shape-extension-line" x1="230" y1="160" x2="230" y2="190"/>
-        ${dimLine(85, 184, 230, 184, "round-bar", la)}
-        ${labelBg(134, 170, 48, 18)}<text class="shape-label" x="158" y="184" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(72, 163, 72, 198)}
+        ${ext(220, 163, 220, 198)}
+        ${dim(72, 192, 220, 192, "round-bar", la)}
+        ${labelBox(123, 178, 48, 18)}
+        <text class="shape-label" x="147" y="192" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="48" y1="62" x2="72" y2="62"/>
-        <line class="shape-extension-line" x1="48" y1="158" x2="72" y2="158"/>
-        ${dimLine(54, 62, 54, 158, "round-bar", da)}
-        ${labelBg(14, 101, 70, 18)}<text class="shape-label" x="49" y="115" text-anchor="middle">Diameter</text>
+        <!-- Diameter dim -->
+        ${ext(38, 60, 60, 60)}
+        ${ext(38, 160, 60, 160)}
+        ${dim(44, 60, 44, 160, "round-bar", da)}
+        ${labelBox(8, 101, 74, 18)}
+        <text class="shape-label" x="45" y="115" text-anchor="middle">Diameter</text>
       `);
     },
   },
 
+  /* ── square_bar ────────────────────────────── */
   square_bar: {
     label: "Square Bar",
     dimensions: [
@@ -37,29 +43,35 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const sa = activeDimensionKey === "side" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
-      return svg("square-bar", "Square bar: square cross-section with Side and Length", `
-        <rect class="shape-body" x="75" y="55" width="155" height="55" rx="2"/>
-        <rect class="shape-body" x="90" y="70" width="155" height="55" rx="2"/>
-        <line class="shape-body" x1="75" y1="55" x2="90" y2="70"/>
-        <line class="shape-body" x1="75" y1="110" x2="90" y2="125"/>
-        <line class="shape-body" x1="230" y1="55" x2="245" y2="70"/>
-        <line class="shape-body" x1="230" y1="110" x2="245" y2="125"/>
+      const sa = activeDimensionKey === "side";
+      const la = activeDimensionKey === "length";
+      return svg("square-bar", "Square bar: square front face with Side and Length", `
+        <!-- body: front face + top face + connector edges -->
+        <rect class="shape-body" x="62" y="56" width="60" height="60" rx="2"/>
+        <rect class="shape-body" x="80" y="72" width="155" height="60" rx="2"/>
+        <line class="shape-edge" x1="62" y1="56" x2="80" y2="72"/>
+        <line class="shape-edge" x1="62" y1="116" x2="80" y2="132"/>
+        <line class="shape-edge" x1="122" y1="56" x2="140" y2="72"/>
+        <line class="shape-edge" x1="122" y1="116" x2="140" y2="132"/>
 
-        <line class="shape-extension-line" x1="75" y1="128" x2="75" y2="155"/>
-        <line class="shape-extension-line" x1="230" y1="128" x2="230" y2="155"/>
-        ${dimLine(75, 149, 230, 149, "square-bar", la)}
-        ${labelBg(130, 135, 48, 18)}<text class="shape-label" x="154" y="149" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(62, 135, 62, 170)}
+        ${ext(235, 135, 235, 170)}
+        ${dim(62, 164, 235, 164, "square-bar", la)}
+        ${labelBox(125, 150, 48, 18)}
+        <text class="shape-label" x="149" y="164" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="68" y1="55" x2="68" y2="18"/>
-        <line class="shape-extension-line" x1="75" y1="42" x2="76" y2="55"/>
-        ${dimLine(68, 18, 68, 55, "square-bar", sa)}
-        ${labelBg(20, 28, 40, 18)}<text class="shape-label" x="40" y="42" text-anchor="middle">Side</text>
+        <!-- Side dim (full front face height) -->
+        ${ext(50, 56, 50, 24)}
+        ${ext(50, 116, 50, 24)}
+        ${dim(56, 56, 56, 116, "square-bar", sa)}
+        ${labelBox(10, 78, 40, 18)}
+        <text class="shape-label" x="30" y="92" text-anchor="middle">Side</text>
       `);
     },
   },
 
+  /* ── rectangular_bar ───────────────────────── */
   rectangular_bar: {
     label: "Rectangular Bar / Plate",
     dimensions: [
@@ -68,35 +80,43 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const wa = activeDimensionKey === "width" ? " shape-dim-active" : "";
-      const ta = activeDimensionKey === "thickness" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
-      return svg("rect-bar", "Rectangular bar: Width across, Thickness vertical, Length horizontal", `
-        <rect class="shape-body" x="65" y="48" width="165" height="42" rx="2"/>
-        <rect class="shape-body" x="80" y="60" width="165" height="42" rx="2"/>
-        <line class="shape-body" x1="65" y1="48" x2="80" y2="60"/>
-        <line class="shape-body" x1="65" y1="90" x2="80" y2="102"/>
-        <line class="shape-body" x1="230" y1="48" x2="245" y2="60"/>
-        <line class="shape-body" x1="230" y1="90" x2="245" y2="102"/>
+      const wa = activeDimensionKey === "width";
+      const ta = activeDimensionKey === "thickness";
+      const la = activeDimensionKey === "length";
+      return svg("rect-bar", "Rectangular bar: Width across front, Thickness vertical, Length extrusion", `
+        <!-- body -->
+        <rect class="shape-body" x="58" y="68" width="56" height="36" rx="2"/>
+        <rect class="shape-body" x="76" y="82" width="155" height="36" rx="2"/>
+        <line class="shape-edge" x1="58" y1="68" x2="76" y2="82"/>
+        <line class="shape-edge" x1="58" y1="104" x2="76" y2="118"/>
+        <line class="shape-edge" x1="114" y1="68" x2="132" y2="82"/>
+        <line class="shape-edge" x1="114" y1="104" x2="132" y2="118"/>
 
-        <line class="shape-extension-line" x1="65" y1="105" x2="65" y2="132"/>
-        <line class="shape-extension-line" x1="230" y1="105" x2="230" y2="132"/>
-        ${dimLine(65, 126, 230, 126, "rect-bar", la)}
-        ${labelBg(130, 112, 48, 18)}<text class="shape-label" x="154" y="126" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(58, 121, 58, 156)}
+        ${ext(231, 121, 231, 156)}
+        ${dim(58, 150, 231, 150, "rect-bar", la)}
+        ${labelBox(121, 136, 48, 18)}
+        <text class="shape-label" x="145" y="150" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="58" y1="48" x2="58" y2="14"/>
-        <line class="shape-extension-line" x1="65" y1="35" x2="65" y2="48"/>
-        ${dimLine(57, 14, 57, 48, "rect-bar", ta)}
-        ${labelBg(8, 24, 68, 18)}<text class="shape-label" x="42" y="38" text-anchor="middle">Thickness</text>
+        <!-- Thickness dim (front face vertical) -->
+        ${ext(46, 68, 46, 30)}
+        ${ext(46, 104, 46, 30)}
+        ${dim(52, 68, 52, 104, "rect-bar", ta)}
+        ${labelBox(10, 76, 72, 18)}
+        <text class="shape-label" x="46" y="90" text-anchor="middle">Thickness</text>
 
-        <line class="shape-extension-line" x1="73" y1="42" x2="73" y2="5"/>
-        <line class="shape-extension-line" x1="246" y1="42" x2="246" y2="5"/>
-        ${dimLine(74, 5, 245, 5, "rect-bar", wa)}
-        ${labelBg(140, -4, 44, 18)}<text class="shape-label" x="162" y="11" text-anchor="middle">Width</text>
+        <!-- Width dim (front face horizontal, above) -->
+        ${ext(58, 62, 58, 30)}
+        ${ext(114, 62, 114, 30)}
+        ${dim(60, 30, 112, 30, "rect-bar", wa)}
+        ${labelBox(66, 16, 44, 18)}
+        <text class="shape-label" x="88" y="30" text-anchor="middle">Width</text>
       `);
     },
   },
 
+  /* ── sheet ─────────────────────────────────── */
   sheet: {
     label: "Sheet / Plate",
     dimensions: [
@@ -105,35 +125,43 @@ const SHAPE_SPECS = {
       { key: "thickness", label: "Thickness", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const wa = activeDimensionKey === "width" ? " shape-dim-active" : "";
-      const ta = activeDimensionKey === "thickness" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
-      return svg("sheet", "Sheet: flat slab with Length, Width, Thickness", `
-        <rect class="shape-body" x="60" y="70" width="200" height="80" rx="2"/>
-        <rect class="shape-body" x="72" y="62" width="200" height="80" rx="2"/>
-        <line class="shape-body" x1="60" y1="70" x2="72" y2="62"/>
-        <line class="shape-body" x1="260" y1="70" x2="272" y2="62"/>
-        <line class="shape-body" x1="60" y1="150" x2="72" y2="142"/>
-        <line class="shape-body" x1="260" y1="150" x2="272" y2="142"/>
+      const wa = activeDimensionKey === "width";
+      const ta = activeDimensionKey === "thickness";
+      const la = activeDimensionKey === "length";
+      return svg("sheet", "Sheet: flat plate with Length, Width, and edge Thickness", `
+        <!-- body: flat top face + side edge -->
+        <rect class="shape-body" x="60" y="72" width="200" height="76" rx="2"/>
+        <rect class="shape-body" x="72" y="64" width="200" height="8" rx="1"/>
+        <line class="shape-edge" x1="60" y1="72" x2="72" y2="64"/>
+        <line class="shape-edge" x1="260" y1="72" x2="272" y2="64"/>
+        <line class="shape-edge" x1="60" y1="148" x2="72" y2="140"/>
+        <line class="shape-edge" x1="260" y1="148" x2="272" y2="140"/>
 
-        <line class="shape-extension-line" x1="60" y1="155" x2="60" y2="180"/>
-        <line class="shape-extension-line" x1="260" y1="155" x2="260" y2="180"/>
-        ${dimLine(60, 174, 260, 174, "sheet", la)}
-        ${labelBg(140, 160, 48, 18)}<text class="shape-label" x="164" y="174" text-anchor="middle">Length</text>
+        <!-- Length dim (horizontal, below) -->
+        ${ext(60, 152, 60, 182)}
+        ${ext(260, 152, 260, 182)}
+        ${dim(60, 176, 260, 176, "sheet", la)}
+        ${labelBox(136, 162, 48, 18)}
+        <text class="shape-label" x="160" y="176" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="50" y1="70" x2="50" y2="12"/>
-        <line class="shape-extension-line" x1="60" y1="58" x2="60" y2="70"/>
-        ${dimLine(49, 12, 49, 70, "sheet", ta)}
-        ${labelBg(0, 34, 68, 18)}<text class="shape-label" x="34" y="48" text-anchor="middle">Thickness</text>
+        <!-- Width dim (horizontal, above top face) -->
+        ${ext(72, 58, 72, 28)}
+        ${ext(273, 58, 273, 28)}
+        ${dim(74, 28, 271, 28, "sheet", wa)}
+        ${labelBox(150, 14, 44, 18)}
+        <text class="shape-label" x="172" y="28" text-anchor="middle">Width</text>
 
-        <line class="shape-extension-line" x1="72" y1="56" x2="72" y2="5"/>
-        <line class="shape-extension-line" x1="273" y1="56" x2="273" y2="5"/>
-        ${dimLine(73, 5, 272, 5, "sheet", wa)}
-        ${labelBg(153, -4, 44, 18)}<text class="shape-label" x="175" y="11" text-anchor="middle">Width</text>
+        <!-- Thickness dim (edge, vertical short) -->
+        ${ext(40, 64, 56, 64)}
+        ${ext(40, 72, 56, 72)}
+        ${dim(50, 64, 50, 72, "sheet", ta)}
+        ${labelBox(12, 54, 72, 18)}
+        <text class="shape-label" x="48" y="68" text-anchor="middle">Thickness</text>
       `);
     },
   },
 
+  /* ── round_tube ────────────────────────────── */
   round_tube: {
     label: "Round Tube / Pipe",
     dimensions: [
@@ -142,32 +170,41 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const oa = activeDimensionKey === "outer_diameter" ? " shape-dim-active" : "";
-      const wa = activeDimensionKey === "wall_thickness" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
+      const oa = activeDimensionKey === "outer_diameter";
+      const wa = activeDimensionKey === "wall_thickness";
+      const la = activeDimensionKey === "length";
       return svg("round-tube", "Round tube: hollow cylinder, Outer Diameter, Wall Thickness, Length", `
-        <path class="shape-body" d="M 85 62 L 230 62 C 258 62 258 158 230 158 L 85 158 C 58 158 58 62 85 62 Z"/>
-        <ellipse class="shape-body" cx="85" cy="110" rx="28" ry="48"/>
-        <ellipse class="shape-cut" cx="85" cy="110" rx="14" ry="24"/>
+        <!-- body: side wall + front outer ellipse -->
+        <path class="shape-body" d="M 72 60 L 220 60 C 248 60 248 160 220 160 L 72 160 C 45 160 45 60 72 60 Z"/>
+        <ellipse class="shape-body" cx="72" cy="110" rx="28" ry="50"/>
+        <!-- hollow inner ellipse -->
+        <ellipse class="shape-cut" cx="72" cy="110" rx="14" ry="25"/>
 
-        <line class="shape-extension-line" x1="85" y1="160" x2="85" y2="190"/>
-        <line class="shape-extension-line" x1="230" y1="160" x2="230" y2="190"/>
-        ${dimLine(85, 184, 230, 184, "round-tube", la)}
-        ${labelBg(134, 170, 48, 18)}<text class="shape-label" x="158" y="184" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(72, 163, 72, 198)}
+        ${ext(220, 163, 220, 198)}
+        ${dim(72, 192, 220, 192, "round-tube", la)}
+        ${labelBox(123, 178, 48, 18)}
+        <text class="shape-label" x="147" y="192" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="48" y1="62" x2="72" y2="62"/>
-        <line class="shape-extension-line" x1="48" y1="158" x2="72" y2="158"/>
-        ${dimLine(54, 62, 54, 158, "round-tube", oa)}
-        ${labelBg(6, 101, 124, 18)}<text class="shape-label" x="68" y="115" text-anchor="middle">Outer Diameter</text>
+        <!-- Outer Diameter dim (left of front face) -->
+        ${ext(38, 60, 60, 60)}
+        ${ext(38, 160, 60, 160)}
+        ${dim(44, 60, 44, 160, "round-tube", oa)}
+        ${labelBox(8, 101, 122, 18)}
+        <text class="shape-label" x="69" y="115" text-anchor="middle">Outer Diameter</text>
 
-        <line class="shape-extension-line" x1="96" y1="82" x2="96" y2="20"/>
-        <line class="shape-extension-line" x1="110" y1="67" x2="110" y2="20"/>
-        ${dimLine(96, 20, 110, 20, "round-tube", wa)}
-        ${labelBg(118, 10, 100, 18)}<text class="shape-label" x="168" y="24" text-anchor="start">Wall Thickness</text>
+        <!-- Wall Thickness dim (short radial, front face) -->
+        ${ext(86, 84, 96, 56)}
+        ${ext(100, 81, 96, 56)}
+        ${dim(95, 56, 108, 56, "round-tube", wa)}
+        ${labelBox(118, 46, 98, 18)}
+        <text class="shape-label" x="167" y="60" text-anchor="start">Wall Thickness</text>
       `);
     },
   },
 
+  /* ── square_tube ───────────────────────────── */
   square_tube: {
     label: "Square Tube",
     dimensions: [
@@ -176,36 +213,45 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const oa = activeDimensionKey === "outer_side" ? " shape-dim-active" : "";
-      const wa = activeDimensionKey === "wall_thickness" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
+      const oa = activeDimensionKey === "outer_side";
+      const wa = activeDimensionKey === "wall_thickness";
+      const la = activeDimensionKey === "length";
       return svg("square-tube", "Square tube: hollow square profile, Outer Side, Wall Thickness, Length", `
-        <rect class="shape-body" x="75" y="50" width="155" height="55" rx="2"/>
-        <rect class="shape-body" x="90" y="65" width="155" height="55" rx="2"/>
-        <line class="shape-body" x1="75" y1="50" x2="90" y2="65"/>
-        <line class="shape-body" x1="75" y1="105" x2="90" y2="120"/>
-        <line class="shape-body" x1="230" y1="50" x2="245" y2="65"/>
-        <line class="shape-body" x1="230" y1="105" x2="245" y2="120"/>
-        <rect class="shape-cut" x="108" y="74" width="85" height="18" rx="1"/>
+        <!-- body: front outer + rear outer + connector edges -->
+        <rect class="shape-body" x="58" y="52" width="64" height="64" rx="2"/>
+        <rect class="shape-body" x="78" y="68" width="155" height="64" rx="2"/>
+        <line class="shape-edge" x1="58" y1="52" x2="78" y2="68"/>
+        <line class="shape-edge" x1="58" y1="116" x2="78" y2="132"/>
+        <line class="shape-edge" x1="122" y1="52" x2="142" y2="68"/>
+        <line class="shape-edge" x1="122" y1="116" x2="142" y2="132"/>
+        <!-- hollow inner square on front face -->
+        <rect class="shape-cut" x="76" y="70" width="28" height="28" rx="1"/>
 
-        <line class="shape-extension-line" x1="75" y1="123" x2="75" y2="152"/>
-        <line class="shape-extension-line" x1="230" y1="123" x2="230" y2="152"/>
-        ${dimLine(75, 146, 230, 146, "square-tube", la)}
-        ${labelBg(130, 132, 48, 18)}<text class="shape-label" x="154" y="146" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(58, 135, 58, 170)}
+        ${ext(233, 135, 233, 170)}
+        ${dim(58, 164, 233, 164, "square-tube", la)}
+        ${labelBox(122, 150, 48, 18)}
+        <text class="shape-label" x="146" y="164" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="68" y1="50" x2="68" y2="15"/>
-        <line class="shape-extension-line" x1="75" y1="37" x2="76" y2="50"/>
-        ${dimLine(68, 15, 68, 50, "square-tube", oa)}
-        ${labelBg(10, 25, 78, 18)}<text class="shape-label" x="49" y="39" text-anchor="middle">Outer Side</text>
+        <!-- Outer Side dim (full front face) -->
+        ${ext(46, 52, 46, 24)}
+        ${ext(46, 116, 46, 24)}
+        ${dim(52, 52, 52, 116, "square-tube", oa)}
+        ${labelBox(10, 76, 76, 18)}
+        <text class="shape-label" x="48" y="90" text-anchor="middle">Outer Side</text>
 
-        <line class="shape-extension-line" x1="108" y1="80" x2="140" y2="80"/>
-        <line class="shape-extension-line" x1="108" y1="94" x2="140" y2="94"/>
-        ${dimLine(135, 80, 135, 93, "square-tube", wa)}
-        ${labelBg(145, 78, 100, 18)}<text class="shape-label" x="195" y="92" text-anchor="start">Wall Thickness</text>
+        <!-- Wall Thickness dim (short, outer to inner) -->
+        ${ext(76, 86, 108, 40)}
+        ${ext(104, 84, 108, 40)}
+        ${dim(107, 40, 119, 40, "square-tube", wa)}
+        ${labelBox(128, 30, 98, 18)}
+        <text class="shape-label" x="177" y="44" text-anchor="start">Wall Thickness</text>
       `);
     },
   },
 
+  /* ── rectangular_tube ──────────────────────── */
   rectangular_tube: {
     label: "Rectangular Tube",
     dimensions: [
@@ -215,42 +261,53 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const owa = activeDimensionKey === "outer_width" ? " shape-dim-active" : "";
-      const oha = activeDimensionKey === "outer_height" ? " shape-dim-active" : "";
-      const wa = activeDimensionKey === "wall_thickness" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
+      const owa = activeDimensionKey === "outer_width";
+      const oha = activeDimensionKey === "outer_height";
+      const wa = activeDimensionKey === "wall_thickness";
+      const la = activeDimensionKey === "length";
       return svg("rect-tube", "Rectangular tube: hollow rectangular profile", `
-        <rect class="shape-body" x="65" y="40" width="170" height="45" rx="2"/>
-        <rect class="shape-body" x="80" y="52" width="170" height="45" rx="2"/>
-        <line class="shape-body" x1="65" y1="40" x2="80" y2="52"/>
-        <line class="shape-body" x1="65" y1="85" x2="80" y2="97"/>
-        <line class="shape-body" x1="235" y1="40" x2="250" y2="52"/>
-        <line class="shape-body" x1="235" y1="85" x2="250" y2="97"/>
-        <rect class="shape-cut" x="100" y="62" width="80" height="12" rx="1"/>
+        <!-- body: front outer + rear outer + connector edges -->
+        <rect class="shape-body" x="54" y="60" width="54" height="44" rx="2"/>
+        <rect class="shape-body" x="72" y="74" width="155" height="44" rx="2"/>
+        <line class="shape-edge" x1="54" y1="60" x2="72" y2="74"/>
+        <line class="shape-edge" x1="54" y1="104" x2="72" y2="118"/>
+        <line class="shape-edge" x1="108" y1="60" x2="126" y2="74"/>
+        <line class="shape-edge" x1="108" y1="104" x2="126" y2="118"/>
+        <!-- hollow inner rectangle -->
+        <rect class="shape-cut" x="70" y="76" width="18" height="14" rx="1"/>
 
-        <line class="shape-extension-line" x1="65" y1="100" x2="65" y2="128"/>
-        <line class="shape-extension-line" x1="235" y1="100" x2="235" y2="128"/>
-        ${dimLine(65, 122, 235, 122, "rect-tube", la)}
-        ${labelBg(128, 108, 48, 18)}<text class="shape-label" x="152" y="122" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(54, 121, 54, 156)}
+        ${ext(227, 121, 227, 156)}
+        ${dim(54, 150, 227, 150, "rect-tube", la)}
+        ${labelBox(117, 136, 48, 18)}
+        <text class="shape-label" x="141" y="150" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="55" y1="40" x2="55" y2="10"/>
-        <line class="shape-extension-line" x1="65" y1="30" x2="65" y2="40"/>
-        ${dimLine(54, 10, 54, 40, "rect-tube", oha)}
-        ${labelBg(6, 18, 100, 18)}<text class="shape-label" x="56" y="32" text-anchor="middle">Outer Height</text>
+        <!-- Outer Height dim (front face vertical) -->
+        ${ext(42, 60, 42, 24)}
+        ${ext(42, 104, 42, 24)}
+        ${dim(48, 60, 48, 104, "rect-tube", oha)}
+        ${labelBox(8, 72, 98, 18)}
+        <text class="shape-label" x="57" y="86" text-anchor="middle">Outer Height</text>
 
-        <line class="shape-extension-line" x1="80" y1="46" x2="80" y2="-4"/>
-        <line class="shape-extension-line" x1="250" y1="46" x2="250" y2="-4"/>
-        ${dimLine(81, -4, 249, -4, "rect-tube", owa)}
-        ${labelBg(145, -14, 80, 18)}<text class="shape-label" x="185" y="0" text-anchor="middle">Outer Width</text>
+        <!-- Outer Width dim (front face horizontal, above) -->
+        ${ext(54, 54, 54, 24)}
+        ${ext(108, 54, 108, 24)}
+        ${dim(56, 24, 106, 24, "rect-tube", owa)}
+        ${labelBox(60, 12, 84, 18)}
+        <text class="shape-label" x="102" y="26" text-anchor="middle">Outer Width</text>
 
-        <line class="shape-extension-line" x1="100" y1="68" x2="130" y2="83"/>
-        <line class="shape-extension-line" x1="100" y1="76" x2="142" y2="98"/>
-        ${dimLine(132, 84, 143, 98, "rect-tube", wa)}
-        ${labelBg(155, 88, 100, 18)}<text class="shape-label" x="205" y="102" text-anchor="start">Wall Thickness</text>
+        <!-- Wall Thickness dim (short, outer to inner on front) -->
+        ${ext(88, 80, 120, 54)}
+        ${ext(88, 90, 120, 72)}
+        ${dim(119, 56, 132, 70, "rect-tube", wa)}
+        ${labelBox(140, 55, 98, 18)}
+        <text class="shape-label" x="189" y="69" text-anchor="start">Wall Thickness</text>
       `);
     },
   },
 
+  /* ── hex_bar ───────────────────────────────── */
   hex_bar: {
     label: "Hex Bar",
     dimensions: [
@@ -258,25 +315,35 @@ const SHAPE_SPECS = {
       { key: "length", label: "Length", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const aa = activeDimensionKey === "across_flats" ? " shape-dim-active" : "";
-      const la = activeDimensionKey === "length" ? " shape-dim-active" : "";
-      return svg("hex-bar", "Hex bar: hexagonal cross-section, Across Flats and Length", `
-        <polygon class="shape-body" points="55,110 75,82 108,68 142,82 158,110 142,138 108,152 75,138"/>
-        <polygon class="shape-body" points="55,110 75,82 108,68 142,82 142,110 108,125 75,138 55,110" opacity="0.8"/>
+      const aa = activeDimensionKey === "across_flats";
+      const la = activeDimensionKey === "length";
+      return svg("hex-bar", "Hex bar: hexagonal cross-section with Across Flats and Length", `
+        <!-- body: front hex + rear hex + connector lines -->
+        <polygon class="shape-body" points="70,110 86,86 112,78 136,86 150,110 136,134 112,142 86,134"/>
+        <polygon class="shape-body" points="114,110 130,86 156,78 180,86 194,110 180,134 156,142 130,134"/>
+        <line class="shape-edge" x1="70" y1="110" x2="114" y2="110"/>
+        <line class="shape-edge" x1="86" y1="86" x2="130" y2="86"/>
+        <line class="shape-edge" x1="150" y1="110" x2="194" y2="110"/>
+        <line class="shape-edge" x1="136" y1="134" x2="180" y2="134"/>
 
-        <line class="shape-extension-line" x1="55" y1="140" x2="55" y2="170"/>
-        <line class="shape-extension-line" x1="142" y1="140" x2="142" y2="170"/>
-        ${dimLine(55, 164, 142, 164, "hex-bar", la)}
-        ${labelBg(76, 150, 48, 18)}<text class="shape-label" x="100" y="164" text-anchor="middle">Length</text>
+        <!-- Length dim -->
+        ${ext(70, 144, 70, 178)}
+        ${ext(194, 144, 194, 178)}
+        ${dim(70, 172, 194, 172, "hex-bar", la)}
+        ${labelBox(110, 158, 48, 18)}
+        <text class="shape-label" x="134" y="172" text-anchor="middle">Length</text>
 
-        <line class="shape-extension-line" x1="75" y1="78" x2="75" y2="42"/>
-        <line class="shape-extension-line" x1="142" y1="78" x2="142" y2="42"/>
-        ${dimLine(75, 42, 142, 42, "hex-bar", aa)}
-        ${labelBg(88, 30, 76, 18)}<text class="shape-label" x="126" y="44" text-anchor="middle">Across Flats</text>
+        <!-- Across Flats dim (front hex top-to-bottom) -->
+        ${ext(86, 82, 86, 44)}
+        ${ext(136, 82, 136, 44)}
+        ${dim(86, 44, 136, 44, "hex-bar", aa)}
+        ${labelBox(68, 32, 92, 18)}
+        <text class="shape-label" x="114" y="46" text-anchor="middle">Across Flats</text>
       `);
     },
   },
 
+  /* ── ring ──────────────────────────────────── */
   ring: {
     label: "Ring",
     dimensions: [
@@ -285,31 +352,41 @@ const SHAPE_SPECS = {
       { key: "thickness", label: "Thickness", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const oa = activeDimensionKey === "outer_diameter" ? " shape-dim-active" : "";
-      const ia = activeDimensionKey === "inner_diameter" ? " shape-dim-active" : "";
-      const ta = activeDimensionKey === "thickness" ? " shape-dim-active" : "";
-      return svg("ring", "Ring: washer-like shape, Outer Diameter, Inner Diameter, Thickness", `
-        <ellipse class="shape-body" cx="160" cy="100" rx="55" ry="70"/>
-        <ellipse class="shape-cut" cx="160" cy="100" rx="25" ry="32"/>
+      const oa = activeDimensionKey === "outer_diameter";
+      const ia = activeDimensionKey === "inner_diameter";
+      const ta = activeDimensionKey === "thickness";
+      return svg("ring", "Ring: washer with Outer Diameter, Inner Diameter, and edge Thickness", `
+        <!-- body: front view washer -->
+        <ellipse class="shape-body" cx="140" cy="110" rx="58" ry="38"/>
+        <ellipse class="shape-cut" cx="140" cy="110" rx="24" ry="16"/>
+        <!-- side view thickness -->
+        <rect class="shape-body" x="244" y="84" width="12" height="52" rx="1"/>
 
-        <line class="shape-extension-line" x1="160" y1="30" x2="160" y2="12"/>
-        <line class="shape-extension-line" x1="250" y1="80" x2="250" y2="12"/>
-        ${dimLine(160, 12, 250, 12, "ring", ta)}
-        ${labelBg(190, 2, 62, 18)}<text class="shape-label" x="221" y="16" text-anchor="middle">Thickness</text>
+        <!-- Outer Diameter (horizontal across front) -->
+        ${ext(82, 110, 82, 112)}
+        ${ext(198, 110, 198, 112)}
+        ${dim(82, 114, 198, 114, "ring", oa)}
+        ${labelBox(112, 118, 116, 18)}
+        <text class="shape-label" x="170" y="132" text-anchor="middle">Outer Diameter</text>
 
-        <line class="shape-extension-line" x1="270" y1="50" x2="270" y2="70"/>
-        <line class="shape-extension-line" x1="270" y1="130" x2="270" y2="150"/>
-        ${dimLine(274, 70, 274, 130, "ring", oa)}
-        ${labelBg(280, 94, 124, 18)}<text class="shape-label" x="342" y="108" text-anchor="start">Outer Diameter</text>
+        <!-- Inner Diameter (horizontal across inner hole) -->
+        ${ext(116, 106, 116, 142)}
+        ${ext(164, 106, 164, 142)}
+        ${dim(116, 144, 164, 144, "ring", ia)}
+        ${labelBox(112, 148, 108, 18)}
+        <text class="shape-label" x="166" y="162" text-anchor="middle">Inner Diameter</text>
 
-        <line class="shape-extension-line" x1="180" y1="65" x2="180" y2="158"/>
-        <line class="shape-extension-line" x1="185" y1="67" x2="185" y2="158"/>
-        ${dimLine(180, 164, 198, 164, "ring", ia)}
-        ${labelBg(188, 175, 108, 18)}<text class="shape-label" x="242" y="189" text-anchor="start">Inner Diameter</text>
+        <!-- Thickness (vertical on side view) -->
+        ${ext(260, 84, 260, 58)}
+        ${ext(260, 136, 260, 58)}
+        ${dim(260, 84, 260, 136, "ring", ta)}
+        ${labelBox(258, 102, 50, 18)}
+        <text class="shape-label" x="283" y="116" text-anchor="middle">Thickness</text>
       `);
     },
   },
 
+  /* ── disc ──────────────────────────────────── */
   disc: {
     label: "Disc / Circle",
     dimensions: [
@@ -317,38 +394,49 @@ const SHAPE_SPECS = {
       { key: "thickness", label: "Thickness", unit: true },
     ],
     renderSvg({ activeDimensionKey = "" } = {}) {
-      const da = activeDimensionKey === "diameter" ? " shape-dim-active" : "";
-      const ta = activeDimensionKey === "thickness" ? " shape-dim-active" : "";
-      return svg("disc", "Disc: short cylinder, Diameter and Thickness", `
-        <ellipse class="shape-body" cx="160" cy="105" rx="70" ry="30"/>
-        <rect class="shape-body" x="90" y="105" width="140" height="40" rx="1"/>
-        <ellipse class="shape-body" cx="160" cy="145" rx="70" ry="30"/>
-        <ellipse class="shape-cut" cx="160" cy="104" rx="70" ry="30" opacity="0.25"/>
+      const da = activeDimensionKey === "diameter";
+      const ta = activeDimensionKey === "thickness";
+      return svg("disc", "Disc: short cylinder with Diameter and Thickness", `
+        <!-- body: top ellipse + side wall + bottom arc -->
+        <ellipse class="shape-body" cx="160" cy="104" rx="72" ry="30"/>
+        <rect class="shape-body" x="88" y="104" width="144" height="42" rx="1"/>
+        <path class="shape-body" d="M 88 104 C 88 134 88 158 160 158 C 232 158 232 134 232 104"/>
 
-        <line class="shape-extension-line" x1="90" y1="155" x2="90" y2="180"/>
-        <line class="shape-extension-line" x1="230" y1="155" x2="230" y2="180"/>
-        ${dimLine(90, 174, 230, 174, "disc", da)}
-        ${labelBg(138, 160, 62, 18)}<text class="shape-label" x="169" y="174" text-anchor="middle">Diameter</text>
+        <!-- Diameter dim (below) -->
+        ${ext(88, 150, 88, 180)}
+        ${ext(232, 150, 232, 180)}
+        ${dim(88, 174, 232, 174, "disc", da)}
+        ${labelBox(136, 160, 66, 18)}
+        <text class="shape-label" x="169" y="174" text-anchor="middle">Diameter</text>
 
-        <line class="shape-extension-line" x1="30" y1="80" x2="30" y2="14"/>
-        <line class="shape-extension-line" x1="30" y1="148" x2="30" y2="14"/>
-        ${dimLine(34, 86, 34, 145, "disc", ta)}
-        ${labelBg(0, 108, 68, 18)}<text class="shape-label" x="34" y="122" text-anchor="middle">Thickness</text>
+        <!-- Thickness dim (left side, short vertical) -->
+        ${ext(82, 104, 74, 78)}
+        ${ext(82, 146, 74, 78)}
+        ${dim(74, 104, 74, 146, "disc", ta)}
+        ${labelBox(30, 116, 68, 18)}
+        <text class="shape-label" x="64" y="130" text-anchor="middle">Thickness</text>
       `);
     },
   },
 
 };
 
+
 /* ── shared SVG helpers ──────────────────────── */
 
-function dimLine(x1, y1, x2, y2, shapeId, extraClass) {
-  const mid = `url(#dimArrow-${shapeId})`;
-  return `<line class="shape-dim-line${extraClass}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
-    marker-start="${mid}" marker-end="${mid}"/>`;
+function dim(x1, y1, x2, y2, shapeId, active) {
+  const a = active ? " shape-dim-active" : "";
+  const arrow = active
+    ? `marker-start="url(#dimArrowActive-${shapeId})" marker-end="url(#dimArrowActive-${shapeId})"`
+    : `marker-start="url(#dimArrow-${shapeId})" marker-end="url(#dimArrow-${shapeId})"`;
+  return `<line class="shape-dim-line${a}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${arrow}/>`;
 }
 
-function labelBg(x, y, w, h) {
+function ext(x1, y1, x2, y2) {
+  return `<line class="shape-extension-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+}
+
+function labelBox(x, y, w, h) {
   return `<rect class="shape-label-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="3"/>`;
 }
 
@@ -360,11 +448,16 @@ function svg(shapeId, title, body) {
               markerWidth="5" markerHeight="5" orient="auto-start-reverse">
         <path d="M 0 0 L 10 5 L 0 10 z" fill="#0066cc"/>
       </marker>
+      <marker id="dimArrowActive-${shapeId}" viewBox="0 0 10 10" refX="5" refY="5"
+              markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d8c4a"/>
+      </marker>
     </defs>
     ${body}
     <title>${title}</title>
   </svg>`;
 }
+
 
 /* ── public API ──────────────────────────────── */
 

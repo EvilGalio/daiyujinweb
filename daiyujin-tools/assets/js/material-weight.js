@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const form = document.querySelector("[data-weight-form]");
     const shapeSelect = document.querySelector("[data-shape-select]");
+    const unitSelect = document.querySelector("[data-unit-select]");
     const dimsArea = document.querySelector("[data-dimensions-area]");
     const diagram = document.querySelector("[data-shape-diagram]");
     const resultEl = document.querySelector("[data-weight-result]");
@@ -29,9 +30,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateShape() {
         currentShape = shapeSelect.value;
         const spec = SHAPE_SPECS[currentShape] || SHAPE_SPECS.round_bar;
+        const unit = (unitSelect && unitSelect.value) || "mm";
         dimsArea.innerHTML = spec.dimensions.map(d => `
             <div class="tool-field">
-                <label for="dim-${esc(d.key)}">${esc(d.label)}${d.unit ? ' <span class="tol-unit">mm</span>' : ''}</label>
+                <label for="dim-${esc(d.key)}">${esc(d.label)}${d.unit ? ' <span class="tol-unit">' + esc(unit) + '</span>' : ''}</label>
                 <input id="dim-${esc(d.key)}" name="dim-${esc(d.key)}" type="number" min="0" step="any" value="10">
             </div>
         `).join("");
@@ -50,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     shapeSelect.addEventListener("change", () => { updateShape(); });
+    if (unitSelect) unitSelect.addEventListener("change", () => { updateShape(); });
 
     form.addEventListener("submit", async e => {
         e.preventDefault();

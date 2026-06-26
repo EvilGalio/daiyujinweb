@@ -33,7 +33,9 @@
             <button class="tool-button" type="submit">Calculate Weight</button>
         </form>
         <aside class="tool-panel" data-result-panel>
-            <h2>Result</h2>
+            <h2>Diagram</h2>
+            <div class="shape-diagram-wrap" data-shape-diagram></div>
+            <h2 style="margin-top:1.5rem;">Result</h2>
             <div data-weight-result>
                 <div class="dhl-result-amount">0.00 kg</div>
                 <div class="dhl-result-meta">Select material and dimensions</div>
