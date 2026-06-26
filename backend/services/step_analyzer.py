@@ -27,11 +27,27 @@ def _format_dimensions(values: list[float]) -> str:
 
 
 def _export_thumbnail(shape: Any, png_path: Path) -> None:
+    from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB
+    from OCC.Core.Graphic3d import Graphic3d_NOM_ALUMINIUM
     from OCC.Display.SimpleGui import OffscreenRenderer
 
     with _suppress_occ_noise():
         display = OffscreenRenderer(screen_size=(3840, 2880))
-    display.DisplayShape(shape, update=True, dump_image=False)
+
+    # Light gray background (Apple-style neutral)
+    bg_color = Quantity_Color(0.94, 0.94, 0.96, Quantity_TOC_RGB)
+    display.View.SetBackgroundColor(bg_color)
+
+    # Display shape with aluminum material, soft gray edges
+    display.DisplayShape(
+        shape,
+        color=Quantity_Color(0.58, 0.60, 0.64, Quantity_TOC_RGB),
+        material=Graphic3d_NOM_ALUMINIUM,
+        transparency=0.0,
+        update=True,
+        dump_image=False,
+    )
+
     display.View_Iso()
     display.FitAll()
     display.View.Dump(str(png_path))
