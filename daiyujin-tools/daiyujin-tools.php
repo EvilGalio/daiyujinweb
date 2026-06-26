@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Daiyujin Precision Tools
- * Description: Embeds instant quoting, freight calculator, and ISO tolerance lookup into WordPress pages via shortcodes.
- * Version: 1.0.0
+ * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
+ * Version: 1.1.0
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.0.0');
+define('DYJ_TOOLS_VERSION', '1.1.0');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -110,3 +110,36 @@ function dyj_tolerance_tool_shortcode() {
     return dyj_tools_render_template('tolerance');
 }
 add_shortcode('dyj_tolerance_tool', 'dyj_tolerance_tool_shortcode');
+
+function dyj_material_standards_shortcode() {
+    dyj_tools_enqueue_common();
+    wp_enqueue_script(
+        'dyj-tools-material-standards',
+        DYJ_TOOLS_URL . 'assets/js/material-standards.js',
+        array('dyj-tools-api'),
+        DYJ_TOOLS_VERSION,
+        true
+    );
+    return dyj_tools_render_template('material-standards');
+}
+add_shortcode('dyj_material_standards', 'dyj_material_standards_shortcode');
+
+function dyj_weight_calculator_shortcode() {
+    dyj_tools_enqueue_common();
+    wp_enqueue_script(
+        'dyj-tools-material-weight-shapes',
+        DYJ_TOOLS_URL . 'assets/js/material-weight-shapes.js',
+        array('dyj-tools-api'),
+        DYJ_TOOLS_VERSION,
+        true
+    );
+    wp_enqueue_script(
+        'dyj-tools-material-weight',
+        DYJ_TOOLS_URL . 'assets/js/material-weight.js',
+        array('dyj-tools-material-weight-shapes'),
+        DYJ_TOOLS_VERSION,
+        true
+    );
+    return dyj_tools_render_template('material-weight');
+}
+add_shortcode('dyj_weight_calculator', 'dyj_weight_calculator_shortcode');
