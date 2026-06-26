@@ -22,6 +22,53 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
+
+# ── Preview watermark ──────────────────────────
+
+def _apply_preview_watermark(png_path: Path) -> bool:
+    """Add semi-transparent watermark to STEP preview image. Returns True on success."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return False
+
+    if not png_path.exists():
+        return False
+
+    try:
+        img = Image.open(png_path).convert("RGBA")
+        w, h = img.size
+
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+
+        text = "Daiyujin Preview \u00b7 Reference Only"
+
+        # Scale font to ~3% of image width
+        font_size = max(int(w * 0.03), 18)
+        try:
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except (OSError, IOError):
+            font = ImageFont.load_default()
+
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+        # Bottom-right with padding
+        pad = max(int(w * 0.02), 20)
+        x = w - tw - pad
+        y = h - th - pad
+
+        # Semi-transparent white text @ 14% opacity
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, 36))
+
+        img = Image.alpha_composite(img, overlay)
+        img = img.convert("RGB")
+        img.save(png_path, "PNG")
+        return True
+    except Exception:
+        return False
+
 def _occ_python_path():
     env_file = BACKEND_ROOT / ".env"
     if env_file.exists():
@@ -189,6 +236,10 @@ def create_app() -> Flask:
         if analysis.get("success") and analysis.get("data", {}).get("thumbnail_path"):
             thumbnail_name = Path(analysis["data"]["thumbnail_path"]).name
             analysis["data"]["thumbnail_url"] = f"/static/thumbnails/{thumbnail_name}"
+            # Apply watermark to preview
+            thumb_path = Path(analysis["data"]["thumbnail_path"])
+            if thumb_path.exists():
+                _apply_preview_watermark(thumb_path)
         analysis["file_id"] = file_id
         return api_ok(analysis)
 

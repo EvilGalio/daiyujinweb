@@ -410,7 +410,7 @@ def calculate_quote_v2(payload: dict) -> dict:
     today = datetime.utcnow().strftime("%Y-%m-%d")
     seed_parts = [
         payload.get("file_id", payload.get("part_name", "unknown")),
-        cat_id, process_group, postprocess_group, tolerance_grade,
+        cat_id, process_group, postprocess_group,
         str(quantity), currency, today,
     ]
     unit_estimate_rmb, seed_info = _stable_estimate_in_band(
