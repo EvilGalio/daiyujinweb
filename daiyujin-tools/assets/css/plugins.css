@@ -924,10 +924,11 @@ body.tool-page {
 .shape-diagram-wrap { min-height: 200px; display: flex; align-items: center; justify-content: center; }
 .shape-svg { width: 100%; max-width: 360px; aspect-ratio: 16 / 11; }
 .shape-body { fill: #f8fafc; stroke: #334155; stroke-width: 2; }
-.shape-edge { stroke: #334155; stroke-width: 1.5; }
+.shape-edge { fill: none; stroke: #334155; stroke-width: 1.5; }
 .shape-cut { fill: #ffffff; stroke: #334155; stroke-width: 1.8; }
-.shape-dim-line { stroke: #0066cc; stroke-width: 1.6; }
-.shape-extension-line { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 4; }
+.shape-body, .shape-edge, .shape-cut, .shape-dim-line, .shape-extension-line { vector-effect: non-scaling-stroke; }
+.shape-dim-line { stroke: #0066cc; stroke-width: 1.6; stroke-linecap: round; }
+.shape-extension-line { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 4; stroke-linecap: round; }
 .shape-label { fill: #0f172a; font-size: 12px; font-weight: 600; }
 .shape-label-bg { fill: #ffffff; opacity: 0.92; }
 .shape-dim-active { stroke: #0d8c4a; stroke-width: 2.2; }
