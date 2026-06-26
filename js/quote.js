@@ -140,10 +140,11 @@ document.addEventListener("DOMContentLoaded", () => {
             obb_dimensions_mm: state.analysis.obb_dimensions_mm,
             material_category: catRadio ? catRadio.value : "aluminum_alloy",
             process: String(formData.get("process") || "CNC"),
-            postprocess_group: String(formData.get("postprocess_group") || "去毛刺"),
-            tolerance_grade: String(formData.get("tolerance_grade") || "GENERAL"),
+            postprocess_group: String(formData.get("postprocess_group") || "bead_blasting"),
+            tolerance_grade: String(formData.get("tolerance_grade") || "ISO2768-M"),
             quantity: Number(formData.get("quantity")),
             currency: String(formData.get("currency") || "USD"),
+            customer_email: String(formData.get("customer_email") || "").trim(),
         };
         return window.DaiyujinAPI.request("/api/public/quote/calculate", {
             method: "POST",
@@ -176,9 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function estimateCard() {
         if (!state.estimate) {
             return `<section class="tool-panel quote-estimate">
-                <h2>Estimated Range</h2>
-                <div class="quote-total">USD 0 &ndash; 0</div>
-                <div class="metric-row"><span>Unit Range</span><strong>USD 0 / pc</strong></div>
+                <h2>Reference Estimate</h2>
+                <div class="quote-total">USD 0.00</div>
+                <div class="metric-row"><span>Unit Estimate</span><strong>USD 0.00 / pc</strong></div>
                 <div class="metric-row"><span>Status</span><strong>Waiting for STEP file</strong></div>
                 <div class="tool-note">Upload a STEP file and complete the manufacturing details to generate an estimate.</div>
             </section>`;
@@ -187,16 +188,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const sel = e.selections || {};
         const warningMsgs = (e.warnings || []).map(w => `<div class="tool-note warn">${escapeHtml(w)}</div>`).join("");
 
-        const totalRng = e.total_range || {};
-        const unitRng = e.unit_range || {};
+        const totalEst = e.total_estimate || {};
+        const unitEst = e.unit_estimate || {};
+
+        const mailSubject = encodeURIComponent(`Formal Quote Request - ${state.fileName || 'Part'}`);
+        let mailBody = `Hello Daiyujin Engineering Team,%0D%0A%0D%0A` +
+            `I would like to request a formal quote.%0D%0A%0D%0A` +
+            `Part: ${state.fileName || '—'}%0D%0A` +
+            `Material Category: ${(sel.material_category || {}).label || '—'}%0D%0A` +
+            `Process: ${sel.process || '—'}%0D%0A` +
+            `Postprocess: ${sel.postprocess_group || '—'}%0D%0A` +
+            `Tolerance: ${sel.tolerance_grade || '—'}%0D%0A` +
+            `Quantity: ${sel.quantity || 0} pcs%0D%0A` +
+            `Reference Estimate: ${totalEst.display || '—'}%0D%0A` +
+            `Unit Estimate: ${unitEst.display || '—'}%0D%0A%0D%0A` +
+            `Please review the exact material grade, tolerance, surface finish, lead time, and manufacturability.%0D%0A%0D%0A` +
+            `Thank you.`;
 
         return `<section class="tool-panel quote-estimate">
-            <h2>Estimated Range</h2>
-            <div class="quote-total">${escapeHtml(totalRng.display || "—")}</div>
-            <div class="metric-row"><span>Unit Range</span><strong>${escapeHtml(unitRng.display || "—")}</strong></div>
+            <h2>Reference Estimate</h2>
+            <div class="quote-total">${escapeHtml(totalEst.display || "—")}</div>
+            <div class="metric-row"><span>Unit Estimate</span><strong>${escapeHtml(unitEst.display || "—")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
             <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
-            <div class="metric-row"><span>Status</span><strong>Reference range</strong></div>
+            <div class="metric-row"><span>Status</span><strong>Reference estimate</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
                 <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material_category || {}).label || "-")}</strong></div>
                 <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
@@ -204,9 +219,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="metric-row"><span>Tolerance</span><strong>${escapeHtml(sel.tolerance_grade)}</strong></div>
             </div>
             ${warningMsgs}
-            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "This range is for early cost evaluation. Exact pricing depends on material grade, tolerance, finish, and lead time.")}</div>
-            <div class="tool-note" style="margin-top:0.25rem;">${escapeHtml(e.review_note || "Need an exact price? Contact our engineers for a fast formal quote.")}</div>
-            <a class="tool-button" href="mailto:" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
+            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
+            <div class="tool-note" style="margin-top:0.25rem;">${escapeHtml(e.review_note || "For an exact quote, contact our engineers.")}</div>
+            <a class="tool-button" href="mailto:?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
 

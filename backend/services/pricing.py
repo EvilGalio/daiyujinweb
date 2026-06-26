@@ -79,6 +79,7 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
             total_usd=total.get("amount") if total.get("currency") == "USD" else None,
             total_display=total.get("display", ""),
             currency=total.get("currency", ""),
+            customer_email=result.get("customer_email") or payload.get("customer_email"),
             stp_filename=payload.get("stp_filename"),
             stp_file_path=None,
             client_ip=client_ip,

@@ -940,6 +940,15 @@ body.tool-page {
 
 /* ── Quote specific ─────────────────────────── */
 
+.quote-privacy-note {
+    font-size: 0.74rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--line);
+}
+
 .quote-stack {
     display: grid;
     gap: 1.5rem;

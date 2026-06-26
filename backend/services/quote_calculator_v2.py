@@ -1,12 +1,14 @@
-"""Quote Calculator v2.1 — frozen additive formula.
+"""Quote Calculator v2.2 — point estimate with tolerance factors.
 
 Loads coefficient and material files from backend/data/quote_model_v2_1/
-and computes deterministic quotes using the v2.1 additive formula.
+and computes deterministic quotes using the v2.1 additive formula,
+v2.2 adds tight estimate bands, tolerance grading, and split postprocess.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,7 +17,79 @@ from typing import Any
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "quote_model_v2_1"
 SAFETY_MULTIPLIER = 1.25
 DIFFICULTY_FACTOR = 1.0
-MAX_RANGE_MULTIPLIER = 2.20
+
+
+# ── Tolerance factors ───────────────────────────
+
+_TOLERANCE_FACTORS: dict[str, tuple[str, float]] = {
+    "ISO2768-C": ("ISO 2768-c (Coarse)", 1.00),
+    "ISO2768-M": ("ISO 2768-m (Medium)", 1.05),
+    "ISO2768-F": ("ISO 2768-f (Fine)",   1.20),
+}
+_DEFAULT_TOLERANCE = "ISO2768-M"
+
+_OLD_TOLERANCE_MAP = {"GENERAL": "ISO2768-M", "": "ISO2768-M"}
+
+
+def _normalize_tolerance_grade(raw: str) -> str:
+    key = str(raw or "").strip()
+    if not key:
+        return _DEFAULT_TOLERANCE
+    if key in _TOLERANCE_FACTORS:
+        return key
+    return _OLD_TOLERANCE_MAP.get(key, _DEFAULT_TOLERANCE)
+
+
+def _tolerance_factor(grade: str) -> float:
+    return _TOLERANCE_FACTORS.get(grade, _TOLERANCE_FACTORS[_DEFAULT_TOLERANCE])[1]
+
+
+def _tolerance_label(grade: str) -> str:
+    return _TOLERANCE_FACTORS.get(grade, _TOLERANCE_FACTORS[_DEFAULT_TOLERANCE])[0]
+
+
+# ── Estimate band policy ────────────────────────
+
+def _estimate_band_policy(
+    material_category: str,
+    process_group: str,
+    postprocess_group: str,
+    quantity: int,
+) -> tuple[float, float, str]:
+    """Return (low_pct, high_pct, risk_level)."""
+    # High risk conditions
+    high_post = postprocess_group in ("电镀涂层", "热处理")
+    high_mat = material_category in ("specialty_metal", "high_performance_plastic")
+    high_proc = process_group in ("车铣复合", "板金")
+
+    if high_mat or high_proc or high_post:
+        return (-0.06, 0.12, "high")
+    if quantity >= 500 or postprocess_group == "阳极氧化" or process_group in ("车床", "车铣复合"):
+        return (-0.05, 0.08, "medium")
+    return (-0.04, 0.06, "low")
+
+
+# ── Stable random estimate ──────────────────────
+
+def _stable_estimate_in_band(
+    base_rmb: float,
+    low_pct: float,
+    high_pct: float,
+    seed_parts: list[str],
+) -> tuple[float, dict]:
+    """Return (estimate_rmb, seed_info)."""
+    low = base_rmb * (1.0 + low_pct)
+    high = base_rmb * (1.0 + high_pct)
+    seed_str = "|".join(seed_parts)
+    digest = hashlib.sha256(seed_str.encode("utf-8")).hexdigest()
+    ratio = int(digest[:8], 16) / 0xFFFFFFFF
+    estimate = low + ratio * (high - low)
+    return estimate, {
+        "unit_min_rmb": round(low, 2),
+        "unit_max_rmb": round(high, 2),
+        "band_policy": "tight_v1",
+        "random_seed": digest[:16],
+    }
 
 
 # ── Data loading (cached) ───────────────────────
@@ -87,7 +161,6 @@ def _find_material(material_id: str) -> dict:
     for m in mat_list:
         if m.get("is_active", "1") != "0" and m["material_norm"].strip() == material_id.strip():
             return m
-    # Try alias match
     aliases = _load_csv("material_aliases.csv")
     for a in aliases:
         if a.get("alias", "").strip() == material_id.strip():
@@ -113,11 +186,8 @@ def _find_process(process_id: str) -> str:
 
 def _find_postprocess(postprocess_id: str) -> str:
     coef = coefficients()
-    # 1. Direct match in coefficients (group name)
     if postprocess_id in coef.get("postprocess_fee_by_group", {}):
         return postprocess_id
-
-    # 2. Alias → postprocess_norm
     aliases = _load_csv("postprocess_aliases.csv")
     norm = None
     for a in aliases:
@@ -125,7 +195,11 @@ def _find_postprocess(postprocess_id: str) -> str:
             norm = a.get("postprocess_norm", "").strip()
             break
 
-    # 3. postprocess_norm → group (from postprocess_groups.csv)
+    if norm == "喷砂":
+        return "喷砂抛光"
+    if norm == "抛光":
+        return "喷砂抛光"
+
     if norm:
         groups_csv = _load_csv("postprocess_groups.csv")
         for g in groups_csv:
@@ -134,14 +208,13 @@ def _find_postprocess(postprocess_id: str) -> str:
                 if group in coef.get("postprocess_fee_by_group", {}):
                     return group
 
-    # 4. Fallback: 其他后处理
-    fallback = "\u5176\u4ed6\u540e\u5904\u7406"  # 其他后处理
+    fallback = "其他后处理"
     if fallback in coef.get("postprocess_fee_by_group", {}):
         return fallback
     raise ValueError(f"Unsupported postprocess: {postprocess_id!r}")
 
 
-# ── Material markup lookup ──────────────────────
+# ── Internal accessors ──────────────────────────
 
 def _process_material_markup(process_group: str) -> float:
     coef = coefficients()
@@ -177,21 +250,36 @@ def _postprocess_sample_count(postprocess_group: str) -> int:
 
 _PROCESS_LABELS = {
     "CNC": "CNC Machining",
-    "\u8f66\u5e8a": "Turning",
-    "\u8f66\u94e3\u590d\u5408": "Mill-Turn Machining",
-    "\u677f\u91d1": "Sheet Metal Fabrication",
+    "车床": "Turning",
+    "车铣复合": "Mill-Turn Machining",
+    "板金": "Sheet Metal Fabrication",
 }
 
 _POSTPROCESS_LABELS = {
-    "\u53bb\u6bdb\u523a": "Deburring",
-    "\u949d\u5316": "Passivation",
-    "\u7535\u89e3\u629b\u5149": "Electropolishing",
-    "\u55b7\u7802\u629b\u5149": "Bead Blasting / Polishing",
-    "\u9633\u6781\u6c27\u5316": "Anodizing",
-    "\u956d\u96d5": "Laser Marking",
-    "\u70ed\u5904\u7406": "Heat Treatment",
-    "\u7535\u9540\u6d82\u5c42": "Plating / Coating",
+    "去毛刺": "Deburring",
+    "钝化": "Passivation",
+    "电解抛光": "Electropolishing",
+    "喷砂抛光": "Bead Blasting / Polishing",
+    "阳极氧化": "Anodizing",
+    "镭雕": "Laser Marking",
+    "热处理": "Heat Treatment",
+    "电镀涂层": "Plating / Coating",
 }
+
+# v2.2: split postprocess public options (maps to same internal group for now)
+_PUBLIC_POSTPROCESS_OPTIONS = [
+    {"id": "bead_blasting", "label": "Bead Blasting", "internal_group": "喷砂抛光"},
+    {"id": "polishing", "label": "Polishing", "internal_group": "喷砂抛光"},
+    {"id": "去毛刺", "label": "Deburring", "internal_group": "去毛刺"},
+    {"id": "钝化", "label": "Passivation", "internal_group": "钝化"},
+    {"id": "电解抛光", "label": "Electropolishing", "internal_group": "电解抛光"},
+    {"id": "阳极氧化", "label": "Anodizing", "internal_group": "阳极氧化"},
+    {"id": "镭雕", "label": "Laser Marking", "internal_group": "镭雕"},
+    {"id": "热处理", "label": "Heat Treatment", "internal_group": "热处理"},
+    {"id": "电镀涂层", "label": "Plating / Coating", "internal_group": "电镀涂层"},
+]
+
+_PUBLIC_POSTPROCESS_BY_ID = {o["id"]: o for o in _PUBLIC_POSTPROCESS_OPTIONS}
 
 
 def _process_label(pg: str) -> str:
@@ -202,7 +290,16 @@ def _postprocess_label(pg: str) -> str:
     return _POSTPROCESS_LABELS.get(pg, pg)
 
 
-# ── Main calculate ──────────────────────────────
+def _resolve_public_postprocess(public_id: str) -> tuple[str, str]:
+    """Resolve public postprocess id → (internal_group, public_label)."""
+    opt = _PUBLIC_POSTPROCESS_BY_ID.get(public_id)
+    if opt:
+        return opt["internal_group"], opt["label"]
+    # Fallback: try direct group match
+    return _find_postprocess(public_id), _postprocess_label(public_id)
+
+
+# ── Options ─────────────────────────────────────
 
 def get_quote_options_v2() -> dict:
     coef = coefficients()
@@ -220,25 +317,28 @@ def get_quote_options_v2() -> dict:
 
     procs = []
     for pg in coef.get("material_markup_by_process", {}):
-        if pg == "\u5176\u4ed6\u5de5\u827a":
+        if pg == "其他工艺":
             continue
         procs.append({"id": pg, "label": _process_label(pg)})
 
     pp_groups = []
-    for pg in coef.get("postprocess_fee_by_group", {}):
-        if pg in ("\u672a\u6807\u6ce8\u540e\u5904\u7406", "\u5176\u4ed6\u540e\u5904\u7406"):
-            continue
-        pp_groups.append({"id": pg, "label": _postprocess_label(pg)})
+    for opt in _PUBLIC_POSTPROCESS_OPTIONS:
+        pp_groups.append({"id": opt["id"], "label": opt["label"]})
 
     return {
         "material_categories": mat_cats,
         "processes": procs,
         "postprocess_groups": pp_groups,
-        "tolerance_grades": [{"grade": "GENERAL", "label": "General Tolerance"}],
+        "tolerance_grades": [
+            {"grade": grade, "label": label}
+            for grade, (label, _) in _TOLERANCE_FACTORS.items()
+        ],
         "currencies": ["USD", "EUR"],
         "default_currency": "USD",
     }
 
+
+# ── Main calculate ──────────────────────────────
 
 def calculate_quote_v2(payload: dict) -> dict:
     quantity = int(payload.get("quantity", 1))
@@ -249,12 +349,10 @@ def calculate_quote_v2(payload: dict) -> dict:
     cat_id = payload.get("material_category", "")
     mat_id = payload.get("material_id", "")
     cats = material_categories()
-    range_multiplier = 1.50
     cat_info = None
     if cat_id and cat_id in cats:
         cat_info = cats[cat_id]
         material_id = cat_info["representative_material_id"]
-        range_multiplier = float(cat_info.get("range_multiplier", 1.50))
     elif mat_id:
         material_id = str(mat_id)
     else:
@@ -265,10 +363,16 @@ def calculate_quote_v2(payload: dict) -> dict:
     process_raw = str(payload.get("process", "CNC"))
     process_group = _find_process(process_raw)
     pp_raw = str(payload.get("postprocess_group", "去毛刺"))
-    postprocess_group = _find_postprocess(pp_raw)
+    postprocess_group, postprocess_public_label = _resolve_public_postprocess(pp_raw)
+    tolerance_raw = str(payload.get("tolerance_grade", "ISO2768-M"))
+    tolerance_grade = _normalize_tolerance_grade(tolerance_raw)
+    tolerance_factor = _tolerance_factor(tolerance_grade)
+    tolerance_label = _tolerance_label(tolerance_grade)
     currency = str(payload.get("currency", "USD")).upper()
     if currency not in ("CNY", "USD", "EUR"):
         raise ValueError(f"Unsupported currency: {currency!r}. Supported: CNY, USD, EUR.")
+    customer_email = str(payload.get("customer_email", "")).strip()
+
     warnings = []
     pp_count = _postprocess_sample_count(postprocess_group)
     proc_count = _process_sample_count(process_group)
@@ -278,6 +382,7 @@ def calculate_quote_v2(payload: dict) -> dict:
         warnings.append(f"Postprocess '{postprocess_group}' has low sample count ({pp_count}).")
     if postprocess_group != pp_raw:
         warnings.append(f"Postprocess '{pp_raw}' mapped to '{postprocess_group}'.")
+
     stock_volume = l * w * h
     stock_weight_kg = stock_volume * density / 1_000_000
     material_cost_rmb = stock_weight_kg * price_per_kg
@@ -286,50 +391,55 @@ def calculate_quote_v2(payload: dict) -> dict:
     machining_base = _process_machining_base(process_group)
     pp_fee = _postprocess_fee(postprocess_group)
     tier, delta = _quantity_tier(quantity)
+
     material_term = material_cost_rmb * material_markup
     setup_term = setup_fee / quantity
-    machining_term = machining_base * DIFFICULTY_FACTOR
+    machining_term = machining_base * DIFFICULTY_FACTOR * tolerance_factor
+
     raw_unit_price = (material_term + setup_term + machining_term + pp_fee) * delta
     suggested_unit = round(raw_unit_price * SAFETY_MULTIPLIER, 2)
     suggested_total = round(suggested_unit * quantity, 2)
+
     usd_cny = 7.20
     usd_eur = 0.92
-    if currency == "CNY":
-        unit_display = round(suggested_unit, 2)
-        total_display = round(suggested_total, 2)
-    elif currency == "EUR":
-        unit_display = round(suggested_unit / usd_cny * usd_eur, 2)
-        total_display = round(suggested_total / usd_cny * usd_eur, 2)
-    else:
-        unit_display = round(suggested_unit / usd_cny, 2)
-        total_display = round(suggested_total / usd_cny, 2)
+
+    # ── Estimate band + stable random ──────────
+    low_pct, high_pct, risk_level = _estimate_band_policy(
+        cat_id, process_group, postprocess_group, quantity,
+    )
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    seed_parts = [
+        payload.get("file_id", payload.get("part_name", "unknown")),
+        cat_id, process_group, postprocess_group, tolerance_grade,
+        str(quantity), currency, today,
+    ]
+    unit_estimate_rmb, seed_info = _stable_estimate_in_band(
+        suggested_unit, low_pct, high_pct, seed_parts,
+    )
+
     valid_until = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d")
-    if process_group == "板金":
-        range_multiplier += 0.10
-    if postprocess_group in ("热处理", "电镀涂层"):
-        range_multiplier += 0.10
-    if quantity >= 501:
-        range_multiplier += 0.05
-    range_multiplier = min(range_multiplier, MAX_RANGE_MULTIPLIER)
-    unit_min = _commercial_round(suggested_unit)
-    unit_max = _commercial_round(suggested_unit * range_multiplier)
-    if unit_max < unit_min * 1.25:
-        unit_max = _commercial_round(suggested_unit * 1.25)
-    total_min = _commercial_round(suggested_total)
-    total_max = _commercial_round(suggested_total * range_multiplier)
-    if total_max < total_min * 1.25:
-        total_max = _commercial_round(suggested_total * 1.25)
-    unit_min_disp = _display_amount(unit_min, currency, usd_cny, usd_eur)
-    unit_max_disp = _display_amount(unit_max, currency, usd_cny, usd_eur)
-    total_min_disp = _display_amount(total_min, currency, usd_cny, usd_eur)
-    total_max_disp = _display_amount(total_max, currency, usd_cny, usd_eur)
+
+    if currency == "CNY":
+        unit_estimate_disp = round(unit_estimate_rmb, 2)
+        total_estimate_disp = round(unit_estimate_rmb * quantity, 2)
+    elif currency == "EUR":
+        unit_estimate_disp = round(unit_estimate_rmb / usd_cny * usd_eur, 2)
+        total_estimate_disp = round(unit_estimate_rmb * quantity / usd_cny * usd_eur, 2)
+    else:
+        unit_estimate_disp = round(unit_estimate_rmb / usd_cny, 2)
+        total_estimate_disp = round(unit_estimate_rmb * quantity / usd_cny, 2)
+
+    unit_display = _display_amount(suggested_unit, currency, usd_cny, usd_eur)
+    total_display = _display_amount(suggested_total, currency, usd_cny, usd_eur)
+
     result = {
         "quote_status": "estimated",
         "pricing_mode": "deterministic_calculation",
-        "pricing_model_version": "v2.1_additive",
+        "pricing_model_version": "v2.2_estimate",
         "valid_until": valid_until,
         "currency": currency,
         "exchange_rate_basis": "RMB",
+        "customer_email": customer_email or None,
         "part": {
             "file_id": payload.get("file_id", ""),
             "name": payload.get("part_name", ""),
@@ -341,20 +451,32 @@ def calculate_quote_v2(payload: dict) -> dict:
             "stock_weight_kg": round(stock_weight_kg, 4),
         },
         "selections": {
-            "material": {"id": material["material_norm"].strip(), "name": material["material_norm"].strip(),
+            "material": {"id": material["material_norm"].strip(),
+                "name": material["material_norm"].strip(),
                 "density_g_cm3": density, "price_rmb_per_kg": price_per_kg},
             "material_category": cat_id or None,
-            "process": process_group, "postprocess_group": postprocess_group,
-            "quantity": quantity, "quantity_tier": tier,
-            "tolerance_grade": payload.get("tolerance_grade", "GENERAL"),
+            "process": process_group,
+            "postprocess_group": postprocess_group,
+            "postprocess_public_label": postprocess_public_label,
+            "quantity": quantity,
+            "quantity_tier": tier,
+            "tolerance_grade": tolerance_grade,
+            "tolerance_label": tolerance_label,
         },
         "formula": {
-            "material_cost_rmb": round(material_cost_rmb, 2), "material_markup": material_markup,
-            "material_term_rmb": round(material_term, 2), "setup_fee_rmb": setup_fee,
-            "setup_term_rmb": round(setup_term, 2), "machining_base_rmb": machining_base,
-            "difficulty_factor": DIFFICULTY_FACTOR, "machining_term_rmb": round(machining_term, 2),
-            "postprocess_fee_rmb": pp_fee, "quantity_delta": delta,
-            "raw_unit_price_rmb": round(raw_unit_price, 2), "safety_multiplier": SAFETY_MULTIPLIER,
+            "material_cost_rmb": round(material_cost_rmb, 2),
+            "material_markup": material_markup,
+            "material_term_rmb": round(material_term, 2),
+            "setup_fee_rmb": setup_fee,
+            "setup_term_rmb": round(setup_term, 2),
+            "machining_base_rmb": machining_base,
+            "difficulty_factor": DIFFICULTY_FACTOR,
+            "tolerance_factor": tolerance_factor,
+            "machining_term_rmb": round(machining_term, 2),
+            "postprocess_fee_rmb": pp_fee,
+            "quantity_delta": delta,
+            "raw_unit_price_rmb": round(raw_unit_price, 2),
+            "safety_multiplier": SAFETY_MULTIPLIER,
             "suggested_unit_price_rmb": round(suggested_unit, 2),
             "suggested_total_rmb": round(suggested_total, 2),
         },
@@ -362,6 +484,19 @@ def calculate_quote_v2(payload: dict) -> dict:
             "currency": currency, "display": f"{currency} {unit_display:,.2f}"},
         "total": {"amount": total_display, "amount_rmb": round(suggested_total, 2),
             "currency": currency, "display": f"{currency} {total_display:,.2f}"},
+        "unit_estimate": {
+            "amount": unit_estimate_disp,
+            "amount_rmb": round(unit_estimate_rmb, 2),
+            "currency": currency,
+            "display": f"{currency} {unit_estimate_disp:,.2f} / pc",
+        },
+        "total_estimate": {
+            "amount": total_estimate_disp,
+            "amount_rmb": round(unit_estimate_rmb * quantity, 2),
+            "currency": currency,
+            "display": f"{currency} {total_estimate_disp:,.2f}",
+        },
+        "estimate_band": seed_info,
         "breakdown": [
             {"label": "Material term", "display": f"¥{material_term:.2f} / pc"},
             {"label": "Setup allocation", "display": f"¥{setup_term:.2f} / pc"},
@@ -369,16 +504,11 @@ def calculate_quote_v2(payload: dict) -> dict:
             {"label": "Postprocess", "display": f"¥{pp_fee:.2f} / pc"},
         ],
         "warnings": warnings,
-        "unit_range": {"min": unit_min_disp, "max": unit_max_disp,
-            "currency": currency, "display": f"{currency} {unit_min_disp:,} – {unit_max_disp:,} / pc"},
-        "total_range": {"min": total_min_disp, "max": total_max_disp,
-            "currency": currency, "display": f"{currency} {total_min_disp:,} – {total_max_disp:,}"},
         "disclaimer": "This is for reference only.",
-        "_internal_range_multiplier": range_multiplier,
+        "_internal_risk_level": risk_level,
         "_internal_representative_material": material_id,
     }
     return result
-
 
 
 # ── Commercial rounding ─────────────────────────
@@ -409,13 +539,13 @@ def _display_amount(rmb: float, currency: str, usd_cny: float, usd_eur: float) -
 # ── Public response sanitizer ───────────────────
 
 def public_quote_response(result: dict) -> dict:
-    """Strip internal fields from the public API response."""
+    """Strip internal fields, return point estimate for public API."""
     sel = result.get("selections", {})
     mat = sel.get("material", {})
     cat_id = sel.get("material_category")
     cat_info = material_categories().get(cat_id or "", {})
     return {
-        "quote_status": "estimated_range",
+        "quote_status": "estimated",
         "valid_until": result.get("valid_until"),
         "currency": result.get("currency"),
         "part": {
@@ -429,15 +559,17 @@ def public_quote_response(result: dict) -> dict:
                 "label": cat_info.get("label") or mat.get("name", ""),
             },
             "process": _process_label(sel.get("process", "")),
-            "postprocess_group": _postprocess_label(sel.get("postprocess_group", "")),
+            "postprocess_group": sel.get("postprocess_public_label",
+                _postprocess_label(sel.get("postprocess_group", ""))),
             "quantity": sel.get("quantity"),
-            "tolerance_grade": sel.get("tolerance_grade"),
+            "tolerance_grade": sel.get("tolerance_label",
+                sel.get("tolerance_grade", "")),
         },
-        "unit_range": result.get("unit_range", {}),
-        "total_range": result.get("total_range", {}),
+        "unit_estimate": result.get("unit_estimate", {}),
+        "total_estimate": result.get("total_estimate", {}),
         "warnings": _public_warnings(result.get("warnings", [])),
-        "review_note": "For exact material grade, tolerance, surface finish, and lead time, contact our engineers for a fast formal quote.",
-        "disclaimer": "This range is for early cost evaluation. Exact pricing depends on material grade, tolerance, finish, and lead time.",
+        "review_note": "For an exact material grade, tolerance, surface finish, and lead time, contact our engineers for a fast formal quote.",
+        "disclaimer": "This estimate is for early cost evaluation and is not a formal commercial offer. Final pricing depends on exact material grade, drawing requirements, tolerance, surface finish, lead time, and engineering review.",
     }
 
 

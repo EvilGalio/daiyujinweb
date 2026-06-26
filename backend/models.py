@@ -216,6 +216,9 @@ class Inquiry(Base):
     total_usd: Mapped[float | None] = mapped_column(Float)
     total_display: Mapped[str | None] = mapped_column(String(40))
     currency: Mapped[str | None] = mapped_column(String(3))
+    customer_email: Mapped[str | None] = mapped_column(String(255))
+    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+    email_status: Mapped[str | None] = mapped_column(String(40))
 
     # ── audit fields ──
     stp_filename: Mapped[str | None] = mapped_column(String(255))
