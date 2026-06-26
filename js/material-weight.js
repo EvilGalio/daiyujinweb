@@ -4,10 +4,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("[data-weight-form]");
     const shapeSelect = document.querySelector("[data-shape-select]");
     const dimsArea = document.querySelector("[data-dimensions-area]");
+    const diagram = document.querySelector("[data-shape-diagram]");
     const resultEl = document.querySelector("[data-weight-result]");
     if (!form || !shapeSelect || !dimsArea || !resultEl) return;
 
     let options = null;
+    let currentShape = "round_bar";
 
     async function hydrate() {
         try {
@@ -16,37 +18,45 @@ document.addEventListener("DOMContentLoaded", () => {
                 .map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
             shapeSelect.innerHTML = options.shapes
                 .map(s => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
-            document.querySelector("[data-unit-select]").innerHTML = options.units
+            document.querySelector("[data-unit-select]").innerHTML = (options.units || ["mm","cm","m","inch","ft"])
                 .map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
-            document.querySelector("[data-output-unit-select]").innerHTML = options.output_units
+            document.querySelector("[data-output-unit-select]").innerHTML = (options.output_units || ["kg","g","lb"])
                 .map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
-            renderDimensions();
+            updateShape();
         } catch (e) { /* silent */ }
     }
 
-    function renderDimensions() {
-        const shapeId = shapeSelect.value;
-        const shapeCfg = (options?.shapes || []).find(s => s.id === shapeId);
-        if (!shapeCfg) return;
-        dimsArea.innerHTML = shapeCfg.dimensions.map(d => `
+    function updateShape() {
+        currentShape = shapeSelect.value;
+        const spec = SHAPE_SPECS[currentShape] || SHAPE_SPECS.round_bar;
+        dimsArea.innerHTML = spec.dimensions.map(d => `
             <div class="tool-field">
-                <label for="dim-${esc(d.key)}">${esc(d.label)}</label>
+                <label for="dim-${esc(d.key)}">${esc(d.label)}${d.unit ? ' <span class="tol-unit">mm</span>' : ''}</label>
                 <input id="dim-${esc(d.key)}" name="dim-${esc(d.key)}" type="number" min="0" step="any" value="10">
             </div>
         `).join("");
+
+        /* Bind focus highlight */
+        dimsArea.querySelectorAll("input").forEach(input => {
+            input.addEventListener("focus", () => {
+                if (diagram) diagram.innerHTML = renderShapeDiagram(currentShape, input.name.replace("dim-", ""));
+            });
+            input.addEventListener("blur", () => {
+                if (diagram) diagram.innerHTML = renderShapeDiagram(currentShape);
+            });
+        });
+
+        if (diagram) diagram.innerHTML = renderShapeDiagram(currentShape);
     }
 
-    shapeSelect.addEventListener("change", renderDimensions);
+    shapeSelect.addEventListener("change", () => { updateShape(); });
 
     form.addEventListener("submit", async e => {
         e.preventDefault();
         const formData = new FormData(form);
-        const shapeId = shapeSelect.value;
-        const shapeCfg = (options?.shapes || []).find(s => s.id === shapeId);
-        if (!shapeCfg) return;
-
+        const spec = SHAPE_SPECS[currentShape] || SHAPE_SPECS.round_bar;
         const dims = {};
-        for (const d of shapeCfg.dimensions) {
+        for (const d of spec.dimensions) {
             dims[d.key] = Number(formData.get(`dim-${d.key}`));
         }
 
@@ -56,16 +66,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 body: JSON.stringify({
                     material_id: formData.get("material_id"),
-                    shape: shapeId,
-                    unit: formData.get("unit"),
-                    output_unit: formData.get("output_unit"),
-                    quantity: Number(formData.get("quantity")),
+                    shape: currentShape,
+                    unit: formData.get("unit") || "mm",
+                    output_unit: formData.get("output_unit") || "kg",
+                    quantity: Number(formData.get("quantity")) || 1,
                     dimensions: dims,
                 }),
             });
             resultEl.innerHTML = `
                 <div class="dhl-result-amount">${esc(r.total_weight.display)}</div>
-                <div class="dhl-result-meta">Piece weight: ${esc(r.piece_weight.display)} · ${esc(r.material.label)} ${esc(r.shape.label)}</div>
+                <div class="dhl-result-meta">Piece weight: ${esc(r.piece_weight.display)} &middot; ${esc(r.material.label)} ${esc(r.shape.label)}</div>
                 <div class="tool-note" style="margin-top:0.5rem;">${esc(r.note)}</div>`;
         } catch (err) {
             resultEl.innerHTML = `<div class="tool-note error">${esc(err.message)}</div>`;

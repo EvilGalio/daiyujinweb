@@ -511,20 +511,374 @@ Wire
 
 ### 5.7 SVG Shape Diagrams
 
-Each shape should show a simple SVG diagram with labeled dimensions.
+Each shape must show a self-drawn SVG diagram with labeled dimensions. This is not decorative UI. It is a visual contract between the shape selection and the dimension inputs.
 
-Requirements:
+Reference principles:
 
-1. SVGs must be inline or local assets.
-2. Diagrams should update when shape changes.
-3. Labels must match input names exactly:
-   - `Diameter`
-   - `Length`
-   - `Wall Thickness`
-   - `Width`
-   - `Height`
-4. Keep diagrams technical and minimal.
-5. Do not use decorative illustration.
+1. The Online Metals calculator ties material, shape, quantity, unit, and dimension inputs into one flow, then returns piece and total weight.
+2. SVG is suitable here because diagrams stay sharp, editable, and local to the codebase.
+3. SVG `<marker>` can be used to attach arrowheads to dimension lines; MDN documents `marker-start`, `marker-mid`, and `marker-end` for paths, lines, and polylines.
+
+#### 5.7.1 Design Goal
+
+The diagram should make the user think:
+
+```text
+I can immediately see what Diameter, Length, Width, Height, and Wall Thickness mean.
+```
+
+The diagram should not look like:
+
+```text
+generic icon
+decorative illustration
+random SVG copied from the internet
+unlabeled product thumbnail
+```
+
+#### 5.7.2 Rendering Approach
+
+Use generated inline SVG, not external image files.
+
+Recommended frontend module:
+
+```text
+js/material-weight-shapes.js
+daiyujin-tools/assets/js/material-weight-shapes.js
+```
+
+Core API:
+
+```js
+const SHAPE_SPECS = {
+  round_bar: {
+    label: "Round Bar",
+    dimensions: [
+      { key: "diameter", label: "Diameter", unit: true },
+      { key: "length", label: "Length", unit: true }
+    ],
+    renderSvg: renderRoundBarSvg
+  }
+};
+
+function renderShapeDiagram(shapeId, activeDimensionKey = "") {
+  const spec = SHAPE_SPECS[shapeId] || SHAPE_SPECS.round_bar;
+  return spec.renderSvg({ activeDimensionKey });
+}
+```
+
+The calculator page should call `renderShapeDiagram()` whenever:
+
+1. Shape changes.
+2. A dimension input receives focus.
+3. A dimension input loses focus.
+
+#### 5.7.3 SVG Style Contract
+
+All diagrams use the same viewBox:
+
+```text
+viewBox="0 0 320 220"
+```
+
+Recommended visual tokens:
+
+```css
+.shape-svg {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 16 / 11;
+}
+
+.shape-body {
+  fill: #f8fafc;
+  stroke: #334155;
+  stroke-width: 2;
+}
+
+.shape-cut {
+  fill: #ffffff;
+  stroke: #334155;
+  stroke-width: 2;
+}
+
+.shape-dim-line {
+  stroke: #0066cc;
+  stroke-width: 1.6;
+  marker-start: url(#dimArrow);
+  marker-end: url(#dimArrow);
+}
+
+.shape-extension-line {
+  stroke: #94a3b8;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.shape-label {
+  fill: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shape-label-bg {
+  fill: #ffffff;
+  opacity: 0.92;
+}
+
+.shape-dim-active {
+  stroke: #0d8c4a;
+}
+```
+
+Every SVG should define arrowheads locally:
+
+```html
+<defs>
+  <marker id="dimArrow" viewBox="0 0 10 10" refX="5" refY="5"
+          markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+  </marker>
+</defs>
+```
+
+Implementation note: if multiple SVGs can exist on the page at once, the marker id must be unique per SVG or generated with a suffix:
+
+```js
+const markerId = `dimArrow-${shapeId}`;
+```
+
+#### 5.7.4 Label Consistency Rule
+
+The label in the SVG must match the input label exactly.
+
+Example:
+
+```text
+Input label: Wall Thickness
+SVG label: Wall Thickness
+```
+
+Not allowed:
+
+```text
+Input label: Wall Thickness
+SVG label: t
+Input label: Outer Diameter
+SVG label: OD
+```
+
+Abbreviations may be added only as secondary text:
+
+```text
+Outer Diameter (OD)
+Wall Thickness (t)
+```
+
+This rule matters because the diagram exists to reduce interpretation cost.
+
+#### 5.7.5 Active Dimension Highlight
+
+When the user focuses a dimension input, the matching dimension line should highlight.
+
+Example:
+
+```js
+input.addEventListener("focus", () => {
+  diagram.innerHTML = renderShapeDiagram(currentShape, input.name);
+});
+```
+
+The highlighted line should use:
+
+```text
+green or accent stroke
+slightly thicker line
+no layout movement
+```
+
+Acceptance:
+
+```text
+Focusing Diameter highlights only the Diameter dimension line.
+Focusing Length highlights only the Length dimension line.
+Changing shape clears the active highlight.
+```
+
+#### 5.7.6 Shape Diagram Requirements
+
+| Shape | Diagram body | Required labels |
+|---|---|---|
+| Round Bar | cylinder-like side view with circular front face | Diameter, Length |
+| Square Bar | simple 3D prism | Side, Length |
+| Rectangular Bar / Plate | 3D rectangular prism | Width, Thickness, Length |
+| Sheet / Plate | flat rectangular slab | Length, Width, Thickness |
+| Round Tube / Pipe | cylinder with hollow front face | Outer Diameter, Wall Thickness, Length |
+| Square Tube | square hollow profile with depth | Outer Side, Wall Thickness, Length |
+| Rectangular Tube | rectangular hollow profile with depth | Outer Width, Outer Height, Wall Thickness, Length |
+| Hex Bar | hexagonal prism | Across Flats, Length |
+| Ring | flat washer-like ring | Outer Diameter, Inner Diameter, Thickness |
+| Disc / Circle | short cylinder | Diameter, Thickness |
+
+Do not ship a shape option until its diagram and dimension inputs are both complete.
+
+#### 5.7.7 Example: Round Bar SVG
+
+This example shows the desired level of craft. It can be simplified in code, but the production diagrams should follow the same structure: body, extension lines, dimension lines, labels.
+
+```js
+function renderRoundBarSvg({ activeDimensionKey = "" } = {}) {
+  const diameterActive = activeDimensionKey === "diameter" ? " shape-dim-active" : "";
+  const lengthActive = activeDimensionKey === "length" ? " shape-dim-active" : "";
+
+  return `
+    <svg class="shape-svg" viewBox="0 0 320 220" role="img"
+         aria-label="Round bar dimensions: Diameter and Length"
+         xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="dimArrow-round-bar" viewBox="0 0 10 10" refX="5" refY="5"
+                markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0066cc"></path>
+        </marker>
+      </defs>
+
+      <path class="shape-body" d="M 85 62 L 230 62 C 258 62 258 158 230 158 L 85 158 C 58 158 58 62 85 62 Z"></path>
+      <ellipse class="shape-body" cx="85" cy="110" rx="28" ry="48"></ellipse>
+      <ellipse class="shape-cut" cx="85" cy="110" rx="14" ry="24" opacity="0.18"></ellipse>
+
+      <line class="shape-extension-line" x1="85" y1="160" x2="85" y2="190"></line>
+      <line class="shape-extension-line" x1="230" y1="160" x2="230" y2="190"></line>
+      <line class="shape-dim-line${lengthActive}" x1="85" y1="184" x2="230" y2="184"
+            marker-start="url(#dimArrow-round-bar)" marker-end="url(#dimArrow-round-bar)"></line>
+      <rect class="shape-label-bg" x="134" y="170" width="48" height="18" rx="3"></rect>
+      <text class="shape-label" x="158" y="184" text-anchor="middle">Length</text>
+
+      <line class="shape-extension-line" x1="48" y1="62" x2="72" y2="62"></line>
+      <line class="shape-extension-line" x1="48" y1="158" x2="72" y2="158"></line>
+      <line class="shape-dim-line${diameterActive}" x1="54" y1="62" x2="54" y2="158"
+            marker-start="url(#dimArrow-round-bar)" marker-end="url(#dimArrow-round-bar)"></line>
+      <rect class="shape-label-bg" x="14" y="101" width="70" height="18" rx="3"></rect>
+      <text class="shape-label" x="49" y="115" text-anchor="middle">Diameter</text>
+    </svg>
+  `;
+}
+```
+
+#### 5.7.8 Example: Round Tube SVG
+
+Round tube needs to make `Outer Diameter` and `Wall Thickness` visually distinct.
+
+```text
+Outer Diameter: full outside vertical dimension of front circle
+Wall Thickness: short radial dimension between inner and outer circle
+Length: horizontal dimension along tube body
+```
+
+Implementation guidance:
+
+1. Draw tube body as a cylinder.
+2. Draw front face with two ellipses:
+   - outer ellipse uses `shape-body`
+   - inner ellipse uses `shape-cut`
+3. Draw `Wall Thickness` as a short line from inner wall to outer wall on the front face.
+4. Place `Wall Thickness` label near the short radial line, not below the full tube.
+
+#### 5.7.9 Example: Rectangular Tube SVG
+
+Rectangular tube must avoid ambiguity between `Outer Width`, `Outer Height`, and `Wall Thickness`.
+
+```text
+Outer Width: horizontal dimension across the outside front rectangle
+Outer Height: vertical dimension across the outside front rectangle
+Wall Thickness: short dimension between outer and inner rectangle
+Length: depth direction
+```
+
+The hollow section should be visible on the front face. Do not use a plain solid prism for tube shapes.
+
+#### 5.7.10 Shape Spec Should Drive Inputs and Diagram Together
+
+Do not maintain dimension labels separately in HTML and SVG.
+
+Correct:
+
+```js
+const SHAPE_SPECS = {
+  rectangular_tube: {
+    label: "Rectangular Tube",
+    dimensions: [
+      { key: "outer_width", label: "Outer Width" },
+      { key: "outer_height", label: "Outer Height" },
+      { key: "wall_thickness", label: "Wall Thickness" },
+      { key: "length", label: "Length" }
+    ],
+    renderSvg: renderRectangularTubeSvg
+  }
+};
+```
+
+The same `dimensions` array should render:
+
+1. Input fields.
+2. Validation messages.
+3. SVG labels.
+4. API payload keys.
+
+This prevents the classic bug where the UI says `Height`, the SVG says `Width`, and the backend expects `outer_height`.
+
+#### 5.7.11 Accessibility
+
+Each SVG needs:
+
+```html
+role="img"
+aria-label="Round tube dimensions: Outer Diameter, Wall Thickness, Length"
+```
+
+Each diagram should also include a `<title>`:
+
+```html
+<title>Round Tube Dimension Diagram</title>
+```
+
+Do not rely on color alone. The active dimension can change color, but it should also increase stroke width or use a small active dot.
+
+#### 5.7.12 Verification
+
+Add a frontend test helper or manual QA checklist:
+
+```text
+For each shape:
+1. Select shape.
+2. Confirm diagram changes.
+3. Confirm every input label appears in the SVG.
+4. Confirm no SVG label exists without a matching input.
+5. Focus each input and confirm the matching dimension line highlights.
+6. Confirm labels do not overlap the shape at desktop width.
+7. Confirm labels do not overflow the SVG at mobile width.
+```
+
+Suggested automated check:
+
+```js
+function verifyShapeSpec(spec) {
+  const svg = spec.renderSvg({});
+  for (const dim of spec.dimensions) {
+    if (!svg.includes(dim.label)) {
+      throw new Error(`${spec.label} SVG missing label: ${dim.label}`);
+    }
+  }
+}
+```
+
+Visual QA should be done with browser screenshots for at least:
+
+```text
+round_bar
+round_tube
+rectangular_tube
+ring
+```
 
 ### 5.8 Shape Volume Formulas
 
