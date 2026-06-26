@@ -42,11 +42,11 @@ const SHAPE_SPECS = {
       return svg("square-bar", "Square bar with Side and Length", `
         ${rectPrism(60, 82, 58, 58, 142, -22)}
 
-        ${ext(60, 144, 60, 178)}
+        ${ext(118, 144, 118, 178)}
         ${ext(260, 122, 260, 178)}
-        ${dim(60, 172, 260, 172, "square-bar", la)}
-        ${labelBox(135, 158, 50, 18)}
-        <text class="shape-label" x="160" y="172" text-anchor="middle">Length</text>
+        ${dim(118, 172, 260, 172, "square-bar", la)}
+        ${labelBox(164, 158, 50, 18)}
+        <text class="shape-label" x="189" y="172" text-anchor="middle">Length</text>
 
         ${ext(48, 82, 48, 140)}
         ${ext(48, 140, 48, 160)}
@@ -71,11 +71,11 @@ const SHAPE_SPECS = {
       return svg("rect-bar", "Rectangular bar with Width, Thickness, and Length", `
         ${rectPrism(58, 94, 74, 38, 138, -22)}
 
-        ${ext(58, 136, 58, 164)}
+        ${ext(132, 136, 132, 164)}
         ${ext(270, 114, 270, 164)}
-        ${dim(58, 158, 270, 158, "rect-bar", la)}
-        ${labelBox(139, 144, 50, 18)}
-        <text class="shape-label" x="164" y="158" text-anchor="middle">Length</text>
+        ${dim(132, 158, 270, 158, "rect-bar", la)}
+        ${labelBox(176, 144, 50, 18)}
+        <text class="shape-label" x="201" y="158" text-anchor="middle">Length</text>
 
         ${ext(46, 94, 46, 132)}
         ${ext(46, 132, 46, 148)}
@@ -182,11 +182,11 @@ const SHAPE_SPECS = {
         ${rectPrism(60, 82, 64, 64, 138, -22)}
         <rect class="shape-cut" x="80" y="102" width="26" height="26" rx="1"/>
 
-        ${ext(60, 150, 60, 180)}
+        ${ext(124, 150, 124, 180)}
         ${ext(262, 128, 262, 180)}
-        ${dim(60, 174, 262, 174, "square-tube", la)}
-        ${labelBox(136, 160, 50, 18)}
-        <text class="shape-label" x="161" y="174" text-anchor="middle">Length</text>
+        ${dim(124, 174, 262, 174, "square-tube", la)}
+        ${labelBox(168, 160, 50, 18)}
+        <text class="shape-label" x="193" y="174" text-anchor="middle">Length</text>
 
         ${ext(48, 82, 48, 146)}
         ${ext(48, 146, 48, 164)}
@@ -220,11 +220,11 @@ const SHAPE_SPECS = {
         ${rectPrism(56, 92, 82, 52, 134, -22)}
         <rect class="shape-cut" x="78" y="108" width="36" height="20" rx="1"/>
 
-        ${ext(56, 148, 56, 176)}
+        ${ext(138, 148, 138, 176)}
         ${ext(272, 126, 272, 176)}
-        ${dim(56, 170, 272, 170, "rect-tube", la)}
-        ${labelBox(139, 156, 50, 18)}
-        <text class="shape-label" x="164" y="170" text-anchor="middle">Length</text>
+        ${dim(138, 170, 272, 170, "rect-tube", la)}
+        ${labelBox(180, 156, 50, 18)}
+        <text class="shape-label" x="205" y="170" text-anchor="middle">Length</text>
 
         ${ext(44, 92, 44, 144)}
         ${ext(44, 144, 44, 162)}
@@ -262,11 +262,11 @@ const SHAPE_SPECS = {
       return svg("hex-bar", "Hex bar with Across Flats and Length", `
         ${hexPrism(front, 86, -20)}
 
-        ${ext(78, 156, 78, 188)}
-        ${ext(266, 132, 266, 188)}
-        ${dim(78, 182, 266, 182, "hex-bar", la)}
-        ${labelBox(148, 168, 50, 18)}
-        <text class="shape-label" x="173" y="182" text-anchor="middle">Length</text>
+        ${ext(154, 156, 154, 188)}
+        ${ext(240, 136, 240, 188)}
+        ${dim(154, 182, 240, 182, "hex-bar", la)}
+        ${labelBox(172, 168, 50, 18)}
+        <text class="shape-label" x="197" y="182" text-anchor="middle">Length</text>
 
         ${ext(104, 76, 62, 76)}
         ${ext(104, 152, 62, 152)}
@@ -289,26 +289,25 @@ const SHAPE_SPECS = {
       const ia = activeDimensionKey === "inner_diameter";
       const ta = activeDimensionKey === "thickness";
       return svg("ring", "Ring with Outer Diameter, Inner Diameter, and Thickness", `
-        <path class="shape-body shape-face-side" d="M82 94 C82 76 218 76 218 94 L218 136 C218 154 82 154 82 136 Z"/>
-        <ellipse class="shape-body shape-face-top" cx="150" cy="94" rx="68" ry="28"/>
-        <ellipse class="shape-cut" cx="150" cy="94" rx="28" ry="12"/>
-        <path class="shape-edge" d="M82 136 C82 154 218 154 218 136"/>
+        <path class="shape-body shape-face-side" d="M112 58 L194 58 C218 58 218 162 194 162 L112 162 C78 162 78 58 112 58 Z"/>
+        <ellipse class="shape-body shape-face-front" cx="112" cy="110" rx="34" ry="52"/>
+        <ellipse class="shape-cut" cx="112" cy="110" rx="16" ry="25"/>
 
-        ${ext(82, 148, 82, 180)}
-        ${ext(218, 148, 218, 180)}
-        ${dim(82, 174, 218, 174, "ring", oa)}
-        ${labelBox(92, 184, 116, 18)}
-        <text class="shape-label" x="150" y="198" text-anchor="middle">Outer Diameter</text>
+        ${ext(68, 58, 94, 58)}
+        ${ext(68, 162, 94, 162)}
+        ${dim(74, 58, 74, 162, "ring", oa)}
+        ${labelBox(8, 101, 124, 18)}
+        <text class="shape-label" x="70" y="115" text-anchor="middle">Outer Diameter</text>
 
-        ${dim(122, 94, 178, 94, "ring", ia)}
-        ${labelBox(96, 108, 108, 18)}
-        <text class="shape-label" x="150" y="122" text-anchor="middle">Inner Diameter</text>
+        ${dim(112, 85, 112, 135, "ring", ia)}
+        ${labelBox(128, 101, 112, 18)}
+        <text class="shape-label" x="184" y="115" text-anchor="middle">Inner Diameter</text>
 
-        ${ext(226, 94, 252, 94)}
-        ${ext(226, 136, 252, 136)}
-        ${dim(246, 94, 246, 136, "ring", ta)}
-        ${labelBox(252, 106, 68, 18)}
-        <text class="shape-label" x="286" y="120" text-anchor="middle">Thickness</text>
+        ${ext(112, 166, 112, 196)}
+        ${ext(194, 166, 194, 196)}
+        ${dim(112, 190, 194, 190, "ring", ta)}
+        ${labelBox(120, 176, 68, 18)}
+        <text class="shape-label" x="154" y="190" text-anchor="middle">Thickness</text>
       `);
     },
   },
@@ -323,21 +322,20 @@ const SHAPE_SPECS = {
       const da = activeDimensionKey === "diameter";
       const ta = activeDimensionKey === "thickness";
       return svg("disc", "Disc with Diameter and Thickness", `
-        <path class="shape-body shape-face-side" d="M88 94 C88 78 232 78 232 94 L232 144 C232 160 88 160 88 144 Z"/>
-        <ellipse class="shape-body shape-face-top" cx="160" cy="94" rx="72" ry="28"/>
-        <path class="shape-edge" d="M88 144 C88 160 232 160 232 144"/>
+        <path class="shape-body shape-face-side" d="M116 58 L202 58 C226 58 226 162 202 162 L116 162 C82 162 82 58 116 58 Z"/>
+        <ellipse class="shape-body shape-face-front" cx="116" cy="110" rx="34" ry="52"/>
 
-        ${ext(88, 154, 88, 184)}
-        ${ext(232, 154, 232, 184)}
-        ${dim(88, 178, 232, 178, "disc", da)}
-        ${labelBox(126, 186, 68, 18)}
-        <text class="shape-label" x="160" y="200" text-anchor="middle">Diameter</text>
+        ${ext(72, 58, 98, 58)}
+        ${ext(72, 162, 98, 162)}
+        ${dim(78, 58, 78, 162, "disc", da)}
+        ${labelBox(34, 101, 68, 18)}
+        <text class="shape-label" x="68" y="115" text-anchor="middle">Diameter</text>
 
-        ${ext(238, 94, 270, 94)}
-        ${ext(238, 144, 270, 144)}
-        ${dim(264, 94, 264, 144, "disc", ta)}
-        ${labelBox(220, 116, 76, 18)}
-        <text class="shape-label" x="258" y="130" text-anchor="middle">Thickness</text>
+        ${ext(116, 166, 116, 196)}
+        ${ext(202, 166, 202, 196)}
+        ${dim(116, 190, 202, 190, "disc", ta)}
+        ${labelBox(124, 176, 76, 18)}
+        <text class="shape-label" x="162" y="190" text-anchor="middle">Thickness</text>
       `);
     },
   },
