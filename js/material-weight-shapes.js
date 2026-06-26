@@ -1,5 +1,5 @@
 /* Material weight calculator SVG diagrams.
-   The drawings favor readable engineering-style cross sections over decorative 3D. */
+   Orthographic extrusion keeps the shapes regular and easy to verify. */
 
 const SHAPE_SPECS = {
   round_bar: {
@@ -40,23 +40,21 @@ const SHAPE_SPECS = {
       const sa = activeDimensionKey === "side";
       const la = activeDimensionKey === "length";
       return svg("square-bar", "Square bar with Side and Length", `
-        <polygon class="shape-body" points="124,56 240,72 240,136 124,120"/>
-        <polygon class="shape-body" points="64,56 124,56 240,72 82,72"/>
-        <polygon class="shape-body" points="64,120 124,120 240,136 82,136"/>
-        <line class="shape-edge" x1="82" y1="72" x2="82" y2="136"/>
-        <rect class="shape-body" x="64" y="56" width="60" height="64" rx="2"/>
+        <rect class="shape-body" x="120" y="64" width="122" height="64" rx="2"/>
+        <line class="shape-edge" x1="242" y1="64" x2="242" y2="128"/>
+        <rect class="shape-body" x="60" y="64" width="64" height="64" rx="2"/>
 
-        ${ext(64, 140, 64, 174)}
-        ${ext(240, 140, 240, 174)}
-        ${dim(64, 168, 240, 168, "square-bar", la)}
-        ${labelBox(128, 154, 50, 18)}
-        <text class="shape-label" x="153" y="168" text-anchor="middle">Length</text>
+        ${ext(60, 132, 60, 174)}
+        ${ext(242, 132, 242, 174)}
+        ${dim(60, 168, 242, 168, "square-bar", la)}
+        ${labelBox(126, 154, 50, 18)}
+        <text class="shape-label" x="151" y="168" text-anchor="middle">Length</text>
 
-        ${ext(52, 56, 52, 120)}
-        ${ext(52, 120, 52, 156)}
-        ${dim(58, 56, 58, 120, "square-bar", sa)}
-        ${labelBox(14, 78, 40, 18)}
-        <text class="shape-label" x="34" y="92" text-anchor="middle">Side</text>
+        ${ext(48, 64, 48, 128)}
+        ${ext(48, 128, 48, 154)}
+        ${dim(54, 64, 54, 128, "square-bar", sa)}
+        ${labelBox(14, 84, 40, 18)}
+        <text class="shape-label" x="34" y="98" text-anchor="middle">Side</text>
       `);
     },
   },
@@ -73,27 +71,25 @@ const SHAPE_SPECS = {
       const ta = activeDimensionKey === "thickness";
       const la = activeDimensionKey === "length";
       return svg("rect-bar", "Rectangular bar with Width, Thickness, and Length", `
-        <polygon class="shape-body" points="130,72 240,86 240,122 130,108"/>
-        <polygon class="shape-body" points="60,72 130,72 240,86 82,86"/>
-        <polygon class="shape-body" points="60,108 130,108 240,122 82,122"/>
-        <line class="shape-edge" x1="82" y1="86" x2="82" y2="122"/>
-        <rect class="shape-body" x="60" y="72" width="70" height="36" rx="2"/>
+        <rect class="shape-body" x="130" y="78" width="116" height="40" rx="2"/>
+        <line class="shape-edge" x1="246" y1="78" x2="246" y2="118"/>
+        <rect class="shape-body" x="58" y="78" width="72" height="40" rx="2"/>
 
-        ${ext(60, 126, 60, 158)}
-        ${ext(240, 126, 240, 158)}
-        ${dim(60, 152, 240, 152, "rect-bar", la)}
-        ${labelBox(126, 138, 50, 18)}
-        <text class="shape-label" x="151" y="152" text-anchor="middle">Length</text>
+        ${ext(58, 122, 58, 158)}
+        ${ext(246, 122, 246, 158)}
+        ${dim(58, 152, 246, 152, "rect-bar", la)}
+        ${labelBox(127, 138, 50, 18)}
+        <text class="shape-label" x="152" y="152" text-anchor="middle">Length</text>
 
-        ${ext(48, 72, 48, 108)}
-        ${ext(48, 108, 48, 136)}
-        ${dim(54, 72, 54, 108, "rect-bar", ta)}
-        ${labelBox(10, 79, 76, 18)}
-        <text class="shape-label" x="48" y="93" text-anchor="middle">Thickness</text>
+        ${ext(46, 78, 46, 118)}
+        ${ext(46, 118, 46, 140)}
+        ${dim(52, 78, 52, 118, "rect-bar", ta)}
+        ${labelBox(10, 85, 76, 18)}
+        <text class="shape-label" x="48" y="99" text-anchor="middle">Thickness</text>
 
-        ${ext(60, 66, 60, 34)}
-        ${ext(130, 66, 130, 34)}
-        ${dim(62, 34, 128, 34, "rect-bar", wa)}
+        ${ext(58, 72, 58, 34)}
+        ${ext(130, 72, 130, 34)}
+        ${dim(60, 34, 128, 34, "rect-bar", wa)}
         ${labelBox(74, 20, 44, 18)}
         <text class="shape-label" x="96" y="34" text-anchor="middle">Width</text>
       `);
@@ -112,28 +108,27 @@ const SHAPE_SPECS = {
       const wa = activeDimensionKey === "width";
       const ta = activeDimensionKey === "thickness";
       return svg("sheet", "Sheet plate with Length, Width, and Thickness", `
-        <polygon class="shape-body" points="62,120 252,120 276,82 86,82"/>
-        <polygon class="shape-body" points="62,120 252,120 252,134 62,134"/>
-        <polygon class="shape-body" points="252,120 276,82 276,96 252,134"/>
-        <line class="shape-edge" x1="86" y1="82" x2="276" y2="82"/>
+        <rect class="shape-body" x="72" y="62" width="190" height="84" rx="2"/>
+        <rect class="shape-body" x="72" y="146" width="190" height="12" rx="1"/>
+        <line class="shape-edge" x1="72" y1="146" x2="262" y2="146"/>
 
-        ${ext(62, 138, 62, 170)}
-        ${ext(252, 138, 252, 170)}
-        ${dim(62, 164, 252, 164, "sheet", la)}
-        ${labelBox(132, 150, 50, 18)}
-        <text class="shape-label" x="157" y="164" text-anchor="middle">Length</text>
+        ${ext(72, 162, 72, 190)}
+        ${ext(262, 162, 262, 190)}
+        ${dim(72, 184, 262, 184, "sheet", la)}
+        ${labelBox(142, 170, 50, 18)}
+        <text class="shape-label" x="167" y="184" text-anchor="middle">Length</text>
 
-        ${ext(62, 120, 42, 112)}
-        ${ext(86, 82, 66, 74)}
-        ${dim(46, 112, 70, 74, "sheet", wa)}
-        ${labelBox(70, 84, 44, 18)}
-        <text class="shape-label" x="92" y="98" text-anchor="middle">Width</text>
+        ${ext(66, 62, 42, 62)}
+        ${ext(66, 146, 42, 146)}
+        ${dim(48, 62, 48, 146, "sheet", wa)}
+        ${labelBox(56, 95, 44, 18)}
+        <text class="shape-label" x="78" y="109" text-anchor="middle">Width</text>
 
-        ${ext(46, 120, 60, 120)}
-        ${ext(46, 134, 60, 134)}
-        ${dim(52, 120, 52, 134, "sheet", ta)}
-        ${labelBox(12, 140, 76, 18)}
-        <text class="shape-label" x="50" y="154" text-anchor="middle">Thickness</text>
+        ${ext(270, 146, 292, 146)}
+        ${ext(270, 158, 292, 158)}
+        ${dim(286, 146, 286, 158, "sheet", ta)}
+        ${labelBox(226, 160, 76, 18)}
+        <text class="shape-label" x="264" y="174" text-anchor="middle">Thickness</text>
       `);
     },
   },
@@ -166,11 +161,11 @@ const SHAPE_SPECS = {
         ${labelBox(8, 101, 124, 18)}
         <text class="shape-label" x="70" y="115" text-anchor="middle">Outer Diameter</text>
 
-        ${ext(78, 60, 116, 60)}
-        ${ext(78, 85, 116, 85)}
-        ${dim(116, 60, 116, 85, "round-tube", wa)}
-        ${labelBox(128, 63, 102, 18)}
-        <text class="shape-label" x="179" y="77" text-anchor="middle">Wall Thickness</text>
+        ${ext(78, 60, 118, 60)}
+        ${ext(78, 85, 118, 85)}
+        ${dim(118, 60, 118, 85, "round-tube", wa)}
+        ${labelBox(130, 63, 102, 18)}
+        <text class="shape-label" x="181" y="77" text-anchor="middle">Wall Thickness</text>
       `);
     },
   },
@@ -187,30 +182,28 @@ const SHAPE_SPECS = {
       const wa = activeDimensionKey === "wall_thickness";
       const la = activeDimensionKey === "length";
       return svg("square-tube", "Square tube with Outer Side, Wall Thickness, and Length", `
-        <polygon class="shape-body" points="126,56 238,72 238,140 126,124"/>
-        <polygon class="shape-body" points="58,56 126,56 238,72 82,72"/>
-        <polygon class="shape-body" points="58,124 126,124 238,140 82,140"/>
-        <line class="shape-edge" x1="82" y1="72" x2="82" y2="140"/>
-        <rect class="shape-body" x="58" y="56" width="68" height="68" rx="2"/>
-        <rect class="shape-cut" x="78" y="76" width="28" height="28" rx="1"/>
+        <rect class="shape-body" x="132" y="58" width="112" height="72" rx="2"/>
+        <line class="shape-edge" x1="244" y1="58" x2="244" y2="130"/>
+        <rect class="shape-body" x="60" y="58" width="72" height="72" rx="2"/>
+        <rect class="shape-cut" x="80" y="78" width="32" height="32" rx="1"/>
 
-        ${ext(58, 144, 58, 176)}
-        ${ext(238, 144, 238, 176)}
-        ${dim(58, 170, 238, 170, "square-tube", la)}
-        ${labelBox(123, 156, 50, 18)}
-        <text class="shape-label" x="148" y="170" text-anchor="middle">Length</text>
+        ${ext(60, 134, 60, 176)}
+        ${ext(244, 134, 244, 176)}
+        ${dim(60, 170, 244, 170, "square-tube", la)}
+        ${labelBox(127, 156, 50, 18)}
+        <text class="shape-label" x="152" y="170" text-anchor="middle">Length</text>
 
-        ${ext(46, 56, 46, 124)}
-        ${ext(46, 124, 46, 154)}
-        ${dim(52, 56, 52, 124, "square-tube", oa)}
-        ${labelBox(10, 82, 78, 18)}
-        <text class="shape-label" x="49" y="96" text-anchor="middle">Outer Side</text>
+        ${ext(48, 58, 48, 130)}
+        ${ext(48, 130, 48, 156)}
+        ${dim(54, 58, 54, 130, "square-tube", oa)}
+        ${labelBox(10, 86, 78, 18)}
+        <text class="shape-label" x="49" y="100" text-anchor="middle">Outer Side</text>
 
-        ${ext(106, 56, 146, 56)}
-        ${ext(106, 76, 146, 76)}
-        ${dim(146, 56, 146, 76, "square-tube", wa)}
-        ${labelBox(158, 57, 104, 18)}
-        <text class="shape-label" x="210" y="71" text-anchor="middle">Wall Thickness</text>
+        ${ext(112, 58, 152, 58)}
+        ${ext(112, 78, 152, 78)}
+        ${dim(152, 58, 152, 78, "square-tube", wa)}
+        ${labelBox(164, 59, 104, 18)}
+        <text class="shape-label" x="216" y="73" text-anchor="middle">Wall Thickness</text>
       `);
     },
   },
@@ -229,36 +222,34 @@ const SHAPE_SPECS = {
       const wa = activeDimensionKey === "wall_thickness";
       const la = activeDimensionKey === "length";
       return svg("rect-tube", "Rectangular tube with Outer Width, Outer Height, Wall Thickness, and Length", `
-        <polygon class="shape-body" points="128,66 240,80 240,132 128,118"/>
-        <polygon class="shape-body" points="54,66 128,66 240,80 78,80"/>
-        <polygon class="shape-body" points="54,118 128,118 240,132 78,132"/>
-        <line class="shape-edge" x1="78" y1="80" x2="78" y2="132"/>
-        <rect class="shape-body" x="54" y="66" width="74" height="52" rx="2"/>
-        <rect class="shape-cut" x="76" y="82" width="30" height="20" rx="1"/>
+        <rect class="shape-body" x="140" y="70" width="108" height="54" rx="2"/>
+        <line class="shape-edge" x1="248" y1="70" x2="248" y2="124"/>
+        <rect class="shape-body" x="56" y="70" width="84" height="54" rx="2"/>
+        <rect class="shape-cut" x="78" y="86" width="40" height="22" rx="1"/>
 
-        ${ext(54, 136, 54, 168)}
-        ${ext(240, 136, 240, 168)}
-        ${dim(54, 162, 240, 162, "rect-tube", la)}
-        ${labelBox(122, 148, 50, 18)}
-        <text class="shape-label" x="147" y="162" text-anchor="middle">Length</text>
+        ${ext(56, 128, 56, 168)}
+        ${ext(248, 128, 248, 168)}
+        ${dim(56, 162, 248, 162, "rect-tube", la)}
+        ${labelBox(127, 148, 50, 18)}
+        <text class="shape-label" x="152" y="162" text-anchor="middle">Length</text>
 
-        ${ext(42, 66, 42, 118)}
-        ${ext(42, 118, 42, 146)}
-        ${dim(48, 66, 48, 118, "rect-tube", oha)}
-        ${labelBox(8, 82, 96, 18)}
-        <text class="shape-label" x="56" y="96" text-anchor="middle">Outer Height</text>
+        ${ext(44, 70, 44, 124)}
+        ${ext(44, 124, 44, 150)}
+        ${dim(50, 70, 50, 124, "rect-tube", oha)}
+        ${labelBox(8, 88, 96, 18)}
+        <text class="shape-label" x="56" y="102" text-anchor="middle">Outer Height</text>
 
-        ${ext(54, 60, 54, 32)}
-        ${ext(128, 60, 128, 32)}
-        ${dim(56, 32, 126, 32, "rect-tube", owa)}
-        ${labelBox(60, 18, 88, 18)}
-        <text class="shape-label" x="104" y="32" text-anchor="middle">Outer Width</text>
+        ${ext(56, 64, 56, 32)}
+        ${ext(140, 64, 140, 32)}
+        ${dim(58, 32, 138, 32, "rect-tube", owa)}
+        ${labelBox(62, 18, 88, 18)}
+        <text class="shape-label" x="106" y="32" text-anchor="middle">Outer Width</text>
 
-        ${ext(106, 66, 148, 66)}
-        ${ext(106, 82, 148, 82)}
-        ${dim(148, 66, 148, 82, "rect-tube", wa)}
-        ${labelBox(160, 64, 104, 18)}
-        <text class="shape-label" x="212" y="78" text-anchor="middle">Wall Thickness</text>
+        ${ext(118, 70, 158, 70)}
+        ${ext(118, 86, 158, 86)}
+        ${dim(158, 70, 158, 86, "rect-tube", wa)}
+        ${labelBox(170, 68, 104, 18)}
+        <text class="shape-label" x="222" y="82" text-anchor="middle">Wall Thickness</text>
       `);
     },
   },
@@ -273,26 +264,21 @@ const SHAPE_SPECS = {
       const aa = activeDimensionKey === "across_flats";
       const la = activeDimensionKey === "length";
       return svg("hex-bar", "Hex bar with Across Flats and Length", `
-        <polygon class="shape-body" points="126,110 151,72 201,72 226,110 201,148 151,148"/>
-        <line class="shape-edge" x1="70" y1="110" x2="126" y2="110"/>
-        <line class="shape-edge" x1="95" y1="72" x2="151" y2="72"/>
-        <line class="shape-edge" x1="145" y1="72" x2="201" y2="72"/>
-        <line class="shape-edge" x1="170" y1="110" x2="226" y2="110"/>
-        <line class="shape-edge" x1="145" y1="148" x2="201" y2="148"/>
-        <line class="shape-edge" x1="95" y1="148" x2="151" y2="148"/>
-        <polygon class="shape-body" points="70,110 95,72 145,72 170,110 145,148 95,148"/>
+        <rect class="shape-body" x="154" y="74" width="108" height="72" rx="1"/>
+        <line class="shape-edge" x1="262" y1="74" x2="262" y2="146"/>
+        <polygon class="shape-body" points="80,110 104,74 154,74 178,110 154,146 104,146"/>
 
-        ${ext(70, 152, 70, 184)}
-        ${ext(226, 152, 226, 184)}
-        ${dim(70, 178, 226, 178, "hex-bar", la)}
-        ${labelBox(124, 164, 50, 18)}
-        <text class="shape-label" x="149" y="178" text-anchor="middle">Length</text>
+        ${ext(80, 150, 80, 184)}
+        ${ext(262, 150, 262, 184)}
+        ${dim(80, 178, 262, 178, "hex-bar", la)}
+        ${labelBox(146, 164, 50, 18)}
+        <text class="shape-label" x="171" y="178" text-anchor="middle">Length</text>
 
-        ${ext(95, 72, 54, 72)}
-        ${ext(95, 148, 54, 148)}
-        ${dim(58, 72, 58, 148, "hex-bar", aa)}
-        ${labelBox(16, 48, 98, 18)}
-        <text class="shape-label" x="65" y="62" text-anchor="middle">Across Flats</text>
+        ${ext(104, 74, 62, 74)}
+        ${ext(104, 146, 62, 146)}
+        ${dim(66, 74, 66, 146, "hex-bar", aa)}
+        ${labelBox(16, 50, 98, 18)}
+        <text class="shape-label" x="65" y="64" text-anchor="middle">Across Flats</text>
       `);
     },
   },
