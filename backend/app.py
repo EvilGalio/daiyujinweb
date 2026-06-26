@@ -42,7 +42,7 @@ def _apply_preview_watermark(png_path: Path) -> bool:
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
 
-        text = "Daiyujin Preview \u00b7 Reference Only"
+        text = "GCNOV CO., LIMITED"
 
         # Scale font to ~3% of image width
         font_size = max(int(w * 0.03), 18)
