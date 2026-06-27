@@ -994,6 +994,10 @@ body.tool-page {
     position: absolute;
     inset: 0;
 }
+.quote-preview-stage .quote-thumb[hidden],
+.quote-preview-stage .quote-3d-stage[hidden] {
+    display: none !important;
+}
 .quote-3d-status {
     position: absolute;
     inset: 0;
