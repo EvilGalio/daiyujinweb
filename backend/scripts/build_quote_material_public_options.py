@@ -175,33 +175,45 @@ def build():
     rows = load_rows()
     pub = [r for r in rows if is_publishable(r)]
 
-    # Group by category
+    # Group candidates by category
     groups = {}
     for r in pub:
         cat_id, cat_label, cat_desc = classify(r)
         if cat_id not in groups:
-            groups[cat_id] = {"id": cat_id, "label": cat_label, "description": cat_desc, "materials": []}
+            groups[cat_id] = {"id": cat_id, "label": cat_label, "description": cat_desc, "_candidates": []}
 
         grade = _en_label(r.get("material_grade_norm", r.get("material_base_norm", "")))
         subtitle = _en_subtitle(r)
 
-        groups[cat_id]["materials"].append({
+        # Keep descriptive subtitles, drop generic "X alloy" pattern for dedup
+        clean_sub = subtitle if not subtitle.endswith(" alloy") else ""
+
+        groups[cat_id]["_candidates"].append({
             "id": r["price_id"],
             "label": grade,
             "subtitle": subtitle,
+            "clean_sub": clean_sub,
             "badges": ["Common"] if r.get("source_priority", "0") == "100" else [],
             "review_recommended": False,
         })
 
-    # Sort materials within each category: common first, then by label
+    # Deduplicate visible materials within each category
     for g in groups.values():
-        g["materials"].sort(key=lambda m: (0 if m["badges"] else 1, m["label"]))
-
-    # Set default material (first "Common" or first overall)
-    for g in groups.values():
-        mats = g["materials"]
-        g["default_material_id"] = mats[0]["id"] if mats else ""
-        g["description"] = f"{g['description']} {len(mats)} grades available."
+        seen = {}
+        deduped = []
+        for item in g.pop("_candidates", []):
+            key = (item["label"].strip().lower(), item.get("clean_sub", "").strip().lower())
+            if key not in seen:
+                seen[key] = item
+                deduped.append(item)
+        # Sort: Common first, then by label
+        deduped.sort(key=lambda m: (0 if m.get("badges") else 1, m["label"]))
+        # Remove internal clean_sub before output
+        for item in deduped:
+            item.pop("clean_sub", None)
+        g["materials"] = deduped
+        g["default_material_id"] = deduped[0]["id"] if deduped else ""
+        g["description"] = f"{g['description']} {len(deduped)} grades available."
 
     # Order categories alphabetically by label
     result = {

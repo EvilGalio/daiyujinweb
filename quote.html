@@ -64,11 +64,6 @@
                         </select>
                     </div>
                     <div class="tool-field">
-                        <label for="customer_email">Email Address <span class="field-optional">(optional)</span></label>
-                        <input id="customer_email" name="customer_email" type="email" placeholder="name@company.com" autocomplete="email">
-                        <small class="field-hint">Add your email if you want our engineers to follow up with a formal quote.</small>
-                    </div>
-                    <div class="tool-field">
                         <label for="quantity">Quantity</label>
                         <input id="quantity" name="quantity" type="number" min="1" step="1" value="100">
                     </div>
@@ -78,8 +73,27 @@
                             <option value="USD">USD</option>
                         </select>
                     </div>
+                    <p class="quote-inquiry-note">
+                        Looking for more material grades, custom materials, machining processes, or finishing options?
+                        <a href="mailto:?subject=Custom%20Manufacturing%20Request">Contact our engineers</a>
+                        for a fast formal review.
+                    </p>
+
+                    <section class="quote-form-section quote-form-section-contact" aria-labelledby="quote-contact-title">
+                        <h3 id="quote-contact-title">Contact Details <span class="field-optional">(optional)</span></h3>
+                        <div class="tool-field">
+                            <label for="customer_name">How should we address you? <span class="field-optional">(optional)</span></label>
+                            <input id="customer_name" name="customer_name" type="text" placeholder="Name or nickname" autocomplete="name" maxlength="80">
+                        </div>
+                        <div class="tool-field">
+                            <label for="customer_email">Email Address <span class="field-optional">(optional)</span></label>
+                            <input id="customer_email" name="customer_email" type="email" placeholder="name@company.com" autocomplete="email">
+                            <small class="field-hint">Add your email if you want our engineers to follow up with a formal quote.</small>
+                        </div>
+                    </section>
+
                     <button class="tool-button" type="submit">Calculate Estimate</button>
-                    <p class="quote-privacy-note">By submitting this form, you confirm that you are authorized to share the uploaded file and contact details. We use this information only to generate and follow up on your manufacturing estimate, and we treat uploaded drawings and quote data as confidential business information.</p>
+                    <p class="quote-privacy-note">By submitting this form, you confirm that you are authorized to share the uploaded file. If you provide contact details, we use them only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.</p>
                 </form>
 
                 <aside class="quote-stack" data-quote-result>

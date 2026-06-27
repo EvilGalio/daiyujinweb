@@ -114,20 +114,75 @@ document.addEventListener("DOMContentLoaded", () => {
     /* ── Material picker ── */
     const materialPicker = document.querySelector("[data-material-picker]");
 
+    function getCurrentMaterialContext() {
+        const cats = (state.options && state.options.material_categories) || [];
+        const currentCat = cats.find(c => c.id === state.selectedMaterialCategory) || cats[0];
+        const materials = currentCat ? (currentCat.materials || []) : [];
+        const query = (state.materialSearch || "").trim().toLowerCase();
+        const filtered = query
+            ? materials.filter(m => `${m.label || ""} ${m.subtitle || ""}`.toLowerCase().includes(query))
+            : materials;
+        return { cats, currentCat, materials, filtered };
+    }
+
+    function renderMaterialGradeOptions(filtered) {
+        if (!filtered.length) return '<div class="quote-material-empty">No matching grade. Try another keyword.</div>';
+        return filtered.map(m => `
+            <button type="button" role="option" aria-selected="${m.id === state.selectedMaterialId ? 'true' : 'false'}"
+                class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
+                data-mat-id="${escapeHtml(m.id)}">
+                <span class="quote-material-grade-label">${escapeHtml(m.label)}</span>
+                ${m.subtitle ? `<span class="quote-material-grade-sub">${escapeHtml(m.subtitle)}</span>` : ''}
+                ${(m.badges || []).map(b => `<span class="quote-material-badge">${escapeHtml(b)}</span>`).join('')}
+                ${m.review_recommended ? '<span class="quote-material-badge review">Review</span>' : ''}
+            </button>
+        `).join("");
+    }
+
+    function bindMaterialOptionEvents() {
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.selectedMaterialId = btn.dataset.matId;
+                renderMaterialPicker();
+            });
+        });
+    }
+
+    function bindMaterialPickerEvents() {
+        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const { cats } = getCurrentMaterialContext();
+                state.selectedMaterialCategory = btn.dataset.catId;
+                state.materialSearch = "";
+                const cat = cats.find(c => c.id === state.selectedMaterialCategory);
+                const inCat = (cat?.materials || []).find(m => m.id === state.selectedMaterialId);
+                state.selectedMaterialId = inCat ? state.selectedMaterialId : (cat?.default_material_id || cat?.materials?.[0]?.id || "");
+                renderMaterialPicker();
+            });
+        });
+
+        bindMaterialOptionEvents();
+
+        const searchInput = materialPicker.querySelector('[data-material-search]');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                state.materialSearch = searchInput.value;
+                renderMaterialGradeListOnly();
+            });
+        }
+    }
+
+    function renderMaterialGradeListOnly() {
+        const list = materialPicker.querySelector('.quote-material-grade-list');
+        if (!list) return;
+        const { filtered } = getCurrentMaterialContext();
+        list.innerHTML = renderMaterialGradeOptions(filtered);
+        bindMaterialOptionEvents();
+    }
+
     function renderMaterialPicker() {
         if (!materialPicker || !state.options) return;
-        const cats = state.options.material_categories || [];
-        const currentCat = cats.find(c => c.id === state.selectedMaterialCategory) || cats[0];
-        const materials = currentCat.materials || [];
-        const filtered = state.materialSearch
-            ? materials.filter(m => m.label.toLowerCase().includes(state.materialSearch.toLowerCase()))
-            : materials;
-
-        const selectedMat = cats.flatMap(c => c.materials || []).find(m => m.id === state.selectedMaterialId);
-        const selectedCat = cats.find(c => c.id === state.selectedMaterialCategory);
-        const selectedSummary = selectedMat
-            ? `Selected: ${selectedCat ? selectedCat.label : ''} &middot; ${selectedMat.label}`
-            : 'Select a material grade';
+        const { cats, filtered } = getCurrentMaterialContext();
 
         materialPicker.innerHTML = `
             <div class="quote-material-categories">
@@ -141,48 +196,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <input type="text" class="quote-material-search" placeholder="Search grade..."
                     value="${escapeHtml(state.materialSearch)}" data-material-search>
                 <div class="quote-material-grade-list" role="listbox" aria-label="Material grade">
-                    ${filtered.map(m => `
-                        <button type="button" role="option" aria-selected="${m.id === state.selectedMaterialId ? 'true' : 'false'}"
-                            class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
-                            data-mat-id="${escapeHtml(m.id)}">
-                            <span class="quote-material-grade-label">${escapeHtml(m.label)}</span>
-                            ${m.subtitle ? `<span class="quote-material-grade-sub">${escapeHtml(m.subtitle)}</span>` : ''}
-                            ${(m.badges || []).map(b => `<span class="quote-material-badge">${escapeHtml(b)}</span>`).join('')}
-                            ${m.review_recommended ? '<span class="quote-material-badge review">Review</span>' : ''}
-                        </button>
-                    `).join("") || '<div class="quote-material-empty">No matching grade. Try another keyword.</div>'}
-                </div>
-                <div class="quote-material-selected" data-selected-material>
-                    ${escapeHtml(selectedSummary)}
+                    ${renderMaterialGradeOptions(filtered)}
                 </div>
             </div>`;
 
-        // Bind events
-        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.selectedMaterialCategory = btn.dataset.catId;
-                state.materialSearch = "";
-                const cat = cats.find(c => c.id === state.selectedMaterialCategory);
-                const inCat = (cat?.materials || []).find(m => m.id === state.selectedMaterialId);
-                state.selectedMaterialId = inCat ? state.selectedMaterialId : (cat?.default_material_id || cat?.materials?.[0]?.id || "");
-                renderMaterialPicker();
-            });
-        });
-
-        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.selectedMaterialId = btn.dataset.matId;
-                renderMaterialPicker();
-            });
-        });
-
-        const searchInput = materialPicker.querySelector('[data-material-search]');
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                state.materialSearch = searchInput.value;
-                renderMaterialPicker();
-            });
-        }
+        bindMaterialPickerEvents();
     }
 
     async function uploadStep(file) {
@@ -213,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
             tolerance_grade: String(formData.get("tolerance_grade") || "ISO2768-M"),
             quantity: Number(formData.get("quantity")),
             currency: String(formData.get("currency") || "USD"),
+            customer_name: String(formData.get("customer_name") || "").trim(),
             customer_email: String(formData.get("customer_email") || "").trim(),
         };
         return window.DaiyujinAPI.request("/api/public/quote/calculate", {

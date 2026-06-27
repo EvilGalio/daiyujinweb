@@ -766,19 +766,10 @@
     {
       "id": "engineering_plastic",
       "label": "Engineering Plastic",
-      "description": "Common thermoplastics. ABS, POM, PC, Nylon/PA, etc. 26 grades available.",
+      "description": "Common thermoplastics. ABS, POM, PC, Nylon/PA, etc. 22 grades available.",
       "materials": [
         {
           "id": "mp_p0128",
-          "label": "ABS",
-          "subtitle": "ABS alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0129",
           "label": "ABS",
           "subtitle": "ABS alloy",
           "badges": [
@@ -974,33 +965,6 @@
             "Common"
           ],
           "review_recommended": false
-        },
-        {
-          "id": "mp_p0133",
-          "label": "UPE",
-          "subtitle": "UPE alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0134",
-          "label": "UPE",
-          "subtitle": "UPE alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0135",
-          "label": "UPE",
-          "subtitle": "UPE alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
         }
       ],
       "default_material_id": "mp_p0128"
@@ -1008,7 +972,7 @@
     {
       "id": "high_performance_plastic",
       "label": "High-Performance Plastic",
-      "description": "Advanced polymers for extreme conditions. PEEK, PTFE, PPS, PI, etc. 20 grades available.",
+      "description": "Advanced polymers for extreme conditions. PEEK, PTFE, PPS, PI, etc. 14 grades available.",
       "materials": [
         {
           "id": "mp_p0167",
@@ -1038,42 +1002,6 @@
           "review_recommended": false
         },
         {
-          "id": "mp_p0160",
-          "label": "PEEK",
-          "subtitle": "PEEK alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0161",
-          "label": "PEEK",
-          "subtitle": "PEEK alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0162",
-          "label": "PEEK",
-          "subtitle": "PEEK alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0163",
-          "label": "PEEK",
-          "subtitle": "PEEK alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
           "id": "mp_p0164",
           "label": "PEEK(：KETRON100)",
           "subtitle": "PEEK(：KETRON100) alloy",
@@ -1084,24 +1012,6 @@
         },
         {
           "id": "mp_p0150",
-          "label": "PEI",
-          "subtitle": "PEI alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0151",
-          "label": "PEI",
-          "subtitle": "PEI alloy",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0152",
           "label": "PEI",
           "subtitle": "PEI alloy",
           "badges": [

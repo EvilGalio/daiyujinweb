@@ -943,10 +943,18 @@ body.tool-page {
 .field-optional { color: var(--muted); font-weight: 500; font-size: .78em; }
 .field-hint { display: block; margin-top: .35rem; color: var(--muted); font-size: .74rem; line-height: 1.45; }
 
+.quote-form-section { display: flex; flex-direction: column; gap: 0.85rem; }
+.quote-form-section + .quote-form-section { margin-top: 1.15rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.quote-form-section-contact h3 { margin: 0; font-size: 0.88rem; line-height: 1.25; color: var(--ink); }
+
+.quote-inquiry-note { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.quote-inquiry-note a { color: var(--accent); font-weight: 700; text-decoration: none; border-bottom: 1px solid rgba(0,102,204,.28); }
+.quote-inquiry-note a:hover { border-bottom-color: currentColor; }
+
 /* ── Two-level material picker ──────────────── */
 .quote-material-layout {
     display: grid;
-    grid-template-columns: 140px 1fr;
+    grid-template-columns: 168px minmax(0, 1fr);
     gap: 0.75rem;
     min-height: 160px;
 }
@@ -954,8 +962,9 @@ body.tool-page {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    overflow-y: auto;
-    max-height: 240px;
+    overflow: visible;
+    max-height: none;
+    align-self: start;
 }
 .quote-material-cat-btn {
     text-align: left;
@@ -1042,7 +1051,7 @@ body.tool-page {
 .quote-material-grade-option.active .quote-material-grade-label { color: var(--quote-selected-ink); font-weight: 700; }
 .quote-material-grade-option.active::after { content: "\2713"; position: absolute; right: .85rem; top: 50%; width: 1.25rem; height: 1.25rem; transform: translateY(-50%); border-radius: 999px; background: var(--quote-selected-border); color: #fff; display: grid; place-items: center; font-size: .82rem; font-weight: 800; line-height: 1; }
 
-.quote-material-selected { margin-top: .75rem; padding: .65rem .8rem; border: 1px solid rgba(0,102,204,.18); background: rgba(0,102,204,.055); color: var(--quote-selected-ink); border-radius: 8px; font-size: .78rem; font-weight: 650; }
+.quote-material-selected { display: none; }
 .quote-material-empty { padding: .85rem; color: var(--muted); font-size: .78rem; border: 1px dashed rgba(0,0,0,.12); border-radius: 8px; background: rgba(0,0,0,.015); }
 
 @media (max-width: 640px) {

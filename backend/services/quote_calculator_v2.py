@@ -386,6 +386,7 @@ def calculate_quote_v2(payload: dict) -> dict:
     if currency not in ("CNY", "USD", "EUR"):
         raise ValueError(f"Unsupported currency: {currency!r}. Supported: CNY, USD, EUR.")
     customer_email = str(payload.get("customer_email", "")).strip()
+    customer_name = str(payload.get("customer_name", "")).strip()
 
     warnings = []
     pp_count = _postprocess_sample_count(postprocess_group)
@@ -454,6 +455,7 @@ def calculate_quote_v2(payload: dict) -> dict:
         "currency": currency,
         "exchange_rate_basis": "RMB",
         "customer_email": customer_email or None,
+        "customer_name": customer_name or None,
         "part": {
             "file_id": payload.get("file_id", ""),
             "name": payload.get("part_name", ""),
