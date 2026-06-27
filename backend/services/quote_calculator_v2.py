@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "quote_model_v2_1"
-SAFETY_MULTIPLIER = 1.25
+DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "quote_model_v2_2"
+SAFETY_MULTIPLIER = 1.00  # v2.2-A.1: removed safety pad
 DIFFICULTY_FACTOR = 1.0
 
 
@@ -88,7 +88,7 @@ def _stable_estimate_in_band(
         "unit_min_rmb": round(low, 2),
         "unit_max_rmb": round(high, 2),
         "band_policy": "tight_v1",
-        "random_seed": digest[:16],
+        "random_seed": digest[:16], 
     }
 
 
@@ -113,15 +113,25 @@ def _load_csv(name: str) -> list[dict]:
 
 
 def coefficients() -> dict:
-    return _load_json("coefficients_v2_1.json")
+    return _load_json("coefficients_v2_2_A.json")
 
 
 def materials() -> list[dict]:
-    return _load_csv("materials.csv")
+    return _load_csv("material_prices.csv")
 
 
 def material_categories() -> dict:
-    return _load_json("material_categories.json")
+    return _load_json("material_public_options.json")
+
+
+def material_price_by_id(price_id: str) -> dict:
+    """Look up a single material price row by price_id."""
+    mat_list = materials()
+    for m in mat_list:
+        if m.get("price_id", "").strip() == price_id.strip():
+            if m.get("is_active", "1") != "0":
+                return m
+    raise ValueError(f"Material not found or inactive: {price_id!r}")
 
 
 # ── OBB parsing ─────────────────────────────────
@@ -156,19 +166,20 @@ def _quantity_tier(quantity: int) -> tuple[str, float]:
 
 # ── Lookups ──────────────────────────────────────
 
-def _find_material(material_id: str) -> dict:
-    mat_list = materials()
-    for m in mat_list:
-        if m.get("is_active", "1") != "0" and m["material_norm"].strip() == material_id.strip():
-            return m
-    aliases = _load_csv("material_aliases.csv")
-    for a in aliases:
-        if a.get("alias", "").strip() == material_id.strip():
-            resolved = a.get("material_norm", "").strip()
-            for m in mat_list:
-                if m["material_norm"].strip() == resolved:
-                    return m
-    raise ValueError(f"Unsupported material: {material_id!r}")
+def _find_material(price_id: str = "", material_category: str = "") -> dict:
+    """Resolve material from price_id or category default."""
+    # 1. Direct price_id lookup
+    if price_id:
+        return material_price_by_id(price_id)
+    # 2. Category default
+    if material_category:
+        cats = material_categories()
+        for cat in cats.get("categories", []):
+            if cat["id"] == material_category:
+                default_id = cat.get("default_material_id", "")
+                if default_id:
+                    return material_price_by_id(default_id)
+    raise ValueError(f"Provide material_id or a valid material_category with a default")
 
 
 def _find_process(process_id: str) -> str:
@@ -306,14 +317,23 @@ def get_quote_options_v2() -> dict:
     cats = material_categories()
 
     mat_cats = []
-    for key in ["aluminum_alloy", "stainless_steel", "carbon_alloy_steel",
-                "engineering_plastic", "brass_copper", "high_performance_plastic", "specialty_metal"]:
-        if key in cats and cats[key].get("public"):
-            mat_cats.append({
-                "id": key,
-                "label": cats[key]["label"],
-                "description": cats[key].get("description", ""),
-            })
+    for cat in cats.get("categories", []):
+        mat_cats.append({
+            "id": cat["id"],
+            "label": cat["label"],
+            "description": cat.get("description", ""),
+            "default_material_id": cat.get("default_material_id", ""),
+            "materials": [
+                {
+                    "id": m["id"],
+                    "label": m["label"],
+                    "subtitle": m.get("subtitle", ""),
+                    "badges": m.get("badges", []),
+                    "review_recommended": m.get("review_recommended", False),
+                }
+                for m in cat.get("materials", [])
+            ],
+        })
 
     procs = []
     for pg in coef.get("material_markup_by_process", {}):
@@ -349,15 +369,9 @@ def calculate_quote_v2(payload: dict) -> dict:
     cat_id = payload.get("material_category", "")
     mat_id = payload.get("material_id", "")
     cats = material_categories()
-    cat_info = None
-    if cat_id and cat_id in cats:
-        cat_info = cats[cat_id]
-        material_id = cat_info["representative_material_id"]
-    elif mat_id:
-        material_id = str(mat_id)
-    else:
-        raise ValueError("Provide material_category or material_id")
-    material = _find_material(material_id)
+
+    # Resolve material
+    material = _find_material(price_id=mat_id, material_category=cat_id)
     density = float(material["density_g_cm3"])
     price_per_kg = float(material["price_rmb_per_kg"])
     process_raw = str(payload.get("process", "CNC"))
@@ -451,8 +465,8 @@ def calculate_quote_v2(payload: dict) -> dict:
             "stock_weight_kg": round(stock_weight_kg, 4),
         },
         "selections": {
-            "material": {"id": material["material_norm"].strip(),
-                "name": material["material_norm"].strip(),
+            "material": {"id": material["price_id"].strip(),
+                "name": material.get("material_grade_norm", material.get("material_base_norm", "")).strip(),
                 "density_g_cm3": density, "price_rmb_per_kg": price_per_kg},
             "material_category": cat_id or None,
             "process": process_group,
@@ -506,7 +520,6 @@ def calculate_quote_v2(payload: dict) -> dict:
         "warnings": warnings,
         "disclaimer": "This is for reference only.",
         "_internal_risk_level": risk_level,
-        "_internal_representative_material": material_id,
     }
     return result
 
@@ -543,7 +556,12 @@ def public_quote_response(result: dict) -> dict:
     sel = result.get("selections", {})
     mat = sel.get("material", {})
     cat_id = sel.get("material_category")
-    cat_info = material_categories().get(cat_id or "", {})
+    cat_label = ""
+    cats = material_categories()
+    for cat in cats.get("categories", []):
+        if cat["id"] == cat_id:
+            cat_label = cat.get("label", "")
+            break
     return {
         "quote_status": "estimated",
         "valid_until": result.get("valid_until"),
@@ -554,10 +572,8 @@ def public_quote_response(result: dict) -> dict:
             "obb_dimensions_mm": result.get("part", {}).get("obb_dimensions_mm"),
         },
         "selections": {
-            "material_category": {
-                "id": cat_id or mat.get("id"),
-                "label": cat_info.get("label") or mat.get("name", ""),
-            },
+            "material_category": cat_label or cat_id or "",
+            "material": mat.get("name", ""),
             "process": _process_label(sel.get("process", "")),
             "postprocess_group": sel.get("postprocess_public_label",
                 _postprocess_label(sel.get("postprocess_group", ""))),

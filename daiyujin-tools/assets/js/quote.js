@@ -21,6 +21,9 @@ document.addEventListener("DOMContentLoaded", () => {
         analysis: null,
         estimate: null,
         options: null,
+        selectedMaterialCategory: "",
+        selectedMaterialId: "",
+        materialSearch: "",
     };
 
     hydrateOptions();
@@ -76,25 +79,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const options = await window.DaiyujinAPI.request("/api/public/quote/options");
             state.options = options;
 
-            /* Material category cards */
-            if (materialCardList) {
-                const cats = options.material_categories || [];
-                materialCardList.innerHTML = cats.map((item, i) => `
-                    <label class="material-card${i === 0 ? ' active' : ''}">
-                        <input type="radio" name="material_category" value="${escapeHtml(item.id)}"${i === 0 ? ' checked' : ''}>
-                        <span class="material-card-title">${escapeHtml(item.label)}</span>
-                        ${item.description ? `<span class="material-card-desc">${escapeHtml(item.description)}</span>` : ''}
-                    </label>
-                `).join("");
-
-                /* Radio change → update active state */
-                materialCardList.addEventListener("change", (e) => {
-                    const radio = e.target.closest("input[type=radio]");
-                    if (!radio) return;
-                    materialCardList.querySelectorAll(".material-card").forEach(c => c.classList.remove("active"));
-                    radio.closest(".material-card")?.classList.add("active");
-                });
+            /* Material picker */
+            const cats = options.material_categories || [];
+            if (cats.length) {
+                state.selectedMaterialCategory = cats[0].id;
+                state.selectedMaterialId = cats[0].default_material_id || cats[0].materials?.[0]?.id || "";
             }
+            renderMaterialPicker();
 
             if (processSelect) {
                 processSelect.innerHTML = (options.processes || [])
@@ -120,6 +111,68 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    /* ── Material picker ── */
+    const materialPicker = document.querySelector("[data-material-picker]");
+
+    function renderMaterialPicker() {
+        if (!materialPicker || !state.options) return;
+        const cats = state.options.material_categories || [];
+        const currentCat = cats.find(c => c.id === state.selectedMaterialCategory) || cats[0];
+        const materials = currentCat.materials || [];
+        const filtered = state.materialSearch
+            ? materials.filter(m => m.label.toLowerCase().includes(state.materialSearch.toLowerCase()))
+            : materials;
+
+        materialPicker.innerHTML = `
+            <div class="quote-material-categories">
+                ${cats.map(c => `
+                    <button type="button" class="quote-material-cat-btn${c.id === state.selectedMaterialCategory ? ' active' : ''}"
+                        data-cat-id="${escapeHtml(c.id)}">${escapeHtml(c.label)}</button>
+                `).join("")}
+            </div>
+            <div class="quote-material-grades">
+                <input type="text" class="quote-material-search" placeholder="Search grade..."
+                    value="${escapeHtml(state.materialSearch)}" data-material-search>
+                <div class="quote-material-grade-list">
+                    ${filtered.map(m => `
+                        <button type="button" class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
+                            data-mat-id="${escapeHtml(m.id)}">
+                            <span class="quote-material-grade-label">${escapeHtml(m.label)}</span>
+                            ${m.subtitle ? `<span class="quote-material-grade-sub">${escapeHtml(m.subtitle)}</span>` : ''}
+                            ${(m.badges || []).map(b => `<span class="quote-material-badge">${escapeHtml(b)}</span>`).join('')}
+                            ${m.review_recommended ? '<span class="quote-material-badge review">Review</span>' : ''}
+                        </button>
+                    `).join("")}
+                </div>
+            </div>`;
+
+        // Bind events
+        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.selectedMaterialCategory = btn.dataset.catId;
+                state.materialSearch = "";
+                const cat = cats.find(c => c.id === state.selectedMaterialCategory);
+                state.selectedMaterialId = cat?.default_material_id || cat?.materials?.[0]?.id || "";
+                renderMaterialPicker();
+            });
+        });
+
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.selectedMaterialId = btn.dataset.matId;
+                renderMaterialPicker();
+            });
+        });
+
+        const searchInput = materialPicker.querySelector('[data-material-search]');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                state.materialSearch = searchInput.value;
+                renderMaterialPicker();
+            });
+        }
+    }
+
     async function uploadStep(file) {
         const body = new FormData();
         body.append("file", file);
@@ -141,7 +194,8 @@ document.addEventListener("DOMContentLoaded", () => {
             stp_filename: state.fileName,
             volume_mm3: state.analysis.volume_mm3,
             obb_dimensions_mm: state.analysis.obb_dimensions_mm,
-            material_category: catRadio ? catRadio.value : "aluminum_alloy",
+            material_category: state.selectedMaterialCategory,
+            material_id: state.selectedMaterialId,
             process: String(formData.get("process") || "CNC"),
             postprocess_group: String(formData.get("postprocess_group") || "bead_blasting"),
             tolerance_grade: String(formData.get("tolerance_grade") || "ISO2768-M"),
@@ -212,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let mailBody = `Hello Daiyujin Engineering Team,%0D%0A%0D%0A` +
             `I would like to request a formal quote.%0D%0A%0D%0A` +
             `Part: ${state.fileName || '—'}%0D%0A` +
-            `Material Category: ${(sel.material_category || {}).label || '—'}%0D%0A` +
+            `Material: ${sel.material_category || '—'}${sel.material ? ' / ' + sel.material : ''}%0D%0A` +
             `Process: ${sel.process || '—'}%0D%0A` +
             `Postprocess: ${sel.postprocess_group || '—'}%0D%0A` +
             `Tolerance: ${sel.tolerance_grade || '—'}%0D%0A` +
@@ -230,7 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
             <div class="metric-row"><span>Status</span><strong>Reference estimate</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
-                <div class="metric-row"><span>Material</span><strong>${escapeHtml((sel.material_category || {}).label || "-")}</strong></div>
+                <div class="metric-row"><span>Material</span><strong>${escapeHtml(sel.material_category || '-')}${sel.material ? ' &middot; ' + escapeHtml(sel.material) : ''}</strong></div>
                 <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
                 <div class="metric-row"><span>Postprocess</span><strong>${escapeHtml(sel.postprocess_group)}</strong></div>
                 <div class="metric-row"><span>Tolerance</span><strong>${escapeHtml(sel.tolerance_grade)}</strong></div>

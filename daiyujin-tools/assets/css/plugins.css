@@ -940,6 +940,91 @@ body.tool-page {
 
 /* ── Quote specific ─────────────────────────── */
 
+/* ── Two-level material picker ──────────────── */
+.quote-material-layout {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 0.75rem;
+    min-height: 160px;
+}
+.quote-material-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 240px;
+}
+.quote-material-cat-btn {
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .12s, color .12s;
+    white-space: nowrap;
+}
+.quote-material-cat-btn:hover { background: rgba(0,0,0,.04); color: var(--ink); }
+.quote-material-cat-btn.active { background: rgba(0,0,0,.06); color: var(--ink); }
+
+.quote-material-grades {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.quote-material-search {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+}
+.quote-material-search:focus { outline: none; border-color: var(--accent); }
+.quote-material-grade-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow-y: auto;
+    max-height: 200px;
+}
+.quote-material-grade-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .12s;
+}
+.quote-material-grade-option:hover { background: rgba(0,0,0,.03); }
+.quote-material-grade-option.active { background: rgba(0,0,0,.05); }
+.quote-material-grade-label { font-weight: 500; color: var(--ink); }
+.quote-material-grade-sub { font-size: 0.7rem; color: var(--muted); }
+.quote-material-badge {
+    font-size: 0.62rem;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.06);
+    color: var(--muted);
+}
+.quote-material-badge.review { background: #fef3c7; color: #92400e; }
+@media (max-width: 480px) {
+    .quote-material-layout { grid-template-columns: 1fr; }
+    .quote-material-categories { flex-direction: row; flex-wrap: wrap; max-height: none; }
+}
+
 /* Preview panel with PNG/3D tabs */
 .quote-preview-panel {}
 .quote-preview-head {

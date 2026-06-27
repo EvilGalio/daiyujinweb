@@ -18,14 +18,8 @@
                         <small>.stp / .step &middot; max 50 MB</small>
                     </label>
                     <div class="tool-field">
-                        <span class="tool-label">Material Category</span>
-                        <div class="material-card-grid" data-material-category-list>
-                            <label class="material-card active">
-                                <input type="radio" name="material_category" value="aluminum_alloy" checked>
-                                <span class="material-card-title">Aluminum Alloy</span>
-                                <span class="material-card-desc">Loading&hellip;</span>
-                            </label>
-                        </div>
+                        <span class="tool-label">Material</span>
+                        <div class="quote-material-layout" data-material-picker></div>
                     </div>
                     <div class="tool-field">
                         <label for="process">Process</label>
