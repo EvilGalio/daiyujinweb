@@ -13,7 +13,85 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "quote_model_v2_2"
 SRC = DATA_DIR / "material_prices.csv"
 OUT = DATA_DIR / "material_public_options.json"
 
-# Classification rules: (category_id, label, description, match_fn)
+# ── Chinese → English translation maps ─────────
+FEATURE_EN = {
+    "硬铝合金": "Hard aluminum alloy",
+    "耐蚀性好，焊接性优良，冷加工性较好": "Good corrosion resistance & weldability",
+    "高镁合金": "High-magnesium alloy",
+    "防锈铝": "Anti-rust aluminum",
+    "中等强度，耐腐蚀性能好": "Medium strength, good corrosion resistance",
+    "热处理耐腐蚀性合金": "Heat-treated corrosion-resistant alloy",
+    "普通抗腐蚀性能": "General corrosion resistance",
+    "压铸铝合金": "Die-cast aluminum alloy",
+    "变形铝": "Wrought aluminum",
+    "抗腐蚀性、抗氧化性好": "Excellent corrosion & oxidation resistance",
+    "易切削钢": "Free-cutting steel",
+    "渗碳钢": "Case-hardening steel",
+    "合金钢": "Alloy steel",
+    "中碳钢": "Medium carbon steel",
+    "碳素结构钢": "Carbon structural steel",
+    "合金结构钢": "Alloy structural steel",
+    "轴承钢": "Bearing steel",
+    "模具钢": "Tool & die steel",
+    "马氏体不锈钢": "Martensitic stainless steel",
+    "奥氏体不锈钢": "Austenitic stainless steel",
+    "不锈铁": "Stainless iron",
+    "高级氮化钢": "Premium nitriding steel",
+    "易切削不锈钢": "Free-cutting stainless steel",
+    "双相不锈钢": "Duplex stainless steel",
+    "沉淀硬化不锈钢": "Precipitation-hardening stainless steel",
+    "优质碳素钢": "Quality carbon steel",
+    "预硬塑料模具钢": "Pre-hardened plastic mold steel",
+    "塑料模具钢": "Plastic mold steel",
+    "冷作模具钢": "Cold work tool steel",
+    "热作模具钢": "Hot work tool steel",
+    "通用工程塑料": "General-purpose engineering plastic",
+    "高抗冲": "High impact resistance",
+    "通用耐磨": "General wear-resistant",
+    "润滑性好": "Self-lubricating",
+    "高润滑": "High lubricity",
+    "耐高温": "High temperature resistant",
+    "高强度": "High strength",
+    "耐磨": "Wear-resistant",
+    "耐化学": "Chemical resistant",
+    "电绝缘": "Electrical insulation",
+    "透明": "Transparent",
+    "阻燃": "Flame retardant",
+}
+
+LABEL_CLEAN = {
+    "7075(国产)": "7075 Domestic",
+    "7075(进口)": "7075 Imported",
+    "5053(日本进口)": "5053 Imported (Japan)",
+    "50#钢": "50# Steel",
+    "65MU": "65Mn",
+    "电木 棕红 黑色 黄色": "Bakelite",
+    "电木": "Bakelite",
+}
+
+def _en_label(label: str) -> str:
+    """Translate Chinese labels to English."""
+    if label in LABEL_CLEAN:
+        return LABEL_CLEAN[label]
+    # Generic: "XXX钢" → "XXX Steel"
+    if label.endswith("钢"):
+        base = label[:-1]
+        return f"{base} Steel"
+    # Clean color suffixes: "ABS 米黄 黑色" → "ABS"
+    import re
+    cleaned = re.sub(r'\s+[\u4e00-\u9fff]+$', '', label)
+    # Remove any remaining Chinese chars from label
+    cleaned = re.sub(r'[\u4e00-\u9fff]+', '', cleaned).strip()
+    return cleaned if cleaned else label
+
+def _en_subtitle(row: dict) -> str:
+    feature = row.get("feature", "")
+    if feature in FEATURE_EN:
+        return FEATURE_EN[feature]
+    base = _en_label(row.get("material_base_norm", ""))
+    return f"{base} alloy" if base else ""
+
+# ── Build material options ──────────────────────
 CATEGORIES = [
     ("aluminum_alloy", "Aluminum Alloy",
      "Lightweight CNC materials for prototypes and production.",
@@ -104,9 +182,8 @@ def build():
         if cat_id not in groups:
             groups[cat_id] = {"id": cat_id, "label": cat_label, "description": cat_desc, "materials": []}
 
-        grade = r.get("material_grade_norm", r.get("material_base_norm", ""))
-        feature = r.get("feature", "")
-        subtitle = feature if feature else (r.get("material_base_norm", "") + " alloy")
+        grade = _en_label(r.get("material_grade_norm", r.get("material_base_norm", "")))
+        subtitle = _en_subtitle(r)
 
         groups[cat_id]["materials"].append({
             "id": r["price_id"],

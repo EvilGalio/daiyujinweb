@@ -35,7 +35,7 @@
         {
           "id": "mp_a0103",
           "label": "2A12",
-          "subtitle": "硬铝合金",
+          "subtitle": "Hard aluminum alloy",
           "badges": [
             "Common"
           ],
@@ -98,7 +98,7 @@
         {
           "id": "mp_a0084",
           "label": "5052",
-          "subtitle": "耐蚀性好，焊接性优良，冷加工性较好",
+          "subtitle": "Good corrosion resistance & weldability",
           "badges": [
             "Common"
           ],
@@ -115,8 +115,8 @@
         },
         {
           "id": "mp_a0085",
-          "label": "5053(日本进口)",
-          "subtitle": "5053(日本进口) alloy",
+          "label": "5053 Imported (Japan)",
+          "subtitle": "5053 Imported (Japan) alloy",
           "badges": [
             "Common"
           ],
@@ -134,7 +134,7 @@
         {
           "id": "mp_a0088",
           "label": "5083",
-          "subtitle": "高镁合金",
+          "subtitle": "High-magnesium alloy",
           "badges": [
             "Common"
           ],
@@ -179,7 +179,7 @@
         {
           "id": "mp_a0113",
           "label": "5A06",
-          "subtitle": "防锈铝",
+          "subtitle": "Anti-rust aluminum",
           "badges": [
             "Common"
           ],
@@ -188,7 +188,7 @@
         {
           "id": "mp_a0076",
           "label": "6060",
-          "subtitle": "中等强度，耐腐蚀性能好",
+          "subtitle": "Medium strength, good corrosion resistance",
           "badges": [
             "Common"
           ],
@@ -197,7 +197,7 @@
         {
           "id": "mp_a0077",
           "label": "6061",
-          "subtitle": "中等强度，耐腐蚀性能好",
+          "subtitle": "Medium strength, good corrosion resistance",
           "badges": [
             "Common"
           ],
@@ -224,7 +224,7 @@
         {
           "id": "mp_a0080",
           "label": "6061-T6",
-          "subtitle": "热处理耐腐蚀性合金",
+          "subtitle": "Heat-treated corrosion-resistant alloy",
           "badges": [
             "Common"
           ],
@@ -268,8 +268,8 @@
         },
         {
           "id": "mp_a0091",
-          "label": "7075(国产)",
-          "subtitle": "7075(国产) alloy",
+          "label": "7075 Domestic",
+          "subtitle": "7075 Domestic alloy",
           "badges": [
             "Common"
           ],
@@ -277,8 +277,8 @@
         },
         {
           "id": "mp_a0092",
-          "label": "7075(进口)",
-          "subtitle": "普通抗腐蚀性能",
+          "label": "7075 Imported",
+          "subtitle": "General corrosion resistance",
           "badges": [
             "Common"
           ],
@@ -323,7 +323,7 @@
         {
           "id": "mp_a0096",
           "label": "ADC-12",
-          "subtitle": "压铸铝合金",
+          "subtitle": "Die-cast aluminum alloy",
           "badges": [
             "Common"
           ],
@@ -332,7 +332,7 @@
         {
           "id": "mp_a0124",
           "label": "AL7022",
-          "subtitle": "变形铝",
+          "subtitle": "Wrought aluminum",
           "badges": [
             "Common"
           ],
@@ -431,7 +431,7 @@
         {
           "id": "mp_a0089",
           "label": "MIC6",
-          "subtitle": "抗腐蚀性、抗氧化性好",
+          "subtitle": "Excellent corrosion & oxidation resistance",
           "badges": [
             "Common"
           ],
@@ -457,7 +457,7 @@
         {
           "id": "mp_s0045",
           "label": "12L14",
-          "subtitle": "易切削钢",
+          "subtitle": "Free-cutting steel",
           "badges": [
             "Common"
           ],
@@ -466,7 +466,7 @@
         {
           "id": "mp_s0024",
           "label": "16MnCr5",
-          "subtitle": "渗碳钢",
+          "subtitle": "Case-hardening steel",
           "badges": [
             "Common"
           ],
@@ -475,7 +475,7 @@
         {
           "id": "mp_s0025",
           "label": "20Crmo",
-          "subtitle": "合金钢",
+          "subtitle": "Alloy steel",
           "badges": [
             "Common"
           ],
@@ -484,7 +484,7 @@
         {
           "id": "mp_s0026",
           "label": "30CRMO",
-          "subtitle": "合金钢",
+          "subtitle": "Alloy steel",
           "badges": [
             "Common"
           ],
@@ -493,7 +493,7 @@
         {
           "id": "mp_s0027",
           "label": "35NCD6",
-          "subtitle": "工具钢",
+          "subtitle": "35NCD6 alloy",
           "badges": [
             "Common"
           ],
@@ -502,7 +502,7 @@
         {
           "id": "mp_s0028",
           "label": "38CrMoAL",
-          "subtitle": "高级氮化钢",
+          "subtitle": "Premium nitriding steel",
           "badges": [
             "Common"
           ],
@@ -511,7 +511,7 @@
         {
           "id": "mp_s0009",
           "label": "40Cr",
-          "subtitle": "合金结构钢",
+          "subtitle": "Alloy structural steel",
           "badges": [
             "Common"
           ],
@@ -520,7 +520,7 @@
         {
           "id": "mp_s0010",
           "label": "4140",
-          "subtitle": "轴承钢",
+          "subtitle": "Bearing steel",
           "badges": [
             "Common"
           ],
@@ -538,7 +538,7 @@
         {
           "id": "mp_s0022",
           "label": "430F",
-          "subtitle": "易切削钢",
+          "subtitle": "Free-cutting steel",
           "badges": [
             "Common"
           ],
@@ -556,7 +556,7 @@
         {
           "id": "mp_s0046",
           "label": "44SMNPB28",
-          "subtitle": "易切削钢",
+          "subtitle": "Free-cutting steel",
           "badges": [
             "Common"
           ],
@@ -565,7 +565,7 @@
         {
           "id": "mp_s0004",
           "label": "45#",
-          "subtitle": "中碳钢",
+          "subtitle": "Medium carbon steel",
           "badges": [
             "Common"
           ],
@@ -573,8 +573,8 @@
         },
         {
           "id": "mp_s0008",
-          "label": "50#钢",
-          "subtitle": "中碳钢",
+          "label": "50# Steel",
+          "subtitle": "Medium carbon steel",
           "badges": [
             "Common"
           ],
@@ -583,7 +583,7 @@
         {
           "id": "mp_s0029",
           "label": "60Si2Mn",
-          "subtitle": "弹簧钢",
+          "subtitle": "60Si2Mn alloy",
           "badges": [
             "Common"
           ],
@@ -601,7 +601,7 @@
         {
           "id": "mp_s0047",
           "label": "9smn28k",
-          "subtitle": "易切削钢",
+          "subtitle": "Free-cutting steel",
           "badges": [
             "Common"
           ],
@@ -610,7 +610,7 @@
         {
           "id": "mp_s0032",
           "label": "AISI M41",
-          "subtitle": "高速钢",
+          "subtitle": "AISI M41 alloy",
           "badges": [
             "Common"
           ],
@@ -619,7 +619,7 @@
         {
           "id": "mp_s0033",
           "label": "C1018",
-          "subtitle": "低碳钢",
+          "subtitle": "C1018 alloy",
           "badges": [
             "Common"
           ],
@@ -628,7 +628,7 @@
         {
           "id": "mp_s0050",
           "label": "EN24",
-          "subtitle": "碳钢",
+          "subtitle": "EN24 alloy",
           "badges": [
             "Common"
           ],
@@ -637,7 +637,7 @@
         {
           "id": "mp_s0049",
           "label": "EN8",
-          "subtitle": "碳钢",
+          "subtitle": "EN8 alloy",
           "badges": [
             "Common"
           ],
@@ -646,7 +646,7 @@
         {
           "id": "mp_s0034",
           "label": "GCr15",
-          "subtitle": "轴承钢",
+          "subtitle": "Bearing steel",
           "badges": [
             "Common"
           ],
@@ -655,7 +655,7 @@
         {
           "id": "mp_s0052",
           "label": "Nace718",
-          "subtitle": "镍合金",
+          "subtitle": "Nace718 alloy",
           "badges": [
             "Common"
           ],
@@ -664,7 +664,7 @@
         {
           "id": "mp_s0036",
           "label": "Q195",
-          "subtitle": "碳素结构钢",
+          "subtitle": "Carbon structural steel",
           "badges": [
             "Common"
           ],
@@ -673,7 +673,7 @@
         {
           "id": "mp_s0007",
           "label": "Q235",
-          "subtitle": "碳素结构钢",
+          "subtitle": "Carbon structural steel",
           "badges": [
             "Common"
           ],
@@ -682,7 +682,7 @@
         {
           "id": "mp_s0048",
           "label": "S10C",
-          "subtitle": "低碳钢",
+          "subtitle": "S10C alloy",
           "badges": [
             "Common"
           ],
@@ -691,7 +691,7 @@
         {
           "id": "mp_s0016",
           "label": "S275",
-          "subtitle": "弹簧钢",
+          "subtitle": "S275 alloy",
           "badges": [
             "Common"
           ],
@@ -700,7 +700,7 @@
         {
           "id": "mp_s0037",
           "label": "S7",
-          "subtitle": "工具钢",
+          "subtitle": "S7 alloy",
           "badges": [
             "Common"
           ],
@@ -709,7 +709,7 @@
         {
           "id": "mp_s0038",
           "label": "SK5",
-          "subtitle": "工具钢",
+          "subtitle": "SK5 alloy",
           "badges": [
             "Common"
           ],
@@ -718,7 +718,7 @@
         {
           "id": "mp_s0043",
           "label": "SKH-51",
-          "subtitle": "高速钢",
+          "subtitle": "SKH-51 alloy",
           "badges": [
             "Common"
           ],
@@ -770,8 +770,8 @@
       "materials": [
         {
           "id": "mp_p0128",
-          "label": "ABS 米黄 黑色",
-          "subtitle": "丙烯晴",
+          "label": "ABS",
+          "subtitle": "ABS alloy",
           "badges": [
             "Common"
           ],
@@ -779,215 +779,8 @@
         },
         {
           "id": "mp_p0129",
-          "label": "ABS 阻燃白色",
-          "subtitle": "丙烯晴",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0148",
-          "label": "CPVC 深灰 浅灰",
-          "subtitle": "氯化聚氯乙烯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0142",
-          "label": "MC 米黄 黑色",
-          "subtitle": "尼龙",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0139",
-          "label": "PA12 黑 白",
-          "subtitle": "尼龙",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0140",
-          "label": "PA46 棕色",
-          "subtitle": "尼龙",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0141",
-          "label": "PA66 白黑蓝绿米黄色",
-          "subtitle": "尼龙",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0143",
-          "label": "PA66+GF 黑色 米白",
-          "subtitle": "尼龙加钎",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0145",
-          "label": "PBT 白色黑色",
-          "subtitle": "聚对苯二甲酸",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0146",
-          "label": "PBT+GF30 白色黑色",
-          "subtitle": "聚对苯二甲酸",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0138",
-          "label": "PC 白色 透明",
-          "subtitle": "聚碳酸酯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0171",
-          "label": "PCTFE 半透",
-          "subtitle": "偏三氟",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0131",
-          "label": "PE 白色 黑色蓝色",
-          "subtitle": "聚乙烯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0154",
-          "label": "PES 琥珀色",
-          "subtitle": "砜聚龙",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0144",
-          "label": "PET 灰色 白色",
-          "subtitle": "丁二醇酯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0149",
-          "label": "PMMA 透明",
-          "subtitle": "亚克力 有机板",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0136",
-          "label": "POM 白红 黑黄 绿色",
-          "subtitle": "赛钢",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0130",
-          "label": "PP 白色 半透 黑色",
-          "subtitle": "聚丙烯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0153",
-          "label": "PSU 琥珀色",
-          "subtitle": "聚砜",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0137",
-          "label": "PU 蛋黄 红色",
-          "subtitle": "聚氨酯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0147",
-          "label": "PVC 深灰 浅灰",
-          "subtitle": "聚氯乙烯",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0132",
-          "label": "UPE 白色 黑色 绿色",
-          "subtitle": "超高分子量500万",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0133",
-          "label": "UPE 白色 黑色 绿色",
-          "subtitle": "超高分子量830万",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0134",
-          "label": "UPE 白色 黑色 绿色",
-          "subtitle": "超高分子量920万",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0135",
-          "label": "UPE 白色 黑色 绿色",
-          "subtitle": "超高分子量1050万",
+          "label": "ABS",
+          "subtitle": "ABS alloy",
           "badges": [
             "Common"
           ],
@@ -995,8 +788,215 @@
         },
         {
           "id": "mp_p0165",
-          "label": "电木 棕红 黑色 黄色",
-          "subtitle": "电木 alloy",
+          "label": "Bakelite",
+          "subtitle": "Bakelite alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0148",
+          "label": "CPVC",
+          "subtitle": "CPVC alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0142",
+          "label": "MC",
+          "subtitle": "MC alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0139",
+          "label": "PA12",
+          "subtitle": "PA12 alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0140",
+          "label": "PA46",
+          "subtitle": "PA46 alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0141",
+          "label": "PA66",
+          "subtitle": "PA66 alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0143",
+          "label": "PA66+GF",
+          "subtitle": "PA66+GF alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0145",
+          "label": "PBT",
+          "subtitle": "PBT alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0146",
+          "label": "PBT+GF30",
+          "subtitle": "PBT+GF30 alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0138",
+          "label": "PC",
+          "subtitle": "PC alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0171",
+          "label": "PCTFE",
+          "subtitle": "PCTFE alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0131",
+          "label": "PE",
+          "subtitle": "PE alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0154",
+          "label": "PES",
+          "subtitle": "PES alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0144",
+          "label": "PET",
+          "subtitle": "PET alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0149",
+          "label": "PMMA",
+          "subtitle": "PMMA alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0136",
+          "label": "POM",
+          "subtitle": "POM alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0130",
+          "label": "PP",
+          "subtitle": "PP alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0153",
+          "label": "PSU",
+          "subtitle": "PSU alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0137",
+          "label": "PU",
+          "subtitle": "PU alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0147",
+          "label": "PVC",
+          "subtitle": "PVC alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0132",
+          "label": "UPE",
+          "subtitle": "UPE alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0133",
+          "label": "UPE",
+          "subtitle": "UPE alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0134",
+          "label": "UPE",
+          "subtitle": "UPE alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0135",
+          "label": "UPE",
+          "subtitle": "UPE alloy",
           "badges": [
             "Common"
           ],
@@ -1012,8 +1012,8 @@
       "materials": [
         {
           "id": "mp_p0167",
-          "label": "PAI 黑 墨绿 蛋黄",
-          "subtitle": "酰胺基新型料",
+          "label": "PAI",
+          "subtitle": "PAI alloy",
           "badges": [
             "Common"
           ],
@@ -1021,17 +1021,8 @@
         },
         {
           "id": "mp_p0166",
-          "label": "PBI 黑色",
-          "subtitle": "聚苯并咪唑",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0163",
-          "label": "PEEK 灰色米黄",
-          "subtitle": "聚醚醚酮",
+          "label": "PBI",
+          "subtitle": "PBI alloy",
           "badges": [
             "Common"
           ],
@@ -1039,26 +1030,8 @@
         },
         {
           "id": "mp_p0159",
-          "label": "PEEK 瓷白白色",
-          "subtitle": "聚醚醚酮",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0161",
-          "label": "PEEK 红色",
-          "subtitle": "聚醚醚酮",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0162",
-          "label": "PEEK 蓝色 黄色",
-          "subtitle": "聚醚醚酮",
+          "label": "PEEK",
+          "subtitle": "PEEK alloy",
           "badges": [
             "Common"
           ],
@@ -1066,8 +1039,35 @@
         },
         {
           "id": "mp_p0160",
-          "label": "PEEK 黑色",
-          "subtitle": "聚醚醚酮",
+          "label": "PEEK",
+          "subtitle": "PEEK alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0161",
+          "label": "PEEK",
+          "subtitle": "PEEK alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0162",
+          "label": "PEEK",
+          "subtitle": "PEEK alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0163",
+          "label": "PEEK",
+          "subtitle": "PEEK alloy",
           "badges": [
             "Common"
           ],
@@ -1075,8 +1075,8 @@
         },
         {
           "id": "mp_p0164",
-          "label": "PEEK(名牌：KETRON100)",
-          "subtitle": "聚醚醚酮",
+          "label": "PEEK(：KETRON100)",
+          "subtitle": "PEEK(：KETRON100) alloy",
           "badges": [
             "Common"
           ],
@@ -1084,17 +1084,8 @@
         },
         {
           "id": "mp_p0150",
-          "label": "PEI 琥珀色",
-          "subtitle": "聚醚洗亚胺",
-          "badges": [
-            "Common"
-          ],
-          "review_recommended": false
-        },
-        {
-          "id": "mp_p0152",
-          "label": "PEI 米黄",
-          "subtitle": "聚醚洗亚胺",
+          "label": "PEI",
+          "subtitle": "PEI alloy",
           "badges": [
             "Common"
           ],
@@ -1102,8 +1093,17 @@
         },
         {
           "id": "mp_p0151",
-          "label": "PEI 黑色",
-          "subtitle": "聚醚洗亚胺",
+          "label": "PEI",
+          "subtitle": "PEI alloy",
+          "badges": [
+            "Common"
+          ],
+          "review_recommended": false
+        },
+        {
+          "id": "mp_p0152",
+          "label": "PEI",
+          "subtitle": "PEI alloy",
           "badges": [
             "Common"
           ],
@@ -1111,8 +1111,8 @@
         },
         {
           "id": "mp_p0169",
-          "label": "PFA 乳白",
-          "subtitle": "偏一氟",
+          "label": "PFA",
+          "subtitle": "PFA alloy",
           "badges": [
             "Common"
           ],
@@ -1120,8 +1120,8 @@
         },
         {
           "id": "mp_p0168",
-          "label": "PI 棕色 黑色",
-          "subtitle": "聚酰亚胺",
+          "label": "PI",
+          "subtitle": "PI alloy",
           "badges": [
             "Common"
           ],
@@ -1129,8 +1129,8 @@
         },
         {
           "id": "mp_p0156",
-          "label": "POM+PTFE 棕色",
-          "subtitle": "赛钢+铁氟龙",
+          "label": "POM+PTFE",
+          "subtitle": "POM+PTFE alloy",
           "badges": [
             "Common"
           ],
@@ -1138,8 +1138,8 @@
         },
         {
           "id": "mp_p0157",
-          "label": "PPS 白色 黑色",
-          "subtitle": "聚苯硫醚",
+          "label": "PPS",
+          "subtitle": "PPS alloy",
           "badges": [
             "Common"
           ],
@@ -1147,8 +1147,8 @@
         },
         {
           "id": "mp_p0158",
-          "label": "PPS+GF 白色 黑色",
-          "subtitle": "聚苯硫醚",
+          "label": "PPS+GF",
+          "subtitle": "PPS+GF alloy",
           "badges": [
             "Common"
           ],
@@ -1156,8 +1156,8 @@
         },
         {
           "id": "mp_p0155",
-          "label": "PPSU 白 米黄 黑色",
-          "subtitle": "高性能聚合物",
+          "label": "PPSU",
+          "subtitle": "PPSU alloy",
           "badges": [
             "Common"
           ],
@@ -1165,8 +1165,8 @@
         },
         {
           "id": "mp_p0172",
-          "label": "PTFE 白色 黑色",
-          "subtitle": "偏四氟",
+          "label": "PTFE",
+          "subtitle": "PTFE alloy",
           "badges": [
             "Common"
           ],
@@ -1174,8 +1174,8 @@
         },
         {
           "id": "mp_p0170",
-          "label": "PVDF 白色",
-          "subtitle": "偏二氟",
+          "label": "PVDF",
+          "subtitle": "PVDF alloy",
           "badges": [
             "Common"
           ],
@@ -1183,8 +1183,8 @@
         },
         {
           "id": "mp_p0173",
-          "label": "TORLON 4275 黑色",
-          "subtitle": "聚酰胺 - 酰亚胺",
+          "label": "TORLON 4275",
+          "subtitle": "TORLON 4275 alloy",
           "badges": [
             "Common"
           ],
@@ -1201,7 +1201,7 @@
         {
           "id": "mp_s0067",
           "label": "10Cr13",
-          "subtitle": "马氏体不锈钢",
+          "subtitle": "Martensitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1210,7 +1210,7 @@
         {
           "id": "mp_s0013",
           "label": "17-4PH",
-          "subtitle": "不锈铁",
+          "subtitle": "Stainless iron",
           "badges": [
             "Common"
           ],
@@ -1219,7 +1219,7 @@
         {
           "id": "mp_s0068",
           "label": "20Cr13",
-          "subtitle": "马氏体不锈钢",
+          "subtitle": "Martensitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1228,7 +1228,7 @@
         {
           "id": "mp_s0069",
           "label": "30Cr13",
-          "subtitle": "马氏体不锈钢",
+          "subtitle": "Martensitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1237,7 +1237,7 @@
         {
           "id": "mp_s0070",
           "label": "40Cr13",
-          "subtitle": "马氏体不锈钢",
+          "subtitle": "Martensitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1246,7 +1246,7 @@
         {
           "id": "mp_s0063",
           "label": "904L",
-          "subtitle": "不锈钢",
+          "subtitle": "904L alloy",
           "badges": [
             "Common"
           ],
@@ -1255,7 +1255,7 @@
         {
           "id": "mp_s0003",
           "label": "SUS303",
-          "subtitle": "奥氏体不锈钢",
+          "subtitle": "Austenitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1264,7 +1264,7 @@
         {
           "id": "mp_s0002",
           "label": "SUS304",
-          "subtitle": "奥氏体不锈钢",
+          "subtitle": "Austenitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1273,7 +1273,7 @@
         {
           "id": "mp_s0014",
           "label": "SUS316",
-          "subtitle": "奥氏体不锈钢",
+          "subtitle": "Austenitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1282,7 +1282,7 @@
         {
           "id": "mp_s0015",
           "label": "SUS316L",
-          "subtitle": "奥氏体不锈钢",
+          "subtitle": "Austenitic stainless steel",
           "badges": [
             "Common"
           ],
@@ -1291,7 +1291,7 @@
         {
           "id": "mp_s0017",
           "label": "SUS321",
-          "subtitle": "奥氏体不锈钢耐温",
+          "subtitle": "SUS321 alloy",
           "badges": [
             "Common"
           ],
@@ -1300,7 +1300,7 @@
         {
           "id": "mp_s0020",
           "label": "SUS420J2",
-          "subtitle": "M310",
+          "subtitle": "SUS420J2 alloy",
           "badges": [
             "Common"
           ],
@@ -1335,7 +1335,7 @@
         {
           "id": "mp_s0030",
           "label": "9CrWMn",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
@@ -1344,7 +1344,7 @@
         {
           "id": "mp_s0005",
           "label": "Cr12",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
@@ -1353,7 +1353,7 @@
         {
           "id": "mp_s0006",
           "label": "Cr12MoV",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
@@ -1362,7 +1362,7 @@
         {
           "id": "mp_s0040",
           "label": "D2",
-          "subtitle": "工具钢",
+          "subtitle": "D2 alloy",
           "badges": [
             "Common"
           ],
@@ -1371,7 +1371,7 @@
         {
           "id": "mp_s0044",
           "label": "O1",
-          "subtitle": "油钢",
+          "subtitle": "O1 alloy",
           "badges": [
             "Common"
           ],
@@ -1380,7 +1380,7 @@
         {
           "id": "mp_s0035",
           "label": "P20",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
@@ -1389,7 +1389,7 @@
         {
           "id": "mp_s0041",
           "label": "SKD11",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
@@ -1398,7 +1398,7 @@
         {
           "id": "mp_s0042",
           "label": "SKD61",
-          "subtitle": "模具钢",
+          "subtitle": "Tool & die steel",
           "badges": [
             "Common"
           ],
