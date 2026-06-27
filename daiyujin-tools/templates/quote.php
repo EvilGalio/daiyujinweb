@@ -64,9 +64,9 @@
                 </form>
 
                 <aside class="quote-stack" data-quote-result>
-                    <section class="tool-panel">
-                        <h2>Part</h2>
-                        <div class="tool-note">Awaiting STEP analysis.</div>
+                    <section class="tool-panel quote-preview-panel">
+                        <h2>Part Preview</h2>
+                        <div class="tool-note" data-part-placeholder>Awaiting STEP analysis.</div>
                     </section>
                     <section class="tool-panel">
                         <h2>Reference Estimate</h2>
@@ -77,3 +77,11 @@
         </main>
     </div>
 </div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>

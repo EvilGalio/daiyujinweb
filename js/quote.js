@@ -154,24 +154,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* ── Render ── */
     function render() {
-        result.innerHTML = `${partCard()}${estimateCard()}`;
+        result.innerHTML = `${previewCard()}${estimateCard()}`;
+        bindPreviewTabs();
     }
 
-    function partCard() {
+    function previewCard() {
         if (!state.analysis) {
-            return `<section class="tool-panel">
-                    <h2>Part</h2>
+            return `<section class="tool-panel quote-preview-panel">
+                    <h2>Part Preview</h2>
                     <div class="tool-note">Upload a STEP file to begin.</div>
                 </section>`;
         }
-        const thumb = state.analysis.thumbnail_url ? thumbnailMarkup(state.analysis.thumbnail_url, state.analysis.name) : "";
-        return `<section class="tool-panel quote-part">
-            <h2>Part Analyzed</h2>
-            ${thumb}
-            <div class="metric-row"><span>File</span><strong>${escapeHtml(state.analysis.name)}</strong></div>
-            <div class="metric-row"><span>Bounding Size</span><strong>${escapeHtml(state.analysis.obb_dimensions_mm)} mm</strong></div>
-            <div class="metric-row"><span>Volume</span><strong>${formatNumber(state.analysis.volume_mm3)} mm&sup3;</strong></div>
+        const analysis = state.analysis;
+        const thumbUrl = analysis.thumbnail_url
+            ? new URL(analysis.thumbnail_url, window.DaiyujinAPI.config.baseUrl || window.location.href).href
+            : '';
+
+        return `<section class="tool-panel quote-preview-panel">
+            <div class="quote-preview-head">
+                <h2>Part Preview</h2>
+                <div class="quote-preview-tabs" role="tablist">
+                    <button type="button" data-preview-tab="png" class="active" aria-selected="true">Static PNG</button>
+                    <button type="button" data-preview-tab="3d" aria-selected="false">3D View</button>
+                </div>
+            </div>
+            <div class="quote-preview-stage">
+                <img class="quote-thumb" src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(analysis.name)} preview" data-png-preview>
+                <div class="quote-3d-stage" data-3d-stage hidden></div>
+            </div>
+            <div class="metric-row" style="margin-top:0.5rem;"><span>File</span><strong>${escapeHtml(analysis.name)}</strong></div>
+            <div class="metric-row"><span>Bounding Size</span><strong>${escapeHtml(analysis.obb_dimensions_mm)} mm</strong></div>
+            <div class="metric-row"><span>Volume</span><strong>${formatNumber(analysis.volume_mm3)} mm&sup3;</strong></div>
         </section>`;
+    }
     }
 
     function estimateCard() {
@@ -225,12 +240,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </section>`;
     }
 
-    function thumbnailMarkup(path, name) {
-        const src = new URL(path, window.DaiyujinAPI.config.baseUrl || window.location.href).href;
-        return `<img class="quote-thumb" src="${escapeHtml(src)}" alt="${escapeHtml(name)} preview">`;
-    }
-
-    /* ── Progress bar ── */
     function startProgress() {
         const phases = [
             "Secure file intake",
@@ -274,7 +283,61 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function renderProgress(pct, text, done) {
+    function bindPreviewTabs() {
+    const tabs = document.querySelectorAll('[data-preview-tab]');
+    if (!tabs.length) return;
+
+    const pngEl = document.querySelector('[data-png-preview]');
+    const stage3d = document.querySelector('[data-3d-stage]');
+    let viewerLoaded = false;
+    let viewerPaused = false;
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', async () => {
+            const mode = tab.dataset.previewTab;
+            tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+
+            if (mode === 'png') {
+                if (stage3d) stage3d.hidden = true;
+                if (pngEl) pngEl.hidden = false;
+                if (viewerLoaded && !viewerPaused) {
+                    const mod = await import('./quote-3d-viewer.js');
+                    mod.pause();
+                    viewerPaused = true;
+                }
+            } else {
+                if (pngEl) pngEl.hidden = true;
+                if (stage3d) stage3d.hidden = false;
+                if (!viewerLoaded) {
+                    if (stage3d) {
+                        try {
+                            const mod = await import('./quote-3d-viewer.js');
+                            stage3d.innerHTML = '';
+                            await mod.mount(stage3d, {
+                                apiBase: window.DaiyujinAPI.config.baseUrl || 'http://127.0.0.1:5000',
+                                fileId: state.analysis.file_id || state.analysis.fileId,
+                                partName: state.analysis.name || state.fileName || 'Part',
+                            });
+                            viewerLoaded = true;
+                            viewerPaused = false;
+                        } catch (err) {
+                            stage3d.innerHTML = '<div class="quote-3d-status">3D preview is unavailable. Static preview remains available.</div>';
+                            console.error('3D viewer:', err);
+                        }
+                    }
+                } else if (viewerPaused) {
+                    const mod = await import('./quote-3d-viewer.js');
+                    mod.resume(stage3d);
+                    viewerPaused = false;
+                }
+            }
+        });
+    });
+}
+
+function renderProgress(pct, text, done) {
         result.innerHTML = `<section class="tool-panel">
             <h2>Secure Assessment</h2>
             <div class="quote-progress">

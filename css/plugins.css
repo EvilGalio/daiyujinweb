@@ -940,6 +940,105 @@ body.tool-page {
 
 /* ── Quote specific ─────────────────────────── */
 
+/* Preview panel with PNG/3D tabs */
+.quote-preview-panel {}
+.quote-preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.quote-preview-head h2 { margin: 0; }
+.quote-preview-tabs {
+    display: flex;
+    background: rgba(0,0,0,.04);
+    border-radius: 8px;
+    padding: 3px;
+}
+.quote-preview-tabs button {
+    border: none;
+    background: transparent;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, color .15s;
+}
+.quote-preview-tabs button.active {
+    background: #fff;
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.quote-preview-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: #eef0f3;
+}
+.quote-preview-stage .quote-thumb,
+.quote-3d-stage,
+.quote-3d-stage canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+.quote-3d-stage {
+    position: absolute;
+    inset: 0;
+}
+.quote-3d-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 1rem;
+}
+.quote-3d-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0;
+}
+.quote-3d-part-name {
+    font-size: 0.72rem;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.quote-3d-views {
+    display: flex;
+    gap: 2px;
+}
+.quote-3d-views button {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 3px 8px;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 4px;
+    transition: background .15s;
+}
+.quote-3d-views button:hover { background: rgba(0,0,0,.04); }
+.quote-3d-views button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
 .quote-privacy-note {
     font-size: 0.74rem;
     color: var(--muted);
