@@ -9,16 +9,25 @@ from __future__ import annotations
 from typing import Any
 
 from services.tolerance_engine.fit_calc import calculate_fit_result, resolve_dimension
-from services.tolerance_engine.capabilities import get_capabilities, get_presets, get_zones
+from services.tolerance_engine.capabilities import get_capabilities, get_zones
 from services.tolerance_engine.parser import TolError
+
+import json
+from pathlib import Path
+
+_DATA_DIR = Path(__file__).parent / "tolerance_engine" / "data"
 
 
 def get_tolerance_zones() -> list[str]:
     return get_zones()
 
 
-def get_tolerance_presets() -> list[str]:
-    return get_presets()
+def get_tolerance_presets() -> dict:
+    """Return structured grouped presets (hole_basis only)."""
+    path = _DATA_DIR / "preferred_fits.json"
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("hole_basis", {})
 
 
 def get_tolerance_capabilities() -> dict:

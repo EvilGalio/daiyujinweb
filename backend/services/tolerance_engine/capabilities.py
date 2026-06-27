@@ -49,7 +49,10 @@ def get_presets() -> list[str]:
     fits = pkg["preferred_fits"].get("hole_basis", {})
     all_fits = []
     for category in ["clearance", "transition", "interference"]:
-        all_fits.extend(fits.get(category, []))
+        items = fits.get(category, [])
+        for item in items:
+            code = item["code"] if isinstance(item, dict) else item
+            all_fits.append(code)
     return all_fits or ["H7/g6", "H7/h6", "H6/k5", "H7/p6", "H8/f7"]
 
 

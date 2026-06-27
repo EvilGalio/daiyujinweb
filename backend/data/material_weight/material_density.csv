@@ -1,16 +1,62 @@
-material_id,family,label,density_g_cm3,density_lb_in3,source,is_active
-aluminum_6061,Aluminum,Aluminum 6061,2.70,0.0975,standard_reference,1
-aluminum_7075,Aluminum,Aluminum 7075,2.81,0.1015,standard_reference,1
-stainless_304,Stainless Steel,Stainless 304,7.93,0.2865,standard_reference,1
-stainless_316,Stainless Steel,Stainless 316,8.00,0.2890,standard_reference,1
-carbon_steel,Carbon Steel,Carbon Steel,7.85,0.2836,standard_reference,1
-alloy_steel,Alloy Steel,Alloy Steel,7.85,0.2836,standard_reference,1
-titanium_gr5,Titanium,Titanium Gr5,4.43,0.1600,standard_reference,1
-brass,Brass / Copper,Brass,8.50,0.3070,standard_reference,1
-copper,Brass / Copper,Copper,8.96,0.3236,standard_reference,1
-pom,Engineering Plastic,POM / Delrin,1.41,0.0509,standard_reference,1
-nylon_pa,Engineering Plastic,Nylon / PA,1.15,0.0415,standard_reference,1
-ptfe,Engineering Plastic,PTFE / Teflon,2.20,0.0795,standard_reference,1
-peek,Engineering Plastic,PEEK,1.32,0.0477,standard_reference,1
-abs,Plastic Materials,ABS,1.05,0.0379,standard_reference,1
-polycarbonate,Plastic Materials,Polycarbonate / PC,1.20,0.0433,standard_reference,1
+material_id,family,label,density_g_cm3_nominal,density_g_cm3_min,density_g_cm3_max,density_lb_in3_nominal,source_ids,confidence,is_active,notes
+al_1050,Aluminum,Aluminum 1050,2.71,2.69,2.73,0.098,matweb_manual,0.90,TRUE,Commercially pure Al
+al_1060,Aluminum,Aluminum 1060,2.70,2.68,2.72,0.098,matweb_manual,0.90,TRUE,High purity Al
+al_2011,Aluminum,Aluminum 2011,2.82,2.79,2.85,0.102,matweb_manual,0.85,TRUE,Free-machining AlCu
+al_2017,Aluminum,Aluminum 2017,2.79,2.76,2.82,0.101,matweb_manual,0.85,TRUE,Duralumin
+al_2024,Aluminum,Aluminum 2024,2.78,2.75,2.81,0.100,matweb_manual,0.95,TRUE,Aircraft alloy
+al_3003,Aluminum,Aluminum 3003,2.73,2.70,2.76,0.099,matweb_manual,0.90,TRUE,General Al-Mn
+al_5052,Aluminum,Aluminum 5052,2.68,2.65,2.71,0.097,matweb_manual,0.95,TRUE,Marine Al-Mg
+al_5083,Aluminum,Aluminum 5083,2.66,2.63,2.69,0.096,matweb_manual,0.90,TRUE,High-Mg marine
+al_5754,Aluminum,Aluminum 5754,2.67,2.64,2.70,0.096,matweb_manual,0.85,TRUE,Medium-strength Al-Mg
+al_6061,Aluminum,Aluminum 6061,2.70,2.67,2.73,0.098,matweb_manual,0.95,TRUE,General-purpose Al-Mg-Si
+al_6063,Aluminum,Aluminum 6063,2.69,2.66,2.72,0.097,matweb_manual,0.90,TRUE,Extrusion alloy
+al_6082,Aluminum,Aluminum 6082,2.70,2.67,2.73,0.098,matweb_manual,0.90,TRUE,Structural Al-Mg-Si
+al_7075,Aluminum,Aluminum 7075,2.81,2.78,2.84,0.102,matweb_manual,0.95,TRUE,High-strength AlZn
+al_7050,Aluminum,Aluminum 7050,2.83,2.80,2.86,0.102,matweb_manual,0.85,TRUE,Very high strength AlZn
+ss_303,Stainless Steel,Stainless 303,8.00,7.95,8.05,0.289,matweb_manual,0.95,TRUE,Free-machining austenitic
+ss_304,Stainless Steel,Stainless 304,8.00,7.93,8.00,0.289,matweb_manual,0.95,TRUE,General austenitic
+ss_304l,Stainless Steel,Stainless 304L,8.00,7.93,8.00,0.289,matweb_manual,0.95,TRUE,Low-carbon 304
+ss_316,Stainless Steel,Stainless 316,8.00,7.95,8.05,0.289,matweb_manual,0.95,TRUE,Mo-bearing austenitic
+ss_316l,Stainless Steel,Stainless 316L,8.00,7.95,8.05,0.289,matweb_manual,0.95,TRUE,Low-carbon 316
+ss_321,Stainless Steel,Stainless 321,8.00,7.95,8.05,0.289,matweb_manual,0.85,TRUE,Ti stabilized
+ss_410,Stainless Steel,Stainless 410,7.75,7.70,7.80,0.280,matweb_manual,0.90,TRUE,Martensitic
+ss_420,Stainless Steel,Stainless 420,7.75,7.70,7.80,0.280,matweb_manual,0.85,TRUE,Higher C martensitic
+ss_430,Stainless Steel,Stainless 430,7.70,7.65,7.75,0.278,matweb_manual,0.85,TRUE,Ferritic
+ss_440c,Stainless Steel,Stainless 440C,7.75,7.70,7.80,0.280,matweb_manual,0.85,TRUE,High-C martensitic
+ss_17_4ph,Stainless Steel,17-4PH / 630,7.80,7.75,7.85,0.282,matweb_manual,0.95,TRUE,Precipitation hardening
+cs_1018,Carbon Steel,Carbon Steel 1018,7.87,7.84,7.90,0.284,matweb_manual,0.95,TRUE,Mild steel
+cs_1020,Carbon Steel,Carbon Steel 1020,7.87,7.84,7.90,0.284,matweb_manual,0.90,TRUE,Common structural
+cs_1045,Carbon Steel,Carbon Steel 1045,7.85,7.82,7.88,0.284,matweb_manual,0.95,TRUE,Medium carbon
+cs_12l14,Carbon Steel,12L14,7.87,7.84,7.90,0.284,matweb_manual,0.90,TRUE,Free-cutting
+cs_4140,Alloy Steel,4140 / 42CrMo4,7.85,7.82,7.88,0.284,matweb_manual,0.95,TRUE,CrMo alloy
+cs_4340,Alloy Steel,4340,7.85,7.82,7.88,0.284,matweb_manual,0.90,TRUE,NiCrMo alloy
+cs_8620,Alloy Steel,8620,7.85,7.82,7.88,0.284,matweb_manual,0.85,TRUE,Case-hardening NiCrMo
+ts_o1,Tool Steel,O1,7.80,7.75,7.85,0.282,matweb_manual,0.90,TRUE,Oil-hardening
+ts_a2,Tool Steel,A2,7.85,7.80,7.90,0.284,matweb_manual,0.85,TRUE,Air-hardening
+ts_d2,Tool Steel,D2 / SKD11,7.70,7.65,7.75,0.278,matweb_manual,0.95,TRUE,High C high Cr
+ts_h13,Tool Steel,H13 / SKD61,7.80,7.75,7.85,0.282,matweb_manual,0.95,TRUE,Hot work
+ts_p20,Tool Steel,P20,7.84,7.80,7.88,0.283,steelnumber,0.85,TRUE,Plastic mold
+ts_m2,Tool Steel,M2 HSS,8.10,8.05,8.15,0.293,matweb_manual,0.90,TRUE,High speed steel
+ts_s7,Tool Steel,S7,7.83,7.80,7.86,0.283,matweb_manual,0.80,TRUE,Shock-resisting
+cu_c110,Copper,ETP Copper C110,8.94,8.90,8.98,0.323,matweb_manual,0.90,TRUE,ETP copper
+cu_c101,Copper,OF Copper C101,8.94,8.90,8.98,0.323,matweb_manual,0.80,TRUE,OFHC copper
+cu_c360,Brass,Free-cutting Brass C360,8.50,8.45,8.55,0.307,matweb_manual,0.95,TRUE,Leaded brass
+cu_c260,Brass,Cartridge Brass C260,8.53,8.48,8.58,0.308,matweb_manual,0.85,TRUE,70-30 brass
+cu_c172,Copper,Beryllium Copper C172,8.25,8.20,8.30,0.298,matweb_manual,0.85,TRUE,BeCu
+ti_gr2,Titanium,Titanium Grade 2,4.51,4.48,4.54,0.163,matweb_manual,0.95,TRUE,CP Ti
+ti_gr5,Titanium,Titanium Grade 5,4.43,4.40,4.46,0.160,matweb_manual,0.95,TRUE,Ti-6Al-4V
+pl_abs,Plastic,ABS,1.06,1.03,1.09,0.038,matweb_manual,0.90,TRUE,General rigid
+pl_pc,Plastic,Polycarbonate,1.20,1.18,1.22,0.043,matweb_manual,0.90,TRUE,High-impact clear
+pl_pmma,Plastic,Acrylic / PMMA,1.19,1.17,1.21,0.043,matweb_manual,0.85,TRUE,Optical
+pl_pom,Plastic,POM / Acetal,1.41,1.39,1.43,0.051,matweb_manual,0.95,TRUE,Low friction
+pl_pa6,Plastic,Nylon PA6,1.14,1.12,1.16,0.041,matweb_manual,0.90,TRUE,Polyamide 6
+pl_pa66,Plastic,Nylon PA66,1.14,1.12,1.16,0.041,matweb_manual,0.90,TRUE,Polyamide 66
+pl_pp,Plastic,Polypropylene,0.91,0.89,0.93,0.033,matweb_manual,0.85,TRUE,Chemical resistant
+pl_hdpe,Plastic,HDPE,0.95,0.93,0.97,0.034,matweb_manual,0.85,TRUE,Tough moisture resistant
+pl_pvc,Plastic,PVC,1.40,1.38,1.42,0.051,matweb_manual,0.80,TRUE,Rigid
+pl_ptfe,Plastic,PTFE / Teflon,2.20,2.15,2.25,0.079,matweb_manual,0.95,TRUE,Very low friction
+pl_peek,Plastic,PEEK,1.32,1.30,1.34,0.048,matweb_manual,0.95,TRUE,High performance
+pl_pei,Plastic,PEI / ULTEM,1.27,1.25,1.29,0.046,matweb_manual,0.90,TRUE,High strength FR
+pl_pps,Plastic,PPS / Ryton,1.35,1.33,1.37,0.049,matweb_manual,0.85,TRUE,Chemical/heat resistant
+pl_pi,Plastic,Polyimide / Vespel,1.43,1.40,1.46,0.052,matweb_manual,0.80,TRUE,Premium high-temp
+pl_fr4,Plastic,FR4 / G10,1.85,1.80,1.90,0.067,matweb_manual,0.80,TRUE,Glass-epoxy laminate

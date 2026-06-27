@@ -332,11 +332,49 @@ document.addEventListener("DOMContentLoaded", () => {
     async function hydratePresets() {
         try {
             const data = await window.DaiyujinAPI.request("/api/public/tolerance/presets");
-            if (!Array.isArray(data.presets)) return;
+            const presets = data.presets;
+            if (!presets) return;
+
             const datalist = document.querySelector("#fit-presets");
-            if (datalist) datalist.innerHTML = data.presets.map(p => `<option value="${esc(p)}"></option>`).join("");
-            if (presetSelect) {
-                presetSelect.innerHTML = data.presets.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join("");
+            const allCodes = [];
+
+            // Support both old flat array and new grouped format
+            if (Array.isArray(presets)) {
+                allCodes.push(...presets);
+                if (datalist) datalist.innerHTML = presets.map(p => `<option value="${esc(p)}"></option>`).join("");
+                if (presetSelect) {
+                    presetSelect.innerHTML = presets.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join("");
+                }
+            } else {
+                // Grouped: { clearance: [...], transition: [...], interference: [...] }
+                if (datalist) {
+                    datalist.innerHTML = '';
+                    for (const [group, items] of Object.entries(presets)) {
+                        for (const item of items) {
+                            const code = typeof item === 'string' ? item : item.code;
+                            datalist.innerHTML += `<option value="${esc(code)}">${esc(code)}</option>`;
+                            allCodes.push(code);
+                        }
+                    }
+                }
+                if (presetSelect) {
+                    presetSelect.innerHTML = '';
+                    for (const [group, items] of Object.entries(presets)) {
+                        const groupLabel = { clearance: 'Clearance', transition: 'Transition', interference: 'Interference' }[group] || group;
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = groupLabel;
+                        for (const item of items) {
+                            const code = typeof item === 'string' ? item : item.code;
+                            const label = typeof item === 'string' ? code : `${code} — ${item.label}`;
+                            const option = document.createElement('option');
+                            option.value = code;
+                            option.textContent = label;
+                            if (item.preferred !== false) optgroup.appendChild(option);
+                            else { /* keep non-preferred in datalist but not select */ }
+                        }
+                        if (optgroup.children.length > 0) presetSelect.appendChild(optgroup);
+                    }
+                }
             }
         } catch (e) { /* silently fail */ }
     }

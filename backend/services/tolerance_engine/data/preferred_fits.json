@@ -1,7 +1,69 @@
 {
   "hole_basis": {
-    "clearance":    ["H7/g6", "H7/h6", "H8/f7", "H8/h7", "H9/e8"],
-    "transition":   ["H6/k5", "H7/js6", "H7/k6", "H7/n6"],
-    "interference": ["H7/p6", "H7/r6", "H7/s6"]
-  }
+    "clearance": [
+      {"code": "H11/b11", "label": "Loose running", "preferred": true, "level": "very_loose"},
+      {"code": "H11/c11", "label": "Loose running", "preferred": true, "level": "loose"},
+      {"code": "H9/d8",  "label": "Free running", "preferred": false, "level": "free"},
+      {"code": "H10/d9", "label": "Free running", "preferred": true, "level": "free"},
+      {"code": "H9/e8",  "label": "Easy running", "preferred": true, "level": "easy"},
+      {"code": "H8/e8",  "label": "Easy running", "preferred": true, "level": "easy"},
+      {"code": "H7/f6",  "label": "Close running", "preferred": false, "level": "close"},
+      {"code": "H8/f7",  "label": "Close running", "preferred": true, "level": "close"},
+      {"code": "H7/g6",  "label": "Sliding", "preferred": true, "level": "sliding"},
+      {"code": "H10/h9", "label": "Locational clearance", "preferred": true, "level": "locational"},
+      {"code": "H7/h6",  "label": "Locational clearance", "preferred": true, "level": "locational"},
+      {"code": "H8/h7",  "label": "Locational clearance", "preferred": true, "level": "locational"}
+    ],
+    "transition": [
+      {"code": "H6/js5", "label": "Light transition", "preferred": false, "level": "light"},
+      {"code": "H7/js6", "label": "Light transition", "preferred": true, "level": "light"},
+      {"code": "H8/k7",  "label": "Medium transition", "preferred": false, "level": "medium"},
+      {"code": "H6/k5",  "label": "Medium transition", "preferred": false, "level": "medium"},
+      {"code": "H7/k6",  "label": "Medium transition", "preferred": true, "level": "medium"},
+      {"code": "H7/m6",  "label": "Tight transition", "preferred": false, "level": "tight"},
+      {"code": "H8/m7",  "label": "Tight transition", "preferred": false, "level": "tight"},
+      {"code": "H7/n6",  "label": "Tight transition", "preferred": true, "level": "tight"}
+    ],
+    "interference": [
+      {"code": "H6/n5", "label": "Light press", "preferred": false, "level": "light_press"},
+      {"code": "H7/p6", "label": "Light press", "preferred": true, "level": "light_press"},
+      {"code": "H6/p5", "label": "Light press", "preferred": false, "level": "light_press"},
+      {"code": "H7/r6", "label": "Medium press", "preferred": true, "level": "medium_press"},
+      {"code": "H7/s6", "label": "Medium drive", "preferred": true, "level": "medium_drive"},
+      {"code": "H8/s7", "label": "Medium drive", "preferred": false, "level": "medium_drive"},
+      {"code": "H7/t6", "label": "Heavy press", "preferred": false, "level": "heavy_press"},
+      {"code": "H7/u6", "label": "Force fit", "preferred": false, "level": "force"},
+      {"code": "H8/u7", "label": "Force fit", "preferred": false, "level": "force"},
+      {"code": "H7/x6", "label": "Heavy force fit", "preferred": false, "level": "heavy_force"}
+    ]
+  },
+  "shaft_basis": {
+    "clearance": [
+      {"code": "B11/h9", "label": "Loose running", "preferred": true, "level": "loose"},
+      {"code": "D10/h9", "label": "Free running", "preferred": true, "level": "free"},
+      {"code": "E9/h8",  "label": "Easy running", "preferred": true, "level": "easy"},
+      {"code": "E9/h9",  "label": "Easy running", "preferred": true, "level": "easy"},
+      {"code": "F8/h7",  "label": "Close running", "preferred": true, "level": "close"},
+      {"code": "F8/h9",  "label": "Close running", "preferred": true, "level": "close"},
+      {"code": "G7/h6",  "label": "Sliding", "preferred": true, "level": "sliding"},
+      {"code": "H8/h9",  "label": "Locational clearance", "preferred": true, "level": "locational"},
+      {"code": "H9/h9",  "label": "Locational clearance", "preferred": true, "level": "locational"},
+      {"code": "H8/h7",  "label": "Locational clearance", "preferred": true, "level": "locational"},
+      {"code": "H7/h6",  "label": "Locational clearance", "preferred": true, "level": "locational"}
+    ],
+    "transition": [
+      {"code": "JS7/h6", "label": "Light transition", "preferred": true, "level": "light"},
+      {"code": "K7/h6",  "label": "Medium transition", "preferred": true, "level": "medium"},
+      {"code": "N7/h6",  "label": "Tight transition", "preferred": true, "level": "tight"}
+    ],
+    "interference": [
+      {"code": "P7/h6", "label": "Light press", "preferred": true, "level": "light_press"},
+      {"code": "R7/h6", "label": "Medium press", "preferred": true, "level": "medium_press"},
+      {"code": "S7/h6", "label": "Medium drive", "preferred": true, "level": "medium_drive"},
+      {"code": "T7/h6", "label": "Heavy press", "preferred": false, "level": "heavy_press"},
+      {"code": "U7/h6", "label": "Force fit", "preferred": false, "level": "force"},
+      {"code": "X7/h6", "label": "Heavy force fit", "preferred": false, "level": "heavy_force"}
+    ]
+  },
+  "legacy": ["H7/g6", "H7/h6", "H8/f7", "H8/h7", "H9/e8", "H7/js6", "H7/k6", "H7/n6", "H7/p6", "H7/r6", "H7/s6"]
 }
