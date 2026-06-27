@@ -11,6 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const uploadLabel = document.querySelector("[data-upload-label]");
     const fileInput = form ? form.querySelector('input[type="file"]') : null;
     if (!form || !result || !fileInput) return;
+    const quoteScript = document.querySelector('script[src$="quote.js"]');
+    const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
+        || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
 
     const state = {
         fileKey: "",
@@ -187,7 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="metric-row"><span>Volume</span><strong>${formatNumber(analysis.volume_mm3)} mm&sup3;</strong></div>
         </section>`;
     }
-    }
 
     function estimateCard() {
         if (!state.estimate) {
@@ -303,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (stage3d) stage3d.hidden = true;
                 if (pngEl) pngEl.hidden = false;
                 if (viewerLoaded && !viewerPaused) {
-                    const mod = await import('./quote-3d-viewer.js');
+                    const mod = await import(viewerModuleUrl);
                     mod.pause();
                     viewerPaused = true;
                 }
@@ -313,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!viewerLoaded) {
                     if (stage3d) {
                         try {
-                            const mod = await import('./quote-3d-viewer.js');
+                            const mod = await import(viewerModuleUrl);
                             stage3d.innerHTML = '';
                             await mod.mount(stage3d, {
                                 apiBase: window.DaiyujinAPI.config.baseUrl || 'http://127.0.0.1:5000',
@@ -328,7 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                 } else if (viewerPaused) {
-                    const mod = await import('./quote-3d-viewer.js');
+                    const mod = await import(viewerModuleUrl);
                     mod.resume(stage3d);
                     viewerPaused = false;
                 }
