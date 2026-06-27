@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, scoped_session, sessionmaker
 
 
@@ -34,6 +34,27 @@ def init_db() -> None:
     import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _ensure_sqlite_schema()
+
+
+def _ensure_sqlite_schema() -> None:
+    """Apply small additive SQLite migrations for existing local databases."""
+    if not get_database_url().startswith("sqlite"):
+        return
+
+    inspector = inspect(engine)
+    if "inquiries" not in inspector.get_table_names():
+        return
+
+    columns = {col["name"] for col in inspector.get_columns("inquiries")}
+    statements: list[str] = []
+    if "customer_name" not in columns:
+        statements.append("ALTER TABLE inquiries ADD COLUMN customer_name VARCHAR(120)")
+
+    if statements:
+        with engine.begin() as conn:
+            for stmt in statements:
+                conn.execute(text(stmt))
 
 
 def shutdown_session(exception=None) -> None:

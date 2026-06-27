@@ -47,6 +47,8 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
             total_usd=None,
             total_display=payload.get("currency", "USD"),
             currency=payload.get("currency", "USD"),
+            customer_name=(payload.get("customer_name") or "").strip() or None,
+            customer_email=(payload.get("customer_email") or "").strip() or None,
             stp_filename=payload.get("stp_filename"),
             input_params=json.dumps(payload, ensure_ascii=False),
             result=json.dumps({}, ensure_ascii=False),
@@ -67,27 +69,37 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
 def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str) -> None:
     session = SessionLocal()
     try:
-        total = result.get("total", {})
+        total = result.get("total_estimate") or result.get("total", {})
+        currency = total.get("currency") or result.get("currency") or payload.get("currency", "")
+        contact_name = (result.get("customer_name") or payload.get("customer_name") or "").strip()
+        contact_email = (result.get("customer_email") or payload.get("customer_email") or "").strip()
+        obb_lwh = result.get("part", {}).get("obb_lwh_mm") or [0]
         inquiry = Inquiry(
             type="quote",
             material_name=payload.get("material_id", ""),
             volume_mm3=payload.get("volume_mm3"),
             weight_kg=result.get("part", {}).get("stock_weight_kg"),
-            max_dim_mm=max(result.get("part", {}).get("obb_lwh_mm", [0])),
+            max_dim_mm=max(obb_lwh),
             tolerance_grade=payload.get("tolerance_grade", "GENERAL"),
             quantity=payload.get("quantity"),
-            total_usd=total.get("amount") if total.get("currency") == "USD" else None,
+            total_usd=total.get("amount") if currency == "USD" else None,
             total_display=total.get("display", ""),
-            currency=total.get("currency", ""),
-            customer_email=result.get("customer_email") or payload.get("customer_email"),
+            currency=currency,
+            customer_name=contact_name or None,
+            customer_email=contact_email or None,
             stp_filename=payload.get("stp_filename"),
             stp_file_path=None,
             client_ip=client_ip,
             user_agent=user_agent,
             input_params=json.dumps({
-                "model_version": "v2.1_additive",
+                "model_version": result.get("pricing_model_version", "v2.2_estimate"),
+                "contact": {
+                    "customer_name": contact_name or None,
+                    "customer_email": contact_email or None,
+                },
                 "selections": result.get("selections"),
-                "formula": result.get("formula"),
+                "unit_estimate": result.get("unit_estimate"),
+                "total_estimate": result.get("total_estimate"),
             }, ensure_ascii=False),
             result=json.dumps(result, ensure_ascii=False),
         )

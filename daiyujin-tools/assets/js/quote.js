@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ${warningMsgs}
             <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
             <div class="tool-note" style="margin-top:0.25rem;">${escapeHtml(e.review_note || "For an exact quote, contact our engineers.")}</div>
-            <a class="tool-button" href="mailto:?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
+            <a class="tool-button" href="mailto:great@mfg-solution.com?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
 
