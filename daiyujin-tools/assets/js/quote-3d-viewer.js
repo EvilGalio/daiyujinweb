@@ -18,7 +18,7 @@ const DEFAULT_OPTIONS = { apiBase: 'http://127.0.0.1:5000', fileId: '', partName
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 async function loadThree() {
-  const [{ default: THREE }, { OrbitControls }, { STLLoader }, { RoomEnvironment }] = await Promise.all([
+  const [THREE, { OrbitControls }, { STLLoader }, { RoomEnvironment }] = await Promise.all([
     import('three'),
     import('three/addons/controls/OrbitControls.js'),
     import('three/addons/loaders/STLLoader.js'),

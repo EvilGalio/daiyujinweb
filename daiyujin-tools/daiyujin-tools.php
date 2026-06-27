@@ -83,7 +83,7 @@ function dyj_quote_tool_shortcode() {
     );
     wp_add_inline_script(
         'dyj-tools-quote',
-        'window.DAIYUJIN_QUOTE_3D_MODULE_URL = ' . wp_json_encode(DYJ_TOOLS_URL . 'assets/js/quote-3d-viewer.js') . ';',
+        'window.DAIYUJIN_QUOTE_3D_MODULE_URL = ' . wp_json_encode(DYJ_TOOLS_URL . 'assets/js/quote-3d-viewer.js?ver=' . DYJ_TOOLS_VERSION) . ';',
         'before'
     );
     return dyj_tools_render_template('quote');
