@@ -55,14 +55,14 @@ def _apply_preview_watermark(png_path: Path) -> bool:
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
         # Tile diagonal pattern across entire image
+        margin = int(max(w, h) * 0.7)
         spacing = max(tw * 3, th * 3)
-        for x in range(-int(h), int(w + h), spacing):
-            for y in range(-int(h), int(h * 1.5), spacing):
+        for x in range(-margin, w + margin, spacing):
+            for y in range(-margin, h + margin, spacing):
                 draw.text((x, y), text, font=font, fill=(255, 255, 255, 32))
 
-        # Rotate overlay 45° then composite
-        overlay = overlay.rotate(45, expand=False, resample=Image.BILINEAR)
-        # Crop back to original size (rotation expands canvas)
+        # Rotate overlay 45°, expand to keep all content, then crop back
+        overlay = overlay.rotate(45, expand=True, resample=Image.BILINEAR)
         ow, oh = overlay.size
         left = (ow - w) // 2
         top = (oh - h) // 2
