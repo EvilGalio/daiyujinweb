@@ -123,26 +123,37 @@ document.addEventListener("DOMContentLoaded", () => {
             ? materials.filter(m => m.label.toLowerCase().includes(state.materialSearch.toLowerCase()))
             : materials;
 
+        const selectedMat = cats.flatMap(c => c.materials || []).find(m => m.id === state.selectedMaterialId);
+        const selectedCat = cats.find(c => c.id === state.selectedMaterialCategory);
+        const selectedSummary = selectedMat
+            ? `Selected: ${selectedCat ? selectedCat.label : ''} &middot; ${selectedMat.label}`
+            : 'Select a material grade';
+
         materialPicker.innerHTML = `
             <div class="quote-material-categories">
                 ${cats.map(c => `
                     <button type="button" class="quote-material-cat-btn${c.id === state.selectedMaterialCategory ? ' active' : ''}"
-                        data-cat-id="${escapeHtml(c.id)}">${escapeHtml(c.label)}</button>
+                        data-cat-id="${escapeHtml(c.id)}"
+                        aria-pressed="${c.id === state.selectedMaterialCategory ? 'true' : 'false'}">${escapeHtml(c.label)}</button>
                 `).join("")}
             </div>
             <div class="quote-material-grades">
                 <input type="text" class="quote-material-search" placeholder="Search grade..."
                     value="${escapeHtml(state.materialSearch)}" data-material-search>
-                <div class="quote-material-grade-list">
+                <div class="quote-material-grade-list" role="listbox" aria-label="Material grade">
                     ${filtered.map(m => `
-                        <button type="button" class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
+                        <button type="button" role="option" aria-selected="${m.id === state.selectedMaterialId ? 'true' : 'false'}"
+                            class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
                             data-mat-id="${escapeHtml(m.id)}">
                             <span class="quote-material-grade-label">${escapeHtml(m.label)}</span>
                             ${m.subtitle ? `<span class="quote-material-grade-sub">${escapeHtml(m.subtitle)}</span>` : ''}
                             ${(m.badges || []).map(b => `<span class="quote-material-badge">${escapeHtml(b)}</span>`).join('')}
                             ${m.review_recommended ? '<span class="quote-material-badge review">Review</span>' : ''}
                         </button>
-                    `).join("")}
+                    `).join("") || '<div class="quote-material-empty">No matching grade. Try another keyword.</div>'}
+                </div>
+                <div class="quote-material-selected" data-selected-material>
+                    ${escapeHtml(selectedSummary)}
                 </div>
             </div>`;
 
@@ -152,7 +163,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 state.selectedMaterialCategory = btn.dataset.catId;
                 state.materialSearch = "";
                 const cat = cats.find(c => c.id === state.selectedMaterialCategory);
-                state.selectedMaterialId = cat?.default_material_id || cat?.materials?.[0]?.id || "";
+                const inCat = (cat?.materials || []).find(m => m.id === state.selectedMaterialId);
+                state.selectedMaterialId = inCat ? state.selectedMaterialId : (cat?.default_material_id || cat?.materials?.[0]?.id || "");
                 renderMaterialPicker();
             });
         });

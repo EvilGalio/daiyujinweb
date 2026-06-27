@@ -22,9 +22,9 @@ DIFFICULTY_FACTOR = 1.0
 # ── Tolerance factors ───────────────────────────
 
 _TOLERANCE_FACTORS: dict[str, tuple[str, float]] = {
-    "ISO2768-C": ("ISO 2768-c (Coarse)", 1.00),
-    "ISO2768-M": ("ISO 2768-m (Medium)", 1.05),
-    "ISO2768-F": ("ISO 2768-f (Fine)",   1.20),
+    "ISO2768-C": ("ISO 2768-c", 1.00),
+    "ISO2768-M": ("ISO 2768-m", 1.05),
+    "ISO2768-F": ("ISO 2768-f", 1.20),
 }
 _DEFAULT_TOLERANCE = "ISO2768-M"
 

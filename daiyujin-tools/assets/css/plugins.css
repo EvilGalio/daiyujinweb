@@ -940,6 +940,9 @@ body.tool-page {
 
 /* ── Quote specific ─────────────────────────── */
 
+.field-optional { color: var(--muted); font-weight: 500; font-size: .78em; }
+.field-hint { display: block; margin-top: .35rem; color: var(--muted); font-size: .74rem; line-height: 1.45; }
+
 /* ── Two-level material picker ──────────────── */
 .quote-material-layout {
     display: grid;
@@ -1020,9 +1023,33 @@ body.tool-page {
     color: var(--muted);
 }
 .quote-material-badge.review { background: #fef3c7; color: #92400e; }
-@media (max-width: 480px) {
+
+.quote-material-layout {
+    --quote-selected-bg: #eef6ff;
+    --quote-selected-border: #0066cc;
+    --quote-selected-ink: #083b73;
+    --quote-selected-soft: rgba(0, 102, 204, .10);
+    --quote-focus-ring: rgba(0, 102, 204, .22);
+}
+.quote-material-cat-btn { position: relative; border: 1px solid transparent; font-weight: 500; transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; }
+.quote-material-cat-btn:hover { background: rgba(0,0,0,.035); }
+.quote-material-cat-btn.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.34); color: var(--quote-selected-ink); font-weight: 700; box-shadow: inset 3px 0 0 var(--quote-selected-border); }
+.quote-material-cat-btn:focus-visible,
+.quote-material-grade-option:focus-visible { outline: 3px solid var(--quote-focus-ring); outline-offset: 2px; }
+.quote-material-grade-option { position: relative; border: 1px solid transparent; padding-right: 2.35rem; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.quote-material-grade-option:hover { background: rgba(0,0,0,.025); }
+.quote-material-grade-option.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.42); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 3px var(--quote-selected-soft); }
+.quote-material-grade-option.active .quote-material-grade-label { color: var(--quote-selected-ink); font-weight: 700; }
+.quote-material-grade-option.active::after { content: "\2713"; position: absolute; right: .85rem; top: 50%; width: 1.25rem; height: 1.25rem; transform: translateY(-50%); border-radius: 999px; background: var(--quote-selected-border); color: #fff; display: grid; place-items: center; font-size: .82rem; font-weight: 800; line-height: 1; }
+
+.quote-material-selected { margin-top: .75rem; padding: .65rem .8rem; border: 1px solid rgba(0,102,204,.18); background: rgba(0,102,204,.055); color: var(--quote-selected-ink); border-radius: 8px; font-size: .78rem; font-weight: 650; }
+.quote-material-empty { padding: .85rem; color: var(--muted); font-size: .78rem; border: 1px dashed rgba(0,0,0,.12); border-radius: 8px; background: rgba(0,0,0,.015); }
+
+@media (max-width: 640px) {
     .quote-material-layout { grid-template-columns: 1fr; }
     .quote-material-categories { flex-direction: row; flex-wrap: wrap; max-height: none; }
+    .quote-material-cat-btn { min-height: 40px; }
+    .quote-material-grade-option { min-height: 48px; }
 }
 
 /* Preview panel with PNG/3D tabs */
