@@ -23,7 +23,7 @@ const DEFAULT_OPTIONS = {
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 async function loadThree() {
-  const [{ default: THREE }, { OrbitControls }, { STLLoader }] = await Promise.all([
+  const [THREE, { OrbitControls }, { STLLoader }] = await Promise.all([
     import('three'),
     import('three/addons/controls/OrbitControls.js'),
     import('three/addons/loaders/STLLoader.js'),

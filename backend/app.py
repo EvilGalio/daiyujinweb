@@ -205,7 +205,6 @@ def create_app() -> Flask:
     @app.get("/api/public/quote/model/<file_id>")
     def quote_model_stl(file_id):
         """Export uploaded STEP as binary STL for 3D preview."""
-        import tempfile
         # Sanitize file_id
         safe_id = Path(file_id).name
         for ext in (".stp", ".step"):
@@ -228,7 +227,16 @@ def create_app() -> Flask:
                 cwd=BACKEND_ROOT, capture_output=True, text=True, timeout=60,
             )
             if completed.returncode != 0 or not stl_path.exists():
-                return api_error("stl_failed", "STL export failed", 500)
+                app.logger.error(
+                    "STL export failed for %s: returncode=%s stdout=%s stderr=%s",
+                    safe_id,
+                    completed.returncode,
+                    (completed.stdout or "").strip()[:1000],
+                    (completed.stderr or "").strip()[:1000],
+                )
+                if stl_path.exists() and stl_path.stat().st_size == 0:
+                    stl_path.unlink(missing_ok=True)
+                return api_error("stl_failed", "3D preview generation failed. Static preview remains available.", 500)
 
         from flask import send_file
         return send_file(stl_path, mimetype="model/stl", as_attachment=False,
