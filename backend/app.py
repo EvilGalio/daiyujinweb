@@ -26,7 +26,7 @@ THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
 # ── Preview watermark ──────────────────────────
 
 def _apply_preview_watermark(png_path: Path) -> bool:
-    """Add semi-transparent watermark to STEP preview image. Returns True on success."""
+    """Add tiled diagonal watermark to STEP preview image."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:
@@ -44,8 +44,8 @@ def _apply_preview_watermark(png_path: Path) -> bool:
 
         text = "GCNOV CO., LIMITED"
 
-        # Scale font to ~3% of image width
-        font_size = max(int(w * 0.03), 18)
+        # Scale font to ~2.5% of image width
+        font_size = max(int(w * 0.025), 16)
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
         except (OSError, IOError):
@@ -54,13 +54,19 @@ def _apply_preview_watermark(png_path: Path) -> bool:
         bbox = draw.textbbox((0, 0), text, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
-        # Bottom-right with padding
-        pad = max(int(w * 0.02), 20)
-        x = w - tw - pad
-        y = h - th - pad
+        # Tile diagonal pattern across entire image
+        spacing = max(tw * 3, th * 3)
+        for x in range(-int(h), int(w + h), spacing):
+            for y in range(-int(h), int(h * 1.5), spacing):
+                draw.text((x, y), text, font=font, fill=(255, 255, 255, 32))
 
-        # Semi-transparent white text @ 14% opacity
-        draw.text((x, y), text, font=font, fill=(255, 255, 255, 36))
+        # Rotate overlay 45° then composite
+        overlay = overlay.rotate(45, expand=False, resample=Image.BILINEAR)
+        # Crop back to original size (rotation expands canvas)
+        ow, oh = overlay.size
+        left = (ow - w) // 2
+        top = (oh - h) // 2
+        overlay = overlay.crop((left, top, left + w, top + h))
 
         img = Image.alpha_composite(img, overlay)
         img = img.convert("RGB")
@@ -242,6 +248,38 @@ def create_app() -> Flask:
                 _apply_preview_watermark(thumb_path)
         analysis["file_id"] = file_id
         return api_ok(analysis)
+
+    @app.get("/api/public/quote/model/<file_id>")
+    def quote_model_stl(file_id):
+        """Export uploaded STEP as binary STL for 3D preview."""
+        import tempfile
+        # Sanitize file_id
+        safe_id = Path(file_id).name
+        for ext in (".stp", ".step"):
+            src = UPLOAD_DIR / f"{safe_id}{ext}"
+            if src.exists():
+                break
+        else:
+            return api_error("not_found", "STEP file not found", 404)
+
+        stl_dir = BACKEND_ROOT / "static" / "stl"
+        stl_dir.mkdir(parents=True, exist_ok=True)
+        stl_path = stl_dir / f"{safe_id}.stl"
+
+        if not stl_path.exists():
+            occ_py = _occ_python_path()
+            if not occ_py or not occ_py.exists():
+                return api_error("occ_missing", "OCC Python not found", 500)
+            completed = subprocess.run(
+                [str(occ_py), "-m", "scripts.export_stl_cli", str(src), str(stl_path)],
+                cwd=BACKEND_ROOT, capture_output=True, text=True, timeout=60,
+            )
+            if completed.returncode != 0 or not stl_path.exists():
+                return api_error("stl_failed", "STL export failed", 500)
+
+        from flask import send_file
+        return send_file(stl_path, mimetype="model/stl", as_attachment=False,
+            download_name=f"{safe_id}.stl")
 
     @app.get("/api/public/quote/options")
     def quote_options():
