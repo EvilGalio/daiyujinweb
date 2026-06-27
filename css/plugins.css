@@ -979,8 +979,11 @@ body.tool-page {
     aspect-ratio: 4 / 3;
     overflow: hidden;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: #eef0f3;
+    border: 1px solid rgba(148, 163, 184, .28);
+    background:
+        radial-gradient(circle at 38% 18%, rgba(255,255,255,.92), transparent 34%),
+        linear-gradient(145deg, #f9fafb 0%, #eef1f5 48%, #e4e8ee 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
 }
 .quote-preview-stage .quote-thumb,
 .quote-3d-stage,
@@ -1010,12 +1013,20 @@ body.tool-page {
     padding: 1rem;
 }
 .quote-3d-toolbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 3;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding: 0.25rem 0;
+    padding: 6px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.68);
+    border: 1px solid rgba(255,255,255,.7);
+    backdrop-filter: blur(18px) saturate(1.25);
+    box-shadow: 0 12px 28px rgba(15,23,42,.08);
 }
 .quote-3d-part-name {
     font-size: 0.72rem;
@@ -1029,19 +1040,24 @@ body.tool-page {
     gap: 2px;
 }
 .quote-3d-views button {
-    border: 1px solid var(--line);
-    background: var(--surface);
+    border: 1px solid transparent;
+    background: transparent;
     font-size: 0.7rem;
     font-weight: 500;
     padding: 3px 8px;
-    color: var(--ink);
+    color: var(--muted);
     cursor: pointer;
     font-family: inherit;
-    border-radius: 4px;
-    transition: background .15s;
+    border-radius: 6px;
+    transition: background .15s, color .15s, box-shadow .15s;
 }
-.quote-3d-views button:hover { background: rgba(0,0,0,.04); }
-.quote-3d-views button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.quote-3d-views button:hover { background: rgba(0,0,0,.04); color: var(--ink); }
+.quote-3d-views button.active {
+    background: rgba(255,255,255,.95);
+    color: #111827;
+    box-shadow: 0 1px 4px rgba(15,23,42,.12);
+    border-color: rgba(148,163,184,.18);
+}
 
 .quote-privacy-note {
     font-size: 0.74rem;
