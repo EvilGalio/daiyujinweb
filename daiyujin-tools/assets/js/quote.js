@@ -192,9 +192,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!batchParts || !partList) return;
         if (batchCount) batchCount.textContent = `${state.parts.length} file(s)`;
 
-        partList.innerHTML = state.parts.length > 1
-            ? state.parts.map(p => {
-            const statusLabel = { pending: "Pending", analyzing: "Analyzing...", ready: "Ready", needs_recalculate: "Needs recalculation", calculating: "Calculating...", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
+        if (state.parts.length <= 1) {
+            partList.innerHTML = "";
+            return;
+        }
+
+        partList.innerHTML = state.parts.map(p => {
+            const statusLabel = { pending: "Pending", analyzing: "Analyzing", ready: "Ready", needs_recalculate: "Needs Update", calculating: "Estimating", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
             const statusClass = { estimated: "green", ready: "neutral", analyzing: "blue", calculating: "blue", failed: "red", needs_recalculate: "amber" }[p.status] || "";
             const total = p.estimate && p.status === "estimated" ? (p.estimate.total_estimate || {}).display || "" : "";
             return `<button type="button" class="quote-part-row${p.id === state.activePartId ? ' active' : ''}" data-part-id="${esc(p.id)}">
@@ -210,7 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function setActivePart
+    function setActivePart(partId) {
         if (state.activePartId === partId) return;
         // Save current form to old active part
         const old = getActivePart();
@@ -398,11 +402,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const warnings = (e.warnings||[]).map(w=>`<div class="tool-note warn">${esc(w)}</div>`).join("");
 
         const mailSubject = encodeURIComponent(`Formal Quote Request - ${part.fileName}`);
-        let mailBody = `Hello Daiyujin Engineering Team,%0D%0A%0D%0AI would like to request a formal quote.%0D%0A%0D%0APart: ${part.fileName}%0D%0AMaterial: ${sel.material_category||'—'}${sel.material?' / '+sel.material:''}%0D%0AProcess: ${sel.process||'—'}%0D%0APostprocess: ${sel.postprocess_group||'—'}%0D%0ATolerance: ${sel.tolerance_grade||'—'}%0D%0AQuantity: ${sel.quantity||0} pcs%0D%0AReference Estimate: ${totalEst.display||'—'}%0D%0AUnit Estimate: ${unitEst.display||'—'}%0D%0A%0D%0APlease review the exact material grade, tolerance, surface finish, lead time, and manufacturability.%0D%0A%0D%0AThank you.`;
+        const mailBody = encodeURIComponent([
+            "Hello Daiyujin Engineering Team,",
+            "",
+            "I would like to request a formal quote.",
+            "",
+            `Part: ${part.fileName}`,
+            `Material: ${sel.material_category || "-"}${sel.material ? " / " + sel.material : ""}`,
+            `Process: ${sel.process || "-"}`,
+            `Postprocess: ${sel.postprocess_group || "-"}`,
+            `Tolerance: ${sel.tolerance_grade || "-"}`,
+            `Quantity: ${sel.quantity || 0} pcs`,
+            `Reference Estimate: ${totalEst.display || "-"}`,
+            `Unit Estimate: ${unitEst.display || "-"}`,
+            "",
+            "Please review the exact material grade, tolerance, surface finish, lead time, and manufacturability.",
+            "",
+            "Thank you.",
+        ].join("\n"));
 
         return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
-            <div class="quote-total">${esc(totalEst.display||"—")}</div>
-            <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"—")}</strong></div>
+            <div class="quote-total">${esc(totalEst.display||"-")}</div>
+            <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"-")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
             <div class="metric-row"><span>Valid Until</span><strong>${esc(e.valid_until)}</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
@@ -437,25 +458,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (viewerPaused) { try { const m=await import(viewerModuleUrl); m.resume(stage3d); viewerPaused=false; } catch(e){} }
             }
         });});
-    }
-
-    /* ══════════════════════════════════════════════════
-       Progress
-       ══════════════════════════════════════════════════ */
-    function startProgress(fileName) {
-        const phases = ["Manufacturing review", "Cost assessment", "Generating estimate"];
-        let pct = 0, timer = null, stopped = false;
-        function tick() { if (stopped) return; pct += pct < 60 ? 15 + Math.random()*12 : 3 + Math.random()*5; pct = Math.min(pct, 95); renderProgress(pct, `Calculating ${fileName || 'part'}…`); timer = setTimeout(tick, 500 + Math.random()*600); }
-        renderProgress(0, `Calculating ${fileName || 'part'}…`);
-        timer = setTimeout(tick, 300);
-        return function finish(success) { stopped = true; clearTimeout(timer); if (success) renderProgress(100, "Complete", true); };
-    }
-
-    function renderProgress(pct, text, done) {
-        const bar = result.querySelector('.quote-progress-fill');
-        const phase = result.querySelector('.quote-progress-phase');
-        if (bar) bar.style.width = pct + '%';
-        if (phase) phase.textContent = text;
     }
 
     function renderError(msg) {

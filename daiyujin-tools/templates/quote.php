@@ -57,13 +57,6 @@
                         for a fast formal review.
                     </p>
 
-                    <section class="quote-batch-parts" data-batch-parts hidden>
-                        <div class="quote-batch-head">
-                            <h3>Parts</h3>
-                            <span data-batch-count>0 files</span>
-                        </div>
-                        <div class="quote-part-list" data-part-list></div>
-                    </section>
 
                     <section class="quote-form-section quote-form-section-contact" aria-labelledby="quote-contact-title">
                         <h3 id="quote-contact-title">Contact Details <span class="field-optional">(optional)</span></h3>
