@@ -995,7 +995,7 @@ body.tool-page {
     display: grid;
     gap: 1.5rem;
     align-items: start;
-    grid-template-columns: minmax(420px, 540px) minmax(520px, 1fr);
+    grid-template-columns: minmax(450px, 1fr) minmax(400px, 560px);
 }
 .quote-parts-rail {
     position: static;
@@ -1037,16 +1037,16 @@ body.tool-page {
 
 @media (min-width: 1180px) {
     .quote-workspace.is-batch {
-        grid-template-columns: minmax(240px, 300px) minmax(420px, 520px) minmax(520px, 1fr);
+        grid-template-columns: minmax(230px, 280px) minmax(420px, 1fr) minmax(380px, 520px);
     }
     .quote-workspace.is-batch .quote-parts-rail { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: hidden; }
     .quote-workspace.is-batch .quote-part-list { max-height: calc(100vh - 10rem); overflow-y: auto; }
-    .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: minmax(420px, 540px) minmax(520px, 1fr); }
+    .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: minmax(450px, 1fr) minmax(400px, 560px); }
 }
 
 @media (min-width: 900px) and (max-width: 1179px) {
-    .quote-workspace { grid-template-columns: minmax(360px, 460px) minmax(420px, 1fr); }
-    .quote-workspace.is-batch { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+    .quote-workspace { grid-template-columns: minmax(380px, 1fr) minmax(360px, 480px); }
+    .quote-workspace.is-batch { grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); }
     .quote-workspace.is-batch .quote-config-panel,
     .quote-workspace.is-batch .quote-stack { grid-column: 2; }
 }
