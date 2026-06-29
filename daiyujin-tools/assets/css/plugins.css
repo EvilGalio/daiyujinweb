@@ -989,11 +989,13 @@ body.tool-page {
 .quote-action-row { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
 
 /* ── Batch parts rail (left column) ──────────── */
+.quote-shell { max-width: min(1680px, calc(100vw - 48px)); }
+
 .quote-workspace {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1.5rem;
     align-items: start;
+    grid-template-columns: minmax(420px, 540px) minmax(520px, 1fr);
 }
 .quote-parts-rail {
     position: static;
@@ -1034,25 +1036,32 @@ body.tool-page {
 .quote-eval-steps span { font-size: 0.68rem; color: var(--muted); }
 
 @media (min-width: 1180px) {
-    .quote-workspace {
-        grid-template-columns: minmax(220px, 280px) minmax(360px, 480px) minmax(380px, 1fr);
+    .quote-workspace.is-batch {
+        grid-template-columns: minmax(240px, 300px) minmax(420px, 520px) minmax(520px, 1fr);
     }
-    .quote-parts-rail {
-        position: sticky;
-        top: 1rem;
-        max-height: calc(100vh - 2rem);
-        overflow: hidden;
-    }
+    .quote-workspace.is-batch .quote-parts-rail { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: hidden; }
+    .quote-workspace.is-batch .quote-part-list { max-height: calc(100vh - 10rem); overflow-y: auto; }
+    .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: minmax(420px, 540px) minmax(520px, 1fr); }
 }
 
-@media (max-width: 760px) {
-    .quote-part-list {
-        flex-direction: row;
-        overflow-x: auto;
-        max-height: none;
-    }
-    .quote-part-row { min-width: 220px; }
+@media (min-width: 900px) and (max-width: 1179px) {
+    .quote-workspace { grid-template-columns: minmax(360px, 460px) minmax(420px, 1fr); }
+    .quote-workspace.is-batch { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+    .quote-workspace.is-batch .quote-config-panel,
+    .quote-workspace.is-batch .quote-stack { grid-column: 2; }
 }
+
+@media (max-width: 899px) {
+    .quote-shell { max-width: none; padding-inline: 1rem; }
+    .quote-workspace, .quote-workspace.is-batch, .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: 1fr; }
+    .quote-workspace.is-batch .quote-parts-rail { position: static; max-height: none; overflow: visible; }
+    .quote-workspace.is-batch .quote-part-list { flex-direction: row; gap: .5rem; overflow-x: auto; max-height: none; padding-bottom: .25rem; scroll-snap-type: x proximity; }
+    .quote-workspace.is-batch .quote-part-row { min-width: 220px; scroll-snap-align: start; }
+}
+
+.quote-workspace.is-batch .quote-parts-rail { animation: quote-rail-enter .24s ease-out both; }
+@keyframes quote-rail-enter { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .quote-workspace.is-batch .quote-parts-rail { animation: none; } }
 
 /* ── Two-level material picker ──────────────── */
 .quote-material-layout {

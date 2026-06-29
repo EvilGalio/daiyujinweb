@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const partList = document.querySelector("[data-part-list]");
     if (!form || !result || !fileInput) return;
 
+    const workspace = document.querySelector("[data-quote-workspace]") || document.querySelector(".quote-workspace");
     const quoteScript = document.querySelector('script[src$="quote.js"]');
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
@@ -146,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
             added++;
         });
         if (!state.activePartId && state.parts.length) state.activePartId = state.parts[0].id;
-        if (uploadLabel) uploadLabel.querySelector("span").textContent = `${state.parts.length} file(s) selected`;
+        if (uploadLabel) uploadLabel.querySelector("span").textContent = state.parts.length === 0 ? "Choose STEP files" : state.parts.length === 1 ? "1 STEP file selected" : `${state.parts.length} STEP files selected`;
         render();
         analyzePendingParts();
     }
@@ -173,14 +174,26 @@ document.addEventListener("DOMContentLoaded", () => {
         return { file_id: resp.file_id, ...resp.data };
     }
 
+    function updateWorkspaceMode() {
+        if (!workspace) return;
+        const count = state.parts.length;
+        workspace.classList.toggle("is-empty", count === 0);
+        workspace.classList.toggle("is-single", count === 1);
+        workspace.classList.toggle("is-batch", count > 1);
+        workspace.dataset.partCount = String(count);
+        if (batchParts) batchParts.hidden = count <= 1;
+    }
+
     /* ══════════════════════════════════════════════════
        Part list UI
        ══════════════════════════════════════════════════ */
     function renderPartList() {
+        updateWorkspaceMode();
         if (!batchParts || !partList) return;
-        batchParts.hidden = state.parts.length === 0;
         if (batchCount) batchCount.textContent = `${state.parts.length} file(s)`;
-        partList.innerHTML = state.parts.map(p => {
+
+        partList.innerHTML = state.parts.length > 1
+            ? state.parts.map(p => {
             const statusLabel = { pending: "Pending", analyzing: "Analyzing...", ready: "Ready", needs_recalculate: "Needs recalculation", calculating: "Calculating...", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
             const statusClass = { estimated: "green", ready: "neutral", analyzing: "blue", calculating: "blue", failed: "red", needs_recalculate: "amber" }[p.status] || "";
             const total = p.estimate && p.status === "estimated" ? (p.estimate.total_estimate || {}).display || "" : "";
@@ -197,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function setActivePart(partId) {
+    function setActivePart
         if (state.activePartId === partId) return;
         // Save current form to old active part
         const old = getActivePart();

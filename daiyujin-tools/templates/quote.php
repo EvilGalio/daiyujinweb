@@ -1,5 +1,5 @@
 <div class="dyj-tool-embed">
-    <div class="tool-shell">
+    <div class="tool-shell quote-shell">
         <main>
             <section class="tool-hero">
                 <div>
@@ -9,7 +9,7 @@
                 <div class="tool-status" data-api-status>checking</div>
             </section>
 
-            <section class="quote-workspace">
+            <section class="quote-workspace is-empty" data-quote-workspace>
                 <aside class="tool-panel quote-parts-rail" data-batch-parts hidden><div class="quote-batch-head"><h2>Parts</h2><span data-batch-count>0 files</span></div><div class="quote-part-list" data-part-list></div></aside>
 
                 <form class="tool-panel tool-form quote-config-panel" data-quote-form>
