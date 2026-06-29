@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!form || !result || !fileInput) return;
 
     const workspace = document.querySelector("[data-quote-workspace]") || document.querySelector(".quote-workspace");
+    const calculateButton = document.querySelector("[data-calculate-current]");
     const quoteScript = document.querySelector('script[src$="quote.js"]');
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
@@ -141,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const fk = makeFileKey(file);
             if (existing.has(fk)) { skipped++; return; }
             if (state.parts.length >= 20) return;
-            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "" };
+            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "", previewMode: "png", analysisPresentation: { startedAt: 0, progress: 0, phase: "Queued for STEP analysis" } };
             state.parts.push(part);
             existing.add(fk);
             added++;
@@ -156,16 +157,49 @@ document.addEventListener("DOMContentLoaded", () => {
         for (const part of state.parts) {
             if (part.uploadStatus !== "pending") continue;
             part.uploadStatus = "analyzing"; part.status = "analyzing";
-            renderPartList();
+            part.analysisPresentation = { startedAt: performance.now(), progress: 5, phase: ANALYSIS_PHASES[0] };
+            renderForPartUpdate(part);
             try {
                 part.analysis = await uploadStep(part.file);
                 part.uploadStatus = "ready"; part.status = "ready";
+                part.analysisPresentation.progress = 100;
+                part.analysisPresentation.phase = "Preview ready";
             } catch (e) {
                 part.uploadStatus = "failed"; part.status = "failed"; part.error = e.message;
+                part.analysisPresentation.phase = "STEP analysis failed";
             }
-            render();
+            renderForPartUpdate(part);
         }
     }
+
+    const ANALYSIS_PHASES = ["Uploading STEP file", "Reading geometry data", "Extracting bounding dimensions", "Generating static preview", "Preparing manufacturability inputs"];
+
+    function renderForPartUpdate(part, { force = false } = {}) {
+        if (!part) return;
+        if (force || part.id === state.activePartId) { render(); } else { renderPartList(); }
+    }
+
+    function tickAnalysisProgress() {
+        const part = getActivePart();
+        if (!part || part.uploadStatus !== "analyzing") return;
+        const elapsed = performance.now() - (part.analysisPresentation?.startedAt || 0);
+        const ratio = Math.min(elapsed / 8000, 0.92);
+        part.analysisPresentation.progress = Math.round(8 + ratio * 84);
+        part.analysisPresentation.phase = ANALYSIS_PHASES[Math.min(Math.floor(ratio * ANALYSIS_PHASES.length), ANALYSIS_PHASES.length - 1)];
+        updateVisibleAnalysisProgress(part);
+    }
+
+    function updateVisibleAnalysisProgress(part) {
+        if (!part || part.id !== state.activePartId) return;
+        const fill = document.querySelector(".quote-preview-analysis .quote-progress-fill");
+        const phase = document.querySelector(".quote-preview-analysis .quote-progress-phase");
+        const pct = document.querySelector(".quote-preview-analysis .quote-progress-pct");
+        if (fill) fill.style.width = `${part.analysisPresentation.progress}%`;
+        if (phase) phase.textContent = part.analysisPresentation.phase;
+        if (pct) pct.textContent = `${part.analysisPresentation.progress}%`;
+    }
+
+    setInterval(tickAnalysisProgress, 350);
 
     async function uploadStep(file) {
         const body = new FormData(); body.append("file", file);
@@ -345,22 +379,86 @@ document.addEventListener("DOMContentLoaded", () => {
         renderPartList();
         result.innerHTML = `${previewCard()}${estimateCard()}`;
         bindPreviewTabs();
+        updateCalculateButton();
+    }
+
+    function updateCalculateButton() {
+        if (!calculateButton) return;
+        const part = getActivePart();
+        const isCalculating = part?.estimateStatus === "calculating";
+        const isReady = part?.uploadStatus === "ready";
+        calculateButton.disabled = !part || !isReady || isCalculating;
+        if (!part) calculateButton.textContent = "Upload STEP First";
+        else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") calculateButton.textContent = "Analyzing STEP...";
+        else if (part.uploadStatus === "failed") calculateButton.textContent = "Analysis Failed";
+        else if (isCalculating) calculateButton.textContent = "Estimating...";
+        else calculateButton.textContent = "Calculate Current Part";
     }
 
     function previewCard() {
         const part = getActivePart();
-        if (!part || !part.analysis) {
+
+        if (!part) {
             return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note">Upload STEP files to begin.</div></section>`;
         }
+
+        if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") {
+            return previewAnalysisCard(part);
+        }
+
+        if (part.uploadStatus === "failed") {
+            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note error">STEP analysis failed: ${esc(part.error || "Unknown error")}</div></section>`;
+        }
+
+        if (!part.analysis) {
+            return previewAnalysisCard(part);
+        }
+
+        return previewReadyCard(part);
+    }
+
+    function previewAnalysisCard(part) {
+        const p = part.analysisPresentation || {};
+        const pct = Math.round(p.progress || 8);
+        const phase = p.phase || "Reading STEP geometry";
+        return `<section class="tool-panel quote-preview-panel quote-preview-analysis" aria-live="polite">
+            <div class="quote-preview-head"><h2>Part Preview</h2></div>
+            <div class="quote-analysis-card">
+                <div class="quote-analysis-title"><span>STEP analysis</span><strong>${esc(part.fileName || "Current part")}</strong></div>
+                <div class="quote-progress">
+                    <div class="quote-progress-bar"><div class="quote-progress-fill" style="width:${pct}%"></div></div>
+                    <div class="quote-progress-text"><span class="quote-progress-phase">${esc(phase)}</span><span class="quote-progress-pct">${pct}%</span></div>
+                </div>
+                <div class="tool-note" style="margin-top:.75rem;">Extracting geometry and preparing preview. Calculation available once ready.</div>
+            </div>
+        </section>`;
+    }
+
+    function previewReadyCard(part) {
         const a = part.analysis;
+        const mode = part.previewMode || "png";
         const thumbUrl = a.thumbnail_url ? new URL(a.thumbnail_url, window.DaiyujinAPI.config.baseUrl || window.location.href).href : "";
-        return `<section class="tool-panel quote-preview-panel">
-            <div class="quote-preview-head"><h2>Part Preview</h2><div class="quote-preview-tabs" role="tablist"><button type="button" data-preview-tab="png" class="active" aria-selected="true">Static PNG</button><button type="button" data-preview-tab="3d" aria-selected="false">3D View</button></div></div>
-            <div class="quote-preview-stage"><img class="quote-thumb" src="${esc(thumbUrl)}" alt="${esc(a.name)} preview" data-png-preview><div class="quote-3d-stage" data-3d-stage hidden></div></div>
+        return `<section class="tool-panel quote-preview-panel" data-preview-ready>
+            <div class="quote-preview-head">
+                <h2>Part Preview</h2>
+                <div class="quote-preview-tabs" role="tablist">
+                    <button type="button" data-preview-tab="png" class="${mode==="png"?"active":""}" aria-selected="${mode==="png"?"true":"false"}">Static PNG</button>
+                    <button type="button" data-preview-tab="3d" class="${mode==="3d"?"active":""}" aria-selected="${mode==="3d"?"true":"false"}">3D View</button>
+                </div>
+            </div>
+            <div class="quote-preview-stage">
+                <img class="quote-thumb" src="${esc(thumbUrl)}" alt="${esc(a.name)} preview" data-png-preview ${mode==="3d"?"hidden":""}>
+                <div class="quote-3d-stage" data-3d-stage ${mode==="png"?"hidden":""}></div>
+            </div>
             <div class="metric-row" style="margin-top:0.5rem;"><span>File</span><strong>${esc(a.name)}</strong></div>
             <div class="metric-row"><span>Bounding Size</span><strong>${esc(a.obb_dimensions_mm)} mm</strong></div>
             <div class="metric-row"><span>Volume</span><strong>${formatNum(a.volume_mm3)} mm&sup3;</strong></div>
         </section>`;
+    }
+
+    function setPreviewMode(mode) {
+        const part = getActivePart();
+        if (part) part.previewMode = mode === "3d" ? "3d" : "png";
     }
 
     function estimateLoadingCard(part) {
@@ -441,23 +539,47 @@ document.addEventListener("DOMContentLoaded", () => {
     function bindPreviewTabs() {
         const tabs = document.querySelectorAll('[data-preview-tab]'); if (!tabs.length) return;
         const pngEl = document.querySelector('[data-png-preview]'), stage3d = document.querySelector('[data-3d-stage]');
-        let viewerLoaded = false, viewerPaused = false;
+        let viewerLoaded = false;
 
         tabs.forEach(tab => { tab.addEventListener('click', async () => {
-            tabs.forEach(t=>{t.classList.remove('active');t.setAttribute('aria-selected','false');});
-            tab.classList.add('active'); tab.setAttribute('aria-selected','true');
-            if (tab.dataset.previewTab === 'png') {
-                if (stage3d) stage3d.hidden = true;
-                if (pngEl) pngEl.hidden = false;
-                if (viewerLoaded && !viewerPaused) { try { const m=await import(viewerModuleUrl); m.pause(); viewerPaused=true; } catch(e){} }
-            } else {
-                if (pngEl) pngEl.hidden = true;
-                if (stage3d) stage3d.hidden = false;
-                if (!viewerLoaded) {
-                    if (stage3d) { try { const m=await import(viewerModuleUrl); stage3d.innerHTML=''; const part=getActivePart(); await m.mount(stage3d,{apiBase:window.DaiyujinAPI.config.baseUrl||'http://127.0.0.1:5000',fileId:part?.analysis?.file_id||'',partName:part?.analysis?.name||part?.fileName||'Part'}); viewerLoaded=true; viewerPaused=false; } catch(e){ stage3d.innerHTML='<div class="quote-3d-status">3D preview is unavailable.</div>'; } }
-                } else if (viewerPaused) { try { const m=await import(viewerModuleUrl); m.resume(stage3d); viewerPaused=false; } catch(e){} }
-            }
+            const mode = tab.dataset.previewTab === '3d' ? '3d' : 'png';
+            setPreviewMode(mode);
+            await applyPreviewMode(mode, { pngEl, stage3d, tabs });
         });});
+
+        const part = getActivePart();
+        if (part?.previewMode === '3d' && stage3d && !stage3d.hidden) {
+            applyPreviewMode('3d', { pngEl, stage3d, tabs });
+        }
+    }
+
+    async function applyPreviewMode(mode, { pngEl, stage3d, tabs }) {
+        if (tabs) tabs.forEach(t => {
+            const active = t.dataset.previewTab === mode;
+            t.classList.toggle('active', active); t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        if (mode === 'png') {
+            if (stage3d) stage3d.hidden = true;
+            if (pngEl) pngEl.hidden = false;
+            return;
+        }
+        if (pngEl) pngEl.hidden = true;
+        if (stage3d) {
+            stage3d.hidden = false;
+            if (!stage3d.dataset.viewerLoaded) {
+                try {
+                    const m = await import(viewerModuleUrl);
+                    stage3d.innerHTML = '';
+                    const part = getActivePart();
+                    await m.mount(stage3d, { apiBase: window.DaiyujinAPI.config.baseUrl || 'http://127.0.0.1:5000', fileId: part?.analysis?.file_id || '', partName: part?.analysis?.name || part?.fileName || 'Part' });
+                    stage3d.dataset.viewerLoaded = '1';
+                } catch (e) {
+                    stage3d.innerHTML = '<div class="quote-3d-status">3D preview is unavailable.</div>';
+                }
+            } else {
+                try { const m = await import(viewerModuleUrl); m.resume(stage3d); } catch (e) {}
+            }
+        }
     }
 
     function renderError(msg) {

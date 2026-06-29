@@ -277,17 +277,22 @@ _POSTPROCESS_LABELS = {
     "电镀涂层": "Plating / Coating",
 }
 
-# v2.2: split postprocess public options (maps to same internal group for now)
+# v2.2: split postprocess public options
 _PUBLIC_POSTPROCESS_OPTIONS = [
+    {"id": "none", "label": "No Finish / As Machined", "internal_group": "去毛刺"},
+    {"id": "deburring", "label": "Deburring", "internal_group": "去毛刺"},
+    {"id": "anodizing", "label": "Anodizing", "internal_group": "阳极氧化"},
+    {"id": "black_oxide", "label": "Black Oxide", "internal_group": "电镀涂层"},
+    {"id": "zinc_plating", "label": "Zinc Plating", "internal_group": "电镀涂层"},
+    {"id": "nickel_plating", "label": "Nickel Plating", "internal_group": "电镀涂层"},
+    {"id": "other_plating", "label": "Other Plating / Coating", "internal_group": "电镀涂层"},
+    {"id": "passivation", "label": "Passivation", "internal_group": "钝化"},
     {"id": "bead_blasting", "label": "Bead Blasting", "internal_group": "喷砂抛光"},
     {"id": "polishing", "label": "Polishing", "internal_group": "喷砂抛光"},
-    {"id": "去毛刺", "label": "Deburring", "internal_group": "去毛刺"},
-    {"id": "钝化", "label": "Passivation", "internal_group": "钝化"},
-    {"id": "电解抛光", "label": "Electropolishing", "internal_group": "电解抛光"},
-    {"id": "阳极氧化", "label": "Anodizing", "internal_group": "阳极氧化"},
-    {"id": "镭雕", "label": "Laser Marking", "internal_group": "镭雕"},
-    {"id": "热处理", "label": "Heat Treatment", "internal_group": "热处理"},
-    {"id": "电镀涂层", "label": "Plating / Coating", "internal_group": "电镀涂层"},
+    {"id": "electropolishing", "label": "Electropolishing", "internal_group": "电解抛光"},
+    {"id": "heat_treatment", "label": "Heat Treatment", "internal_group": "热处理"},
+    {"id": "laser_marking", "label": "Laser Marking", "internal_group": "镭雕"},
+    {"id": "other", "label": "Other Finish", "internal_group": "其他后处理"},
 ]
 
 _PUBLIC_POSTPROCESS_BY_ID = {o["id"]: o for o in _PUBLIC_POSTPROCESS_OPTIONS}
@@ -582,7 +587,7 @@ def public_quote_response(result: dict) -> dict:
         "total_estimate": result.get("total_estimate", {}),
         "warnings": _public_warnings(result.get("warnings", [])),
         "review_note": "For an exact material grade, tolerance, surface finish, and lead time, contact our engineers for a fast formal quote.",
-        "disclaimer": "This estimate is for early cost evaluation and is not a formal commercial offer. Final pricing depends on exact material grade, drawing requirements, tolerance, surface finish, lead time, and engineering review.",
+        "disclaimer": "This estimate is for early cost evaluation. Final pricing may vary based on material grade, tolerances, finishing requirements, inspection needs, and lead time. For an exact quote, contact our engineers for a fast formal review.",
     }
 
 
