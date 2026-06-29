@@ -558,12 +558,7 @@ def public_quote_response(result: dict) -> dict:
     sel = result.get("selections", {})
     mat = sel.get("material", {})
     cat_id = sel.get("material_category")
-    cat_label = ""
-    cats = material_categories()
-    for cat in cats.get("categories", []):
-        if cat["id"] == cat_id:
-            cat_label = cat.get("label", "")
-            break
+    display = _public_material_display(material_id=mat.get("id", ""), category_id=cat_id or "")
     return {
         "quote_status": "estimated",
         "valid_until": result.get("valid_until"),
@@ -574,8 +569,8 @@ def public_quote_response(result: dict) -> dict:
             "obb_dimensions_mm": result.get("part", {}).get("obb_dimensions_mm"),
         },
         "selections": {
-            "material_category": cat_label or cat_id or "",
-            "material": mat.get("name", ""),
+            "material_category": display["category"],
+            "material": display["material"],
             "process": _process_label(sel.get("process", "")),
             "postprocess_group": sel.get("postprocess_public_label",
                 _postprocess_label(sel.get("postprocess_group", ""))),
@@ -589,6 +584,29 @@ def public_quote_response(result: dict) -> dict:
         "review_note": "For an exact material grade, tolerance, surface finish, and lead time, contact our engineers for a fast formal quote.",
         "disclaimer": "This estimate is for early cost evaluation and is not a formal commercial offer. Final pricing depends on exact material grade, drawing requirements, tolerance, surface finish, lead time, and engineering review.",
     }
+
+
+def _public_material_display(material_id: str, category_id: str = "") -> dict:
+    """Return public-safe material display info from material_public_options."""
+    cats = material_categories()
+    cat_label = ""
+    mat_label = ""
+    for cat in cats.get("categories", []):
+        if cat.get("id") == category_id:
+            cat_label = cat.get("label", "")
+        for m in cat.get("materials", []):
+            if m.get("id") == material_id:
+                mat_label = m.get("label", "")
+                if not cat_label:
+                    cat_label = cat.get("label", "")
+                break
+        if cat_label and mat_label:
+            break
+    if not mat_label:
+        # Fallback: strip CJK from raw name if public options not found
+        import re
+        mat_label = re.sub(r"[\u4e00-\u9fff]+", "", material_id or "").strip()
+    return {"category": cat_label or category_id or "", "material": mat_label or ""}
 
 
 def _public_warnings(warnings: list[str]) -> list[str]:

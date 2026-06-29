@@ -246,48 +246,80 @@ document.addEventListener("DOMContentLoaded", () => {
         part.settings = readSettingsFromForm();
         part.settingsSource = "override";
         const cacheKey = makeEstimateCacheKey(part);
-        if (part.estimate && part.estimateCacheKey === cacheKey) {
-            state.activePartId = part.id;
-            render();
-            return;
-        }
+        const cacheHit = part.estimate && part.estimateCacheKey === cacheKey;
 
         part.estimateStatus = "calculating"; part.status = "calculating";
+        part.presentation = { progress: 0, phase: 0, startedAt: performance.now(), durationMs: randomInt(2200, 4800) };
         render();
-        let stopProgress = startProgress(part.fileName);
 
-        try {
-            const payload = {
-                batch_id: state.batchId,
-                batch_item_id: part.id,
-                batch_item_index: part.index + 1,
-                batch_item_count: state.parts.length,
-                file_id: part.analysis.file_id,
-                part_name: part.analysis.name,
-                stp_filename: part.fileName,
-                volume_mm3: part.analysis.volume_mm3,
-                obb_dimensions_mm: part.analysis.obb_dimensions_mm,
-                material_category: part.settings.material_category,
-                material_id: part.settings.material_id,
-                process: part.settings.process || state.defaults.process,
-                postprocess_group: part.settings.postprocess_group || state.defaults.postprocess_group,
-                tolerance_grade: part.settings.tolerance_grade || state.defaults.tolerance_grade,
-                quantity: Number(part.settings.quantity) || 100,
-                currency: part.settings.currency || "USD",
-                customer_name: String(new FormData(form).get("customer_name") || "").trim(),
-                customer_email: String(new FormData(form).get("customer_email") || "").trim(),
-            };
-
-            const estimate = await window.DaiyujinAPI.request("/api/public/quote/calculate", { method: "POST", body: JSON.stringify(payload) });
-            part.estimate = estimate;
-            part.estimateCacheKey = cacheKey;
-            part.estimateStatus = "estimated"; part.status = "estimated";
-        } catch (err) {
-            part.estimateStatus = "failed"; part.status = "failed"; part.error = err.message;
+        let estimate;
+        if (cacheHit) {
+            estimate = part.estimate;
+        } else {
+            try {
+                const payload = {
+                    batch_id: state.batchId, batch_item_id: part.id, batch_item_index: part.index + 1, batch_item_count: state.parts.length,
+                    file_id: part.analysis.file_id, part_name: part.analysis.name, stp_filename: part.fileName,
+                    volume_mm3: part.analysis.volume_mm3, obb_dimensions_mm: part.analysis.obb_dimensions_mm,
+                    material_category: part.settings.material_category, material_id: part.settings.material_id,
+                    process: part.settings.process || state.defaults.process,
+                    postprocess_group: part.settings.postprocess_group || state.defaults.postprocess_group,
+                    tolerance_grade: part.settings.tolerance_grade || state.defaults.tolerance_grade,
+                    quantity: Number(part.settings.quantity) || 100, currency: part.settings.currency || "USD",
+                    customer_name: String(new FormData(form).get("customer_name") || "").trim(),
+                    customer_email: String(new FormData(form).get("customer_email") || "").trim(),
+                };
+                estimate = await window.DaiyujinAPI.request("/api/public/quote/calculate", { method: "POST", body: JSON.stringify(payload) });
+            } catch (err) {
+                part.estimateStatus = "failed"; part.status = "failed"; part.error = err.message;
+                finishEstimatePresentation(part, false);
+                render();
+                return;
+            }
         }
-        stopProgress(true);
+
+        await waitForPresentationMinimum(part);
+        part.estimate = estimate;
+        part.estimateCacheKey = cacheKey;
+        part.estimateStatus = "estimated"; part.status = "estimated";
+        finishEstimatePresentation(part, true);
         render();
     }
+
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function estimatePhases() { return ["Preparing manufacturing model", "Reviewing machinability factors", "Evaluating material and process data", "Calibrating tolerance requirements", "Assessing surface finish impact", "Generating reference estimate"]; }
+
+    async function waitForPresentationMinimum(part) {
+        const elapsed = performance.now() - (part.presentation?.startedAt || 0);
+        const remaining = Math.max(0, (part.presentation?.durationMs || 3000) - elapsed);
+        if (remaining > 0) await sleep(remaining);
+    }
+
+    function finishEstimatePresentation(part, success) {
+        if (part.presentation) part.presentation.completed = true;
+    }
+
+    function updateEstimateProgress() {
+        const fill = document.querySelector(".quote-progress-fill");
+        const phase = document.querySelector(".quote-progress-phase");
+        const pct = document.querySelector(".quote-progress-pct");
+        const part = getActivePart();
+        if (!part || part.estimateStatus !== "calculating" || !fill || !phase || !pct) return;
+
+        const elapsed = performance.now() - (part.presentation?.startedAt || 0);
+        const total = part.presentation?.durationMs || 3000;
+        const phases = estimatePhases();
+        const ratio = Math.min(elapsed / total, 0.96);
+        const p = ratio * 100;
+        fill.style.width = p + "%";
+        pct.textContent = Math.round(p) + "%";
+        const phaseIdx = Math.min(Math.floor(ratio * phases.length), phases.length - 1);
+        phase.textContent = phases[phaseIdx];
+    }
+
+    setInterval(updateEstimateProgress, 300);
 
     /* ══════════════════════════════════════════════════
        Render
@@ -314,8 +346,35 @@ document.addEventListener("DOMContentLoaded", () => {
         </section>`;
     }
 
+    function estimateLoadingCard(part) {
+        return `<section class="tool-panel quote-estimate quote-estimate-loading" aria-live="polite">
+            <h2>Reference Estimate</h2>
+            <div class="quote-eval-head">
+                <span class="quote-eval-kicker">Manufacturing review</span>
+                <strong>Evaluating ${esc(part?.fileName || 'current part')}</strong>
+            </div>
+            <div class="quote-progress">
+                <div class="quote-progress-bar">
+                    <div class="quote-progress-fill" style="width:0%"></div>
+                </div>
+                <div class="quote-progress-text">
+                    <span class="quote-progress-phase">Preparing manufacturing model</span>
+                    <span class="quote-progress-pct">0%</span>
+                </div>
+            </div>
+            <div class="quote-eval-steps">
+                <span>Geometry</span><span>Material</span><span>Tolerance</span><span>Finish</span>
+            </div>
+        </section>`;
+    }
+
     function estimateCard() {
         const part = getActivePart();
+
+        if (part?.estimateStatus === "calculating") {
+            return estimateLoadingCard(part);
+        }
+
         if (!part || !part.estimate) {
             return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload STEP files to begin."}</div></section>`;
         }

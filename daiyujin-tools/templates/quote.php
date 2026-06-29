@@ -9,8 +9,10 @@
                 <div class="tool-status" data-api-status>checking</div>
             </section>
 
-            <section class="tool-grid">
-                <form class="tool-panel tool-form" data-quote-form>
+            <section class="quote-workspace">
+                <aside class="tool-panel quote-parts-rail" data-batch-parts hidden><div class="quote-batch-head"><h2>Parts</h2><span data-batch-count>0 files</span></div><div class="quote-part-list" data-part-list></div></aside>
+
+                <form class="tool-panel tool-form quote-config-panel" data-quote-form>
                     <h2>Part &amp; Process</h2>
                     <label class="tool-upload" data-upload-label>
                         <input name="file" type="file" accept=".stp,.step" multiple>

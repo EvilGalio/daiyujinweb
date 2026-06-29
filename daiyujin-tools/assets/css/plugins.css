@@ -988,6 +988,72 @@ body.tool-page {
 .quote-part-total { font-size: 0.74rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .quote-action-row { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
 
+/* ── Batch parts rail (left column) ──────────── */
+.quote-workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+.quote-parts-rail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+}
+.quote-parts-rail[hidden] { display: none; }
+.quote-parts-rail h2 { margin-bottom: 0.5rem; }
+.quote-batch-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem; }
+.quote-batch-head h2 { margin: 0; }
+.quote-batch-head span { font-size: 0.75rem; color: var(--muted); }
+.quote-part-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+}
+.quote-config-panel { position: relative; }
+.quote-action-row {
+    position: sticky;
+    bottom: 0;
+    padding-top: .75rem;
+    margin-top: 0.5rem;
+    background: linear-gradient(to bottom, transparent, var(--surface) 38%);
+    display: flex;
+    gap: 0.5rem;
+}
+
+.quote-estimate-loading { position: relative; overflow: hidden; }
+.quote-estimate-loading::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,.45) 42%, transparent 58%); transform: translateX(-120%); animation: quote-scan 1.8s ease-in-out infinite; }
+@keyframes quote-scan { to { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .quote-estimate-loading::after { animation: none; } }
+.quote-eval-head { margin: 0.5rem 0 0.75rem; }
+.quote-eval-kicker { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 0.15rem; }
+.quote-eval-head strong { font-size: 0.85rem; color: var(--ink); }
+.quote-eval-steps { display: flex; gap: 0.75rem; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
+.quote-eval-steps span { font-size: 0.68rem; color: var(--muted); }
+
+@media (min-width: 1180px) {
+    .quote-workspace {
+        grid-template-columns: minmax(220px, 280px) minmax(360px, 480px) minmax(380px, 1fr);
+    }
+    .quote-parts-rail {
+        position: sticky;
+        top: 1rem;
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+    }
+}
+
+@media (max-width: 760px) {
+    .quote-part-list {
+        flex-direction: row;
+        overflow-x: auto;
+        max-height: none;
+    }
+    .quote-part-row { min-width: 220px; }
+}
+
 /* ── Two-level material picker ──────────────── */
 .quote-material-layout {
     display: grid;
