@@ -3,173 +3,108 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const form = document.querySelector("[data-quote-form]");
     const result = document.querySelector("[data-quote-result]");
-    const materialCardList = document.querySelector("[data-material-category-list]");
     const processSelect = document.querySelector("[data-process-select]");
     const toleranceSelect = document.querySelector("[data-tolerance-select]");
     const postprocessSelect = document.querySelector("[data-postprocess-select]");
     const currencySelect = document.querySelector("[data-currency-select]");
     const uploadLabel = document.querySelector("[data-upload-label]");
     const fileInput = form ? form.querySelector('input[type="file"]') : null;
+    const batchParts = document.querySelector("[data-batch-parts]");
+    const batchCount = document.querySelector("[data-batch-count]");
+    const partList = document.querySelector("[data-part-list]");
     if (!form || !result || !fileInput) return;
+
     const quoteScript = document.querySelector('script[src$="quote.js"]');
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
 
+    /* ══════════════════════════════════════════════════
+       State
+       ══════════════════════════════════════════════════ */
     const state = {
-        fileKey: "",
-        fileName: "",
-        analysis: null,
-        estimate: null,
+        batchId: "",
+        activePartId: "",
         options: null,
-        selectedMaterialCategory: "",
-        selectedMaterialId: "",
         materialSearch: "",
+        defaults: {
+            material_category: "",
+            material_id: "",
+            process: "CNC",
+            tolerance_grade: "ISO2768-M",
+            postprocess_group: "bead_blasting",
+            quantity: 100,
+            currency: "USD",
+        },
+        parts: [],
     };
 
-    hydrateOptions();
-    render();
-
-    fileInput.addEventListener("change", () => {
-        const file = fileInput.files[0];
-        state.fileKey = "";
-        state.analysis = null;
-        state.estimate = null;
-        if (uploadLabel) {
-            uploadLabel.querySelector("span").textContent = file ? file.name : "Choose STEP file";
-        }
-        render();
-    });
-
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const file = fileInput.files[0];
-        if (!file) {
-            renderError("Choose a STEP file first.");
-            return;
-        }
-
-        let stopProgress = startProgress();
-        try {
-            const startedAt = Date.now();
-            const key = `${file.name}:${file.size}:${file.lastModified}`;
-            if (state.fileKey !== key) {
-                state.analysis = await uploadStep(file);
-                state.fileKey = key;
-                state.fileName = file.name;
-            }
-
-            setProgressPhase("Cost assessment");
-            const estimate = await calculateEstimate();
-            state.estimate = estimate;
-
-            const elapsed = Date.now() - startedAt;
-            if (elapsed < 4000) {
-                await new Promise(r => setTimeout(r, 4000 - elapsed));
-            }
-            stopProgress(true);
-            render();
-        } catch (error) {
-            stopProgress(false);
-            renderError(error.message);
-        }
-    });
-
-    async function hydrateOptions() {
-        try {
-            const options = await window.DaiyujinAPI.request("/api/public/quote/options");
-            state.options = options;
-
-            /* Material picker */
-            const cats = options.material_categories || [];
-            if (cats.length) {
-                state.selectedMaterialCategory = cats[0].id;
-                state.selectedMaterialId = cats[0].default_material_id || cats[0].materials?.[0]?.id || "";
-            }
-            renderMaterialPicker();
-
-            if (processSelect) {
-                processSelect.innerHTML = (options.processes || [])
-                    .map((item) => `<option value="${escapeHtml(item.id)}"${item.id === "CNC" ? " selected" : ""}>${escapeHtml(item.label || item.name)}</option>`)
-                    .join("");
-            }
-
-            toleranceSelect.innerHTML = (options.tolerance_grades || [])
-                .map((item) => `<option value="${escapeHtml(item.grade)}">${escapeHtml(item.label)}</option>`)
-                .join("");
-
-            if (postprocessSelect) {
-                postprocessSelect.innerHTML = (options.postprocess_groups || [])
-                    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label || item.name)}</option>`)
-                    .join("");
-            }
-
-            currencySelect.innerHTML = (options.currencies || [])
-                .map((currency) => `<option value="${escapeHtml(currency)}"${currency === "USD" ? " selected" : ""}>${escapeHtml(currency)}</option>`)
-                .join("");
-        } catch (error) {
-            renderError(error.message);
-        }
+    function createBatchId() {
+        try { return crypto.randomUUID(); } catch (e) { return `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
     }
 
-    /* ── Material picker ── */
+    function createPartId() {
+        try { return crypto.randomUUID(); } catch (e) { return `part-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+    }
+
+    function makeFileKey(file) { return `${file.name}:${file.size}:${file.lastModified}`; }
+    function cloneDefaults() { return JSON.parse(JSON.stringify(state.defaults)); }
+
+    function makeEstimateCacheKey(part) {
+        const s = part.settings || {};
+        return `${part.fileKey}|${s.material_id}|${s.process}|${s.tolerance_grade}|${s.postprocess_group}|${s.quantity}|${s.currency}`;
+    }
+
+    function getActivePart() {
+        return state.parts.find(p => p.id === state.activePartId) || state.parts[0] || null;
+    }
+
+    /* ══════════════════════════════════════════════════
+       Hydrate options
+       ══════════════════════════════════════════════════ */
+    async function hydrateOptions() {
+        try {
+            state.options = await window.DaiyujinAPI.request("/api/public/quote/options");
+            const cats = (state.options.material_categories || []);
+            if (cats.length) {
+                state.defaults.material_category = cats[0].id;
+                state.defaults.material_id = cats[0].default_material_id || cats[0].materials?.[0]?.id || "";
+            }
+            renderMaterialPicker();
+            if (processSelect) processSelect.innerHTML = (state.options.processes || []).map(item => `<option value="${esc(item.id)}"${item.id==="CNC"?" selected":""}>${esc(item.label||item.name)}</option>`).join("");
+            if (toleranceSelect) toleranceSelect.innerHTML = (state.options.tolerance_grades || []).map(item => `<option value="${esc(item.grade)}">${esc(item.label)}</option>`).join("");
+            if (postprocessSelect) postprocessSelect.innerHTML = (state.options.postprocess_groups || []).map(item => `<option value="${esc(item.id)}">${esc(item.label||item.name)}</option>`).join("");
+            if (currencySelect) currencySelect.innerHTML = (state.options.currencies || ["USD"]).map(c => `<option value="${esc(c)}"${c==="USD"?" selected":""}>${esc(c)}</option>`).join("");
+        } catch (e) { /* silent */ }
+    }
+
+    /* ══════════════════════════════════════════════════
+       Material picker
+       ══════════════════════════════════════════════════ */
     const materialPicker = document.querySelector("[data-material-picker]");
 
     function getCurrentMaterialContext() {
         const cats = (state.options && state.options.material_categories) || [];
-        const currentCat = cats.find(c => c.id === state.selectedMaterialCategory) || cats[0];
+        const currentCat = cats.find(c => c.id === state.defaults.material_category) || cats[0];
         const materials = currentCat ? (currentCat.materials || []) : [];
         const query = (state.materialSearch || "").trim().toLowerCase();
-        const filtered = query
-            ? materials.filter(m => `${m.label || ""} ${m.subtitle || ""}`.toLowerCase().includes(query))
-            : materials;
+        const filtered = query ? materials.filter(m => `${m.label||""} ${m.subtitle||""}`.toLowerCase().includes(query)) : materials;
         return { cats, currentCat, materials, filtered };
     }
 
     function renderMaterialGradeOptions(filtered) {
         if (!filtered.length) return '<div class="quote-material-empty">No matching grade. Try another keyword.</div>';
-        return filtered.map(m => `
-            <button type="button" role="option" aria-selected="${m.id === state.selectedMaterialId ? 'true' : 'false'}"
-                class="quote-material-grade-option${m.id === state.selectedMaterialId ? ' active' : ''}"
-                data-mat-id="${escapeHtml(m.id)}">
-                <span class="quote-material-grade-label">${escapeHtml(m.label)}</span>
-                ${m.subtitle ? `<span class="quote-material-grade-sub">${escapeHtml(m.subtitle)}</span>` : ''}
-                ${(m.badges || []).map(b => `<span class="quote-material-badge">${escapeHtml(b)}</span>`).join('')}
-                ${m.review_recommended ? '<span class="quote-material-badge review">Review</span>' : ''}
-            </button>
-        `).join("");
+        return filtered.map(m => `<button type="button" role="option" aria-selected="${m.id===state.defaults.material_id?'true':'false'}" class="quote-material-grade-option${m.id===state.defaults.material_id?' active':''}" data-mat-id="${esc(m.id)}"><span class="quote-material-grade-label">${esc(m.label)}</span>${m.subtitle?`<span class="quote-material-grade-sub">${esc(m.subtitle)}</span>`:''}${(m.badges||[]).map(b=>`<span class="quote-material-badge">${esc(b)}</span>`).join('')}${m.review_recommended?'<span class="quote-material-badge review">Review</span>':''}</button>`).join("");
     }
 
     function bindMaterialOptionEvents() {
-        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.selectedMaterialId = btn.dataset.matId;
-                renderMaterialPicker();
-            });
-        });
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => { btn.addEventListener('click', () => { state.defaults.material_id = btn.dataset.matId; renderMaterialPicker(); }); });
     }
 
     function bindMaterialPickerEvents() {
-        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const { cats } = getCurrentMaterialContext();
-                state.selectedMaterialCategory = btn.dataset.catId;
-                state.materialSearch = "";
-                const cat = cats.find(c => c.id === state.selectedMaterialCategory);
-                const inCat = (cat?.materials || []).find(m => m.id === state.selectedMaterialId);
-                state.selectedMaterialId = inCat ? state.selectedMaterialId : (cat?.default_material_id || cat?.materials?.[0]?.id || "");
-                renderMaterialPicker();
-            });
-        });
-
+        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => { btn.addEventListener('click', () => { const { cats } = getCurrentMaterialContext(); state.defaults.material_category = btn.dataset.catId; state.materialSearch = ""; const cat = cats.find(c=>c.id===state.defaults.material_category); const inCat = (cat?.materials||[]).find(m=>m.id===state.defaults.material_id); state.defaults.material_id = inCat ? state.defaults.material_id : (cat?.default_material_id||cat?.materials?.[0]?.id||""); renderMaterialPicker(); }); });
         bindMaterialOptionEvents();
-
         const searchInput = materialPicker.querySelector('[data-material-search]');
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                state.materialSearch = searchInput.value;
-                renderMaterialGradeListOnly();
-            });
-        }
+        if (searchInput) searchInput.addEventListener('input', () => { state.materialSearch = searchInput.value; renderMaterialGradeListOnly(); });
     }
 
     function renderMaterialGradeListOnly() {
@@ -183,269 +118,286 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderMaterialPicker() {
         if (!materialPicker || !state.options) return;
         const { cats, filtered } = getCurrentMaterialContext();
-
-        materialPicker.innerHTML = `
-            <div class="quote-material-categories">
-                ${cats.map(c => `
-                    <button type="button" class="quote-material-cat-btn${c.id === state.selectedMaterialCategory ? ' active' : ''}"
-                        data-cat-id="${escapeHtml(c.id)}"
-                        aria-pressed="${c.id === state.selectedMaterialCategory ? 'true' : 'false'}">${escapeHtml(c.label)}</button>
-                `).join("")}
-            </div>
-            <div class="quote-material-grades">
-                <input type="text" class="quote-material-search" placeholder="Search grade..."
-                    value="${escapeHtml(state.materialSearch)}" data-material-search>
-                <div class="quote-material-grade-list" role="listbox" aria-label="Material grade">
-                    ${renderMaterialGradeOptions(filtered)}
-                </div>
-            </div>`;
-
+        materialPicker.innerHTML = `<div class="quote-material-categories">${cats.map(c=>`<button type="button" class="quote-material-cat-btn${c.id===state.defaults.material_category?' active':''}" data-cat-id="${esc(c.id)}" aria-pressed="${c.id===state.defaults.material_category?'true':'false'}">${esc(c.label)}</button>`).join("")}</div><div class="quote-material-grades"><input type="text" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div></div>`;
         bindMaterialPickerEvents();
     }
 
-    async function uploadStep(file) {
-        const body = new FormData();
-        body.append("file", file);
-        const response = await window.DaiyujinAPI.request("/api/public/quote/upload", {
-            method: "POST", body,
+    /* ══════════════════════════════════════════════════
+       Batch upload
+       ══════════════════════════════════════════════════ */
+    fileInput.addEventListener("change", () => {
+        const files = Array.from(fileInput.files || []);
+        addFilesToBatch(files);
+        fileInput.value = "";
+    });
+
+    function addFilesToBatch(files) {
+        if (!state.batchId) state.batchId = createBatchId();
+        const existing = new Set(state.parts.map(p => p.fileKey));
+        const valid = files.filter(f => { const ext = f.name.toLowerCase().split(".").pop(); return ext === "stp" || ext === "step"; });
+        let added = 0, skipped = 0;
+        valid.forEach(file => {
+            const fk = makeFileKey(file);
+            if (existing.has(fk)) { skipped++; return; }
+            if (state.parts.length >= 20) return;
+            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "" };
+            state.parts.push(part);
+            existing.add(fk);
+            added++;
         });
-        if (!response.success || !response.data) {
-            throw new Error(response.error || "STEP analysis failed.");
+        if (!state.activePartId && state.parts.length) state.activePartId = state.parts[0].id;
+        if (uploadLabel) uploadLabel.querySelector("span").textContent = `${state.parts.length} file(s) selected`;
+        render();
+        analyzePendingParts();
+    }
+
+    async function analyzePendingParts() {
+        for (const part of state.parts) {
+            if (part.uploadStatus !== "pending") continue;
+            part.uploadStatus = "analyzing"; part.status = "analyzing";
+            renderPartList();
+            try {
+                part.analysis = await uploadStep(part.file);
+                part.uploadStatus = "ready"; part.status = "ready";
+            } catch (e) {
+                part.uploadStatus = "failed"; part.status = "failed"; part.error = e.message;
+            }
+            render();
         }
-        return { file_id: response.file_id, ...response.data };
     }
 
-    async function calculateEstimate() {
-        const formData = new FormData(form);
-        const catRadio = document.querySelector("input[name=material_category]:checked");
-        const payload = {
-            file_id: state.analysis.file_id,
-            part_name: state.analysis.name,
-            stp_filename: state.fileName,
-            volume_mm3: state.analysis.volume_mm3,
-            obb_dimensions_mm: state.analysis.obb_dimensions_mm,
-            material_category: state.selectedMaterialCategory,
-            material_id: state.selectedMaterialId,
-            process: String(formData.get("process") || "CNC"),
-            postprocess_group: String(formData.get("postprocess_group") || "bead_blasting"),
-            tolerance_grade: String(formData.get("tolerance_grade") || "ISO2768-M"),
-            quantity: Number(formData.get("quantity")),
-            currency: String(formData.get("currency") || "USD"),
-            customer_name: String(formData.get("customer_name") || "").trim(),
-            customer_email: String(formData.get("customer_email") || "").trim(),
-        };
-        return window.DaiyujinAPI.request("/api/public/quote/calculate", {
-            method: "POST",
-            body: JSON.stringify(payload),
+    async function uploadStep(file) {
+        const body = new FormData(); body.append("file", file);
+        const resp = await window.DaiyujinAPI.request("/api/public/quote/upload", { method: "POST", body });
+        if (!resp.success || !resp.data) throw new Error(resp.error || "STEP analysis failed.");
+        return { file_id: resp.file_id, ...resp.data };
+    }
+
+    /* ══════════════════════════════════════════════════
+       Part list UI
+       ══════════════════════════════════════════════════ */
+    function renderPartList() {
+        if (!batchParts || !partList) return;
+        batchParts.hidden = state.parts.length === 0;
+        if (batchCount) batchCount.textContent = `${state.parts.length} file(s)`;
+        partList.innerHTML = state.parts.map(p => {
+            const statusLabel = { pending: "Pending", analyzing: "Analyzing...", ready: "Ready", needs_recalculate: "Needs recalculation", calculating: "Calculating...", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
+            const statusClass = { estimated: "green", ready: "neutral", analyzing: "blue", calculating: "blue", failed: "red", needs_recalculate: "amber" }[p.status] || "";
+            const total = p.estimate && p.status === "estimated" ? (p.estimate.total_estimate || {}).display || "" : "";
+            return `<button type="button" class="quote-part-row${p.id === state.activePartId ? ' active' : ''}" data-part-id="${esc(p.id)}">
+                <span class="quote-part-index">${p.index + 1}</span>
+                <span class="quote-part-name">${esc(p.fileName)}</span>
+                <span class="quote-part-status ${statusClass}">${statusLabel}</span>
+                ${total ? `<span class="quote-part-total">${esc(total)}</span>` : ""}
+            </button>`;
+        }).join("");
+
+        partList.querySelectorAll('[data-part-id]').forEach(btn => {
+            btn.addEventListener('click', () => setActivePart(btn.dataset.partId));
         });
     }
 
-    /* ── Render ── */
+    function setActivePart(partId) {
+        if (state.activePartId === partId) return;
+        // Save current form to old active part
+        const old = getActivePart();
+        if (old) { old.settings = readSettingsFromForm(); old.settingsSource = "override"; }
+        state.activePartId = partId;
+        const part = getActivePart();
+        if (part) { hydrateFormFromPart(part); }
+        render();
+    }
+
+    function readSettingsFromForm() {
+        const fd = new FormData(form);
+        return {
+            material_category: state.defaults.material_category,
+            material_id: state.defaults.material_id,
+            process: String(fd.get("process") || ""),
+            tolerance_grade: String(fd.get("tolerance_grade") || ""),
+            postprocess_group: String(fd.get("postprocess_group") || ""),
+            quantity: Number(fd.get("quantity")),
+            currency: String(fd.get("currency") || ""),
+        };
+    }
+
+    function hydrateFormFromPart(part) {
+        const s = part.settings;
+        if (processSelect) processSelect.value = s.process || state.defaults.process;
+        if (toleranceSelect) toleranceSelect.value = s.tolerance_grade || state.defaults.tolerance_grade;
+        if (postprocessSelect) postprocessSelect.value = s.postprocess_group || state.defaults.postprocess_group;
+        form.querySelector('[name="quantity"]').value = s.quantity || state.defaults.quantity;
+        if (currencySelect) currencySelect.value = s.currency || state.defaults.currency;
+    }
+
+    /* ══════════════════════════════════════════════════
+       Calculate current part
+       ══════════════════════════════════════════════════ */
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await calculateCurrentPart();
+    });
+
+    async function calculateCurrentPart() {
+        const part = getActivePart();
+        if (!part) { renderError("Choose a STEP file first."); return; }
+        if (part.uploadStatus !== "ready") { renderError("This part is not ready yet."); return; }
+
+        part.settings = readSettingsFromForm();
+        part.settingsSource = "override";
+        const cacheKey = makeEstimateCacheKey(part);
+        if (part.estimate && part.estimateCacheKey === cacheKey) {
+            state.activePartId = part.id;
+            render();
+            return;
+        }
+
+        part.estimateStatus = "calculating"; part.status = "calculating";
+        render();
+        let stopProgress = startProgress(part.fileName);
+
+        try {
+            const payload = {
+                batch_id: state.batchId,
+                batch_item_id: part.id,
+                batch_item_index: part.index + 1,
+                batch_item_count: state.parts.length,
+                file_id: part.analysis.file_id,
+                part_name: part.analysis.name,
+                stp_filename: part.fileName,
+                volume_mm3: part.analysis.volume_mm3,
+                obb_dimensions_mm: part.analysis.obb_dimensions_mm,
+                material_category: part.settings.material_category,
+                material_id: part.settings.material_id,
+                process: part.settings.process || state.defaults.process,
+                postprocess_group: part.settings.postprocess_group || state.defaults.postprocess_group,
+                tolerance_grade: part.settings.tolerance_grade || state.defaults.tolerance_grade,
+                quantity: Number(part.settings.quantity) || 100,
+                currency: part.settings.currency || "USD",
+                customer_name: String(new FormData(form).get("customer_name") || "").trim(),
+                customer_email: String(new FormData(form).get("customer_email") || "").trim(),
+            };
+
+            const estimate = await window.DaiyujinAPI.request("/api/public/quote/calculate", { method: "POST", body: JSON.stringify(payload) });
+            part.estimate = estimate;
+            part.estimateCacheKey = cacheKey;
+            part.estimateStatus = "estimated"; part.status = "estimated";
+        } catch (err) {
+            part.estimateStatus = "failed"; part.status = "failed"; part.error = err.message;
+        }
+        stopProgress(true);
+        render();
+    }
+
+    /* ══════════════════════════════════════════════════
+       Render
+       ══════════════════════════════════════════════════ */
     function render() {
+        renderPartList();
         result.innerHTML = `${previewCard()}${estimateCard()}`;
         bindPreviewTabs();
     }
 
     function previewCard() {
-        if (!state.analysis) {
-            return `<section class="tool-panel quote-preview-panel">
-                    <h2>Part Preview</h2>
-                    <div class="tool-note">Upload a STEP file to begin.</div>
-                </section>`;
+        const part = getActivePart();
+        if (!part || !part.analysis) {
+            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note">Upload STEP files to begin.</div></section>`;
         }
-        const analysis = state.analysis;
-        const thumbUrl = analysis.thumbnail_url
-            ? new URL(analysis.thumbnail_url, window.DaiyujinAPI.config.baseUrl || window.location.href).href
-            : '';
-
+        const a = part.analysis;
+        const thumbUrl = a.thumbnail_url ? new URL(a.thumbnail_url, window.DaiyujinAPI.config.baseUrl || window.location.href).href : "";
         return `<section class="tool-panel quote-preview-panel">
-            <div class="quote-preview-head">
-                <h2>Part Preview</h2>
-                <div class="quote-preview-tabs" role="tablist">
-                    <button type="button" data-preview-tab="png" class="active" aria-selected="true">Static PNG</button>
-                    <button type="button" data-preview-tab="3d" aria-selected="false">3D View</button>
-                </div>
-            </div>
-            <div class="quote-preview-stage">
-                <img class="quote-thumb" src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(analysis.name)} preview" data-png-preview>
-                <div class="quote-3d-stage" data-3d-stage hidden></div>
-            </div>
-            <div class="metric-row" style="margin-top:0.5rem;"><span>File</span><strong>${escapeHtml(analysis.name)}</strong></div>
-            <div class="metric-row"><span>Bounding Size</span><strong>${escapeHtml(analysis.obb_dimensions_mm)} mm</strong></div>
-            <div class="metric-row"><span>Volume</span><strong>${formatNumber(analysis.volume_mm3)} mm&sup3;</strong></div>
+            <div class="quote-preview-head"><h2>Part Preview</h2><div class="quote-preview-tabs" role="tablist"><button type="button" data-preview-tab="png" class="active" aria-selected="true">Static PNG</button><button type="button" data-preview-tab="3d" aria-selected="false">3D View</button></div></div>
+            <div class="quote-preview-stage"><img class="quote-thumb" src="${esc(thumbUrl)}" alt="${esc(a.name)} preview" data-png-preview><div class="quote-3d-stage" data-3d-stage hidden></div></div>
+            <div class="metric-row" style="margin-top:0.5rem;"><span>File</span><strong>${esc(a.name)}</strong></div>
+            <div class="metric-row"><span>Bounding Size</span><strong>${esc(a.obb_dimensions_mm)} mm</strong></div>
+            <div class="metric-row"><span>Volume</span><strong>${formatNum(a.volume_mm3)} mm&sup3;</strong></div>
         </section>`;
     }
 
     function estimateCard() {
-        if (!state.estimate) {
-            return `<section class="tool-panel quote-estimate">
-                <h2>Reference Estimate</h2>
-                <div class="quote-total">USD 0.00</div>
-                <div class="metric-row"><span>Unit Estimate</span><strong>USD 0.00 / pc</strong></div>
-                <div class="metric-row"><span>Status</span><strong>Waiting for STEP file</strong></div>
-                <div class="tool-note">Upload a STEP file and complete the manufacturing details to generate an estimate.</div>
-            </section>`;
+        const part = getActivePart();
+        if (!part || !part.estimate) {
+            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload STEP files to begin."}</div></section>`;
         }
-        const e = state.estimate;
+        const e = part.estimate;
         const sel = e.selections || {};
-        const warningMsgs = (e.warnings || []).map(w => `<div class="tool-note warn">${escapeHtml(w)}</div>`).join("");
-
         const totalEst = e.total_estimate || {};
         const unitEst = e.unit_estimate || {};
+        const warnings = (e.warnings||[]).map(w=>`<div class="tool-note warn">${esc(w)}</div>`).join("");
 
-        const mailSubject = encodeURIComponent(`Formal Quote Request - ${state.fileName || 'Part'}`);
-        let mailBody = `Hello Daiyujin Engineering Team,%0D%0A%0D%0A` +
-            `I would like to request a formal quote.%0D%0A%0D%0A` +
-            `Part: ${state.fileName || '—'}%0D%0A` +
-            `Material: ${sel.material_category || '—'}${sel.material ? ' / ' + sel.material : ''}%0D%0A` +
-            `Process: ${sel.process || '—'}%0D%0A` +
-            `Postprocess: ${sel.postprocess_group || '—'}%0D%0A` +
-            `Tolerance: ${sel.tolerance_grade || '—'}%0D%0A` +
-            `Quantity: ${sel.quantity || 0} pcs%0D%0A` +
-            `Reference Estimate: ${totalEst.display || '—'}%0D%0A` +
-            `Unit Estimate: ${unitEst.display || '—'}%0D%0A%0D%0A` +
-            `Please review the exact material grade, tolerance, surface finish, lead time, and manufacturability.%0D%0A%0D%0A` +
-            `Thank you.`;
+        const mailSubject = encodeURIComponent(`Formal Quote Request - ${part.fileName}`);
+        let mailBody = `Hello Daiyujin Engineering Team,%0D%0A%0D%0AI would like to request a formal quote.%0D%0A%0D%0APart: ${part.fileName}%0D%0AMaterial: ${sel.material_category||'—'}${sel.material?' / '+sel.material:''}%0D%0AProcess: ${sel.process||'—'}%0D%0APostprocess: ${sel.postprocess_group||'—'}%0D%0ATolerance: ${sel.tolerance_grade||'—'}%0D%0AQuantity: ${sel.quantity||0} pcs%0D%0AReference Estimate: ${totalEst.display||'—'}%0D%0AUnit Estimate: ${unitEst.display||'—'}%0D%0A%0D%0APlease review the exact material grade, tolerance, surface finish, lead time, and manufacturability.%0D%0A%0D%0AThank you.`;
 
-        return `<section class="tool-panel quote-estimate">
-            <h2>Reference Estimate</h2>
-            <div class="quote-total">${escapeHtml(totalEst.display || "—")}</div>
-            <div class="metric-row"><span>Unit Estimate</span><strong>${escapeHtml(unitEst.display || "—")}</strong></div>
+        return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
+            <div class="quote-total">${esc(totalEst.display||"—")}</div>
+            <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"—")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
-            <div class="metric-row"><span>Valid Until</span><strong>${escapeHtml(e.valid_until)}</strong></div>
-            <div class="metric-row"><span>Status</span><strong>Reference estimate</strong></div>
+            <div class="metric-row"><span>Valid Until</span><strong>${esc(e.valid_until)}</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
-                <div class="metric-row"><span>Material</span><strong>${escapeHtml(sel.material_category || '-')}${sel.material ? ' &middot; ' + escapeHtml(sel.material) : ''}</strong></div>
-                <div class="metric-row"><span>Process</span><strong>${escapeHtml(sel.process)}</strong></div>
-                <div class="metric-row"><span>Postprocess</span><strong>${escapeHtml(sel.postprocess_group)}</strong></div>
-                <div class="metric-row"><span>Tolerance</span><strong>${escapeHtml(sel.tolerance_grade)}</strong></div>
+                <div class="metric-row"><span>Material</span><strong>${esc(sel.material_category||'-')}${sel.material?' · '+esc(sel.material):''}</strong></div>
+                <div class="metric-row"><span>Process</span><strong>${esc(sel.process)}</strong></div>
+                <div class="metric-row"><span>Postprocess</span><strong>${esc(sel.postprocess_group)}</strong></div>
+                <div class="metric-row"><span>Tolerance</span><strong>${esc(sel.tolerance_grade)}</strong></div>
             </div>
-            ${warningMsgs}
-            <div class="tool-note" style="margin-top:0.5rem;">${escapeHtml(e.disclaimer || "This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
-            <div class="tool-note" style="margin-top:0.25rem;">${escapeHtml(e.review_note || "For an exact quote, contact our engineers.")}</div>
-            <a class="tool-button" href="mailto:great@mfg-solution.com?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
+            ${warnings}
+            <div class="tool-note" style="margin-top:0.5rem;">${esc(e.disclaimer||"This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
+            <a class="tool-button" href="mailto:?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
 
-    function startProgress() {
-        const phases = [
-            "Secure file intake",
-            "Geometry assessment",
-            "Manufacturing review",
-            "Cost assessment",
-            "Estimate preparation",
-        ];
-        let phaseIdx = 1;
-        let pct = 0;
-        let timer = null;
-        let stopped = false;
-
-        function tick() {
-            if (stopped) return;
-            if (pct < 70) { pct += 12 + Math.random() * 10; phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2); }
-            else if (pct < 92) { pct += 2 + Math.random() * 3; phaseIdx = phases.length - 1; }
-            else { pct += Math.random() * 0.5; pct = Math.min(pct, 96); }
-            renderProgress(pct, phases[phaseIdx]);
-            timer = setTimeout(tick, 600 + Math.random() * 900);
-        }
-
-        renderProgress(0, phases[0]);
-        timer = setTimeout(tick, 400);
-
-        return function finish(success) {
-            stopped = true;
-            clearTimeout(timer);
-            if (success) { renderProgress(100, "Assessment complete", true); }
-            else { result.innerHTML = ""; }
-        };
-    }
-
-    function setProgressPhase(text) {
-        const bar = document.querySelector(".quote-progress-fill");
-        const phase = document.querySelector(".quote-progress-phase");
-        if (phase) phase.textContent = text;
-        if (bar && !bar.classList.contains("done")) {
-            const pct = parseFloat(bar.style.width) || 85;
-            if (pct < 92) { bar.style.width = (pct + 3 + Math.random() * 4) + "%"; }
-        }
-    }
-
     function bindPreviewTabs() {
-    const tabs = document.querySelectorAll('[data-preview-tab]');
-    if (!tabs.length) return;
+        const tabs = document.querySelectorAll('[data-preview-tab]'); if (!tabs.length) return;
+        const pngEl = document.querySelector('[data-png-preview]'), stage3d = document.querySelector('[data-3d-stage]');
+        let viewerLoaded = false, viewerPaused = false;
 
-    const pngEl = document.querySelector('[data-png-preview]');
-    const stage3d = document.querySelector('[data-3d-stage]');
-    let viewerLoaded = false;
-    let viewerPaused = false;
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', async () => {
-            const mode = tab.dataset.previewTab;
-            tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
-            tab.classList.add('active');
-            tab.setAttribute('aria-selected', 'true');
-
-            if (mode === 'png') {
+        tabs.forEach(tab => { tab.addEventListener('click', async () => {
+            tabs.forEach(t=>{t.classList.remove('active');t.setAttribute('aria-selected','false');});
+            tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+            if (tab.dataset.previewTab === 'png') {
                 if (stage3d) stage3d.hidden = true;
                 if (pngEl) pngEl.hidden = false;
-                if (viewerLoaded && !viewerPaused) {
-                    const mod = await import(viewerModuleUrl);
-                    mod.pause();
-                    viewerPaused = true;
-                }
+                if (viewerLoaded && !viewerPaused) { try { const m=await import(viewerModuleUrl); m.pause(); viewerPaused=true; } catch(e){} }
             } else {
                 if (pngEl) pngEl.hidden = true;
                 if (stage3d) stage3d.hidden = false;
                 if (!viewerLoaded) {
-                    if (stage3d) {
-                        try {
-                            const mod = await import(viewerModuleUrl);
-                            stage3d.innerHTML = '';
-                            await mod.mount(stage3d, {
-                                apiBase: window.DaiyujinAPI.config.baseUrl || 'http://127.0.0.1:5000',
-                                fileId: state.analysis.file_id || state.analysis.fileId,
-                                partName: state.analysis.name || state.fileName || 'Part',
-                            });
-                            viewerLoaded = true;
-                            viewerPaused = false;
-                        } catch (err) {
-                            stage3d.innerHTML = '<div class="quote-3d-status">3D preview is unavailable. Static preview remains available.</div>';
-                            console.error('3D viewer:', err);
-                        }
-                    }
-                } else if (viewerPaused) {
-                    const mod = await import(viewerModuleUrl);
-                    mod.resume(stage3d);
-                    viewerPaused = false;
-                }
+                    if (stage3d) { try { const m=await import(viewerModuleUrl); stage3d.innerHTML=''; const part=getActivePart(); await m.mount(stage3d,{apiBase:window.DaiyujinAPI.config.baseUrl||'http://127.0.0.1:5000',fileId:part?.analysis?.file_id||'',partName:part?.analysis?.name||part?.fileName||'Part'}); viewerLoaded=true; viewerPaused=false; } catch(e){ stage3d.innerHTML='<div class="quote-3d-status">3D preview is unavailable.</div>'; } }
+                } else if (viewerPaused) { try { const m=await import(viewerModuleUrl); m.resume(stage3d); viewerPaused=false; } catch(e){} }
             }
-        });
-    });
-}
-
-function renderProgress(pct, text, done) {
-        result.innerHTML = `<section class="tool-panel">
-            <h2>Secure Assessment</h2>
-            <div class="quote-progress">
-                <div class="quote-progress-bar"><div class="quote-progress-fill${done ? " done" : ""}" style="width:${pct}%"></div></div>
-                <div class="quote-progress-text">
-                    <span class="quote-progress-phase">${escapeHtml(text)}</span>
-                    <span class="quote-progress-pct">${Math.round(pct)}%</span>
-                </div>
-            </div>
-            ${done ? '<div class="tool-note success" style="margin-top:1rem;">Processing complete. Rendering results&hellip;</div>' : ''}
-        </section>`;
+        });});
     }
 
-    function renderError(message) {
-        result.innerHTML = `<section class="tool-panel"><div class="tool-note error">${escapeHtml(message)}</div></section>`;
+    /* ══════════════════════════════════════════════════
+       Progress
+       ══════════════════════════════════════════════════ */
+    function startProgress(fileName) {
+        const phases = ["Manufacturing review", "Cost assessment", "Generating estimate"];
+        let pct = 0, timer = null, stopped = false;
+        function tick() { if (stopped) return; pct += pct < 60 ? 15 + Math.random()*12 : 3 + Math.random()*5; pct = Math.min(pct, 95); renderProgress(pct, `Calculating ${fileName || 'part'}…`); timer = setTimeout(tick, 500 + Math.random()*600); }
+        renderProgress(0, `Calculating ${fileName || 'part'}…`);
+        timer = setTimeout(tick, 300);
+        return function finish(success) { stopped = true; clearTimeout(timer); if (success) renderProgress(100, "Complete", true); };
     }
 
-    function formatNumber(value) { return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
-    function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, (char) => ({
-            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-        })[char]);
+    function renderProgress(pct, text, done) {
+        const bar = result.querySelector('.quote-progress-fill');
+        const phase = result.querySelector('.quote-progress-phase');
+        if (bar) bar.style.width = pct + '%';
+        if (phase) phase.textContent = text;
     }
+
+    function renderError(msg) {
+        const est = result.querySelector('.quote-estimate');
+        if (est) est.innerHTML = `<h2>Reference Estimate</h2><div class="tool-note error">${esc(msg)}</div>`;
+    }
+
+    /* ══════════════════════════════════════════════════
+       Helpers
+       ══════════════════════════════════════════════════ */
+    function formatNum(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
+    function esc(v) { return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+    /* Init */
+    hydrateOptions();
+    render();
 });

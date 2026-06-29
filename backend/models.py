@@ -220,6 +220,10 @@ class Inquiry(Base):
     customer_email: Mapped[str | None] = mapped_column(String(255))
     email_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
     email_status: Mapped[str | None] = mapped_column(String(40))
+    batch_id: Mapped[str | None] = mapped_column(String(80))
+    batch_item_id: Mapped[str | None] = mapped_column(String(80))
+    batch_item_index: Mapped[int | None] = mapped_column(Integer)
+    batch_item_count: Mapped[int | None] = mapped_column(Integer)
 
     # ── audit fields ──
     stp_filename: Mapped[str | None] = mapped_column(String(255))

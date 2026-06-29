@@ -951,6 +951,43 @@ body.tool-page {
 .quote-inquiry-note a { color: var(--accent); font-weight: 700; text-decoration: none; border-bottom: 1px solid rgba(0,102,204,.28); }
 .quote-inquiry-note a:hover { border-bottom-color: currentColor; }
 
+/* Batch parts list */
+.quote-batch-parts { margin-top: 0.25rem; }
+.quote-batch-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem; }
+.quote-batch-head h3 { margin: 0; font-size: 0.88rem; color: var(--ink); }
+.quote-batch-head span { font-size: 0.75rem; color: var(--muted); }
+.quote-batch-head[hidden], .quote-batch-parts[hidden] { display: none; }
+.quote-part-list { display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-y: auto; }
+.quote-part-row {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .55rem;
+    min-height: 38px;
+    padding: .45rem .55rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--ink);
+    text-align: left;
+    width: 100%;
+}
+.quote-part-row:hover { background: rgba(0,0,0,.025); }
+.quote-part-row.active { background: #eef6ff; border-color: rgba(0,102,204,.28); box-shadow: inset 3px 0 0 #0066cc; }
+.quote-part-index { font-size: 0.72rem; color: var(--muted); text-align: center; }
+.quote-part-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quote-part-status { font-size: 0.68rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.quote-part-status.green { background: #ecfdf5; color: #065f46; }
+.quote-part-status.amber { background: #fffbeb; color: #92400e; }
+.quote-part-status.blue { background: #eff6ff; color: #1e40af; }
+.quote-part-status.red { background: #fef2f2; color: #991b1b; }
+.quote-part-status.neutral { background: rgba(0,0,0,.04); color: var(--muted); }
+.quote-part-total { font-size: 0.74rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.quote-action-row { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+
 /* ── Two-level material picker ──────────────── */
 .quote-material-layout {
     display: grid;

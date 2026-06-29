@@ -13,9 +13,9 @@
                 <form class="tool-panel tool-form" data-quote-form>
                     <h2>Part &amp; Process</h2>
                     <label class="tool-upload" data-upload-label>
-                        <input name="file" type="file" accept=".stp,.step">
-                        <span>Choose STEP file</span>
-                        <small>.stp / .step &middot; max 50 MB</small>
+                        <input name="file" type="file" accept=".stp,.step" multiple>
+                        <span>Choose STEP files</span>
+                        <small>.stp / .step &middot; multiple files &middot; max 50 MB each</small>
                     </label>
                     <div class="tool-field">
                         <span class="tool-label">Material</span>
@@ -55,6 +55,14 @@
                         for a fast formal review.
                     </p>
 
+                    <section class="quote-batch-parts" data-batch-parts hidden>
+                        <div class="quote-batch-head">
+                            <h3>Parts</h3>
+                            <span data-batch-count>0 files</span>
+                        </div>
+                        <div class="quote-part-list" data-part-list></div>
+                    </section>
+
                     <section class="quote-form-section quote-form-section-contact" aria-labelledby="quote-contact-title">
                         <h3 id="quote-contact-title">Contact Details <span class="field-optional">(optional)</span></h3>
                         <div class="tool-field">
@@ -68,7 +76,9 @@
                         </div>
                     </section>
 
-                    <button class="tool-button" type="submit">Calculate Estimate</button>
+                    <div class="quote-action-row">
+                        <button class="tool-button" type="submit" data-calculate-current>Calculate Current Part</button>
+                    </div>
                     <p class="quote-privacy-note">By submitting this form, you confirm that you are authorized to share the uploaded file. If you provide contact details, we use them only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.</p>
                 </form>
 

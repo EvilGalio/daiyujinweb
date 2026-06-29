@@ -87,12 +87,22 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
             currency=currency,
             customer_name=contact_name or None,
             customer_email=contact_email or None,
+            batch_id=(payload.get("batch_id") or "").strip() or None,
+            batch_item_id=(payload.get("batch_item_id") or "").strip() or None,
+            batch_item_index=payload.get("batch_item_index"),
+            batch_item_count=payload.get("batch_item_count"),
             stp_filename=payload.get("stp_filename"),
             stp_file_path=None,
             client_ip=client_ip,
             user_agent=user_agent,
             input_params=json.dumps({
                 "model_version": result.get("pricing_model_version", "v2.2_estimate"),
+                "batch": {
+                    "batch_id": payload.get("batch_id"),
+                    "batch_item_id": payload.get("batch_item_id"),
+                    "batch_item_index": payload.get("batch_item_index"),
+                    "batch_item_count": payload.get("batch_item_count"),
+                },
                 "contact": {
                     "customer_name": contact_name or None,
                     "customer_email": contact_email or None,
