@@ -2,7 +2,7 @@
 setlocal
 title Cloudflare Tunnel - Daiyujin API
 
-cd /d D:\myfirstgithubcode\daiyujinweb
+cd /d "%~dp0"
 
 for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=(Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\Cloudflared' -ErrorAction Stop).ImagePath; if ($p -match '^(?<exe>.+?cloudflared\.exe)\s+tunnel\s+run\s+--token\s+(?<token>\S+)') { Write-Output ('CF_EXE=' + $Matches.exe); Write-Output ('CF_TOKEN=' + $Matches.token) }"`) do set "%%A"
 
