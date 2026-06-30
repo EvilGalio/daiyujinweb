@@ -41,6 +41,6 @@ Set-Location $BackendRoot
 $dbPath = (Join-Path $BackendRoot "data\daiyujin.db").Replace("\", "/")
 $env:DATABASE_URL = "sqlite:///$dbPath"
 $env:OCC_PYTHON = $OccPython
-$env:ALLOWED_ORIGINS = "https://gcnov.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500"
+$env:ALLOWED_ORIGINS = "https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500"
 
 & $OccPython -m waitress "--listen=127.0.0.1:$ApiPort" app:app
