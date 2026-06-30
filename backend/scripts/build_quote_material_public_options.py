@@ -149,6 +149,10 @@ def is_publishable(r):
         density = float(r.get("density_g_cm3", 0))
         if price <= 0 or density <= 0:
             return False
+        # NaN guard: isfinite rejects NaN and Inf
+        import math
+        if not (math.isfinite(price) and math.isfinite(density)):
+            return False
         # Sanity checks
         if density < 0.5 or density > 25:
             return False

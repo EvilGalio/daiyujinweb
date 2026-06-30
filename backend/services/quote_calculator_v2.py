@@ -379,6 +379,11 @@ def calculate_quote_v2(payload: dict) -> dict:
     material = _find_material(price_id=mat_id, material_category=cat_id)
     density = float(material["density_g_cm3"])
     price_per_kg = float(material["price_rmb_per_kg"])
+
+    # Validate material data integrity
+    import math
+    if not (math.isfinite(density) and density > 0 and math.isfinite(price_per_kg) and price_per_kg > 0):
+        raise ValueError("Material price data is incomplete. Please request a formal quote instead.")
     process_raw = str(payload.get("process", "CNC"))
     process_group = _find_process(process_raw)
     pp_raw = str(payload.get("postprocess_group", "去毛刺"))
