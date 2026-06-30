@@ -1,6 +1,10 @@
 __pycache__/
 *.py[cod]
 
+/__pycache__/
+/.env
 /uploads/
 /static/thumbnails/
+/static/stl/
 /data/*.db
+*.log

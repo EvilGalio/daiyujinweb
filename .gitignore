@@ -1,0 +1,48 @@
+# Python/runtime cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local environment and secrets
+.env
+.env.*
+backend/.env
+*.log
+setup-company-pc.log
+api-runtime.*.log
+
+# Local backend application data. Keep this on the production PC only.
+backend/data/
+backend/uploads/
+backend/static/thumbnails/
+backend/static/stl/
+backend/*.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Private planning, analysis, and commercial source files
+PRD*.md
+GUIDE*.md
+Used_PRD/
+Task 1 fromJohnson.md
+task 2 from Johnson.md
+*报价*
+*运费*
+*.xlsx
+*.xls
+*.xlsm
+*.pdf
+
+# Packaged artifacts and temporary outputs
+*.zip
+*.7z
+*.rar
+dist/
+build/
+
+# Editor/local machine noise
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
