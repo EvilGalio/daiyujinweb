@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const quoteScript = document.querySelector('script[src$="quote.js"]');
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
+    const FORMAL_QUOTE_URL = "https://mfg-solution.com/request-quote/";
 
     /* ══════════════════════════════════════════════════
        State
@@ -499,26 +500,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const unitEst = e.unit_estimate || {};
         const warnings = (e.warnings||[]).map(w=>`<div class="tool-note warn">${esc(w)}</div>`).join("");
 
-        const mailSubject = encodeURIComponent(`Formal Quote Request - ${part.fileName}`);
-        const mailBody = encodeURIComponent([
-            "Hello Daiyujin Engineering Team,",
-            "",
-            "I would like to request a formal quote.",
-            "",
-            `Part: ${part.fileName}`,
-            `Material: ${sel.material_category || "-"}${sel.material ? " / " + sel.material : ""}`,
-            `Process: ${sel.process || "-"}`,
-            `Postprocess: ${sel.postprocess_group || "-"}`,
-            `Tolerance: ${sel.tolerance_grade || "-"}`,
-            `Quantity: ${sel.quantity || 0} pcs`,
-            `Reference Estimate: ${totalEst.display || "-"}`,
-            `Unit Estimate: ${unitEst.display || "-"}`,
-            "",
-            "Please review the exact material grade, tolerance, surface finish, lead time, and manufacturability.",
-            "",
-            "Thank you.",
-        ].join("\n"));
-
         return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
             <div class="quote-total">${esc(totalEst.display||"-")}</div>
             <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"-")}</strong></div>
@@ -531,8 +512,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="metric-row"><span>Tolerance</span><strong>${esc(sel.tolerance_grade)}</strong></div>
             </div>
             ${warnings}
-            <div class="tool-note" style="margin-top:0.5rem;">${esc(e.disclaimer||"This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
-            <a class="tool-button" href="mailto:?subject=${mailSubject}&body=${mailBody}" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
+            <div class="tool-note" style="margin-top:0.5rem;">${formalQuoteText(e.disclaimer||"This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
+            <a class="tool-button" href="${FORMAL_QUOTE_URL}" target="_blank" rel="noopener" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
         </section>`;
     }
 
@@ -592,6 +573,9 @@ document.addEventListener("DOMContentLoaded", () => {
        ══════════════════════════════════════════════════ */
     function formatNum(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
     function esc(v) { return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+    function formalQuoteText(v) {
+        return esc(v).replace(/contact our engineers/gi, match => `<a href="${FORMAL_QUOTE_URL}" target="_blank" rel="noopener">${match}</a>`);
+    }
 
     /* Init */
     hydrateOptions();

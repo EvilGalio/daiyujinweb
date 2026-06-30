@@ -18,6 +18,7 @@ param(
     [string]$Remote = "origin",
     [string]$Branch = "",
     [string]$CondaEnvName = "occ",
+    [string]$GitProxy = "",
     [int]$ApiPort = 5000,
     [switch]$SkipDependencyInstall,
     [switch]$SkipDatabaseBackup,
@@ -34,6 +35,8 @@ $BackendRoot = Join-Path $ProjectRoot "backend"
 $LogPath = Join-Path $ProjectRoot "company-update.log"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $RuntimeBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "runtime-$Stamp"
+$Script:GitProxyResolved = $false
+$Script:ResolvedGitProxy = ""
 
 function Write-Step {
     param([string]$Message)
@@ -66,24 +69,120 @@ function Run-Native {
     Write-Step $Name
     Write-Note ("Command: {0} {1}" -f $FilePath, ($Arguments -join " "))
 
-    $nativeLog = Join-Path $ProjectRoot ("company-update-native-{0}.tmp" -f ([guid]::NewGuid().ToString("N")))
-    $oldEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        & $FilePath @Arguments *> $nativeLog
-        $exitCode = $LASTEXITCODE
-    } finally {
-        $ErrorActionPreference = $oldEap
+    $stdoutLog = Join-Path $ProjectRoot ("company-update-native-out-{0}.tmp" -f ([guid]::NewGuid().ToString("N")))
+    $stderrLog = Join-Path $ProjectRoot ("company-update-native-err-{0}.tmp" -f ([guid]::NewGuid().ToString("N")))
+    $argLine = ($Arguments | ForEach-Object { ConvertTo-CommandLineArgument $_ }) -join " "
+
+    $process = Start-Process `
+        -FilePath $FilePath `
+        -ArgumentList $argLine `
+        -WorkingDirectory (Get-Location).Path `
+        -Wait `
+        -PassThru `
+        -NoNewWindow `
+        -RedirectStandardOutput $stdoutLog `
+        -RedirectStandardError $stderrLog
+
+    foreach ($nativeLog in @($stdoutLog, $stderrLog)) {
+        if (Test-Path -LiteralPath $nativeLog) {
+            Get-Content -LiteralPath $nativeLog | Tee-Object -FilePath $LogPath -Append
+            Remove-Item -LiteralPath $nativeLog -Force -ErrorAction SilentlyContinue
+        }
     }
 
-    if (Test-Path -LiteralPath $nativeLog) {
-        Get-Content -LiteralPath $nativeLog | Tee-Object -FilePath $LogPath -Append
-        Remove-Item -LiteralPath $nativeLog -Force -ErrorAction SilentlyContinue
-    }
+    $exitCode = $process.ExitCode
 
     if ($exitCode -ne 0) {
         throw "$Name failed with exit code $exitCode"
     }
+}
+
+function ConvertTo-CommandLineArgument {
+    param([AllowNull()][string]$Value)
+    if ($null -eq $Value -or $Value.Length -eq 0) {
+        return '""'
+    }
+    if ($Value -notmatch '[\s"]') {
+        return $Value
+    }
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Test-LocalTcpPort {
+    param([int]$Port)
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $async = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne(250, $false)) {
+            return $false
+        }
+        $client.EndConnect($async)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
+function Resolve-GitProxy {
+    if ($Script:GitProxyResolved) {
+        return $Script:ResolvedGitProxy
+    }
+
+    $Script:GitProxyResolved = $true
+
+    $candidates = @()
+    if (-not [string]::IsNullOrWhiteSpace($GitProxy)) {
+        $candidates += $GitProxy.Trim()
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:DYJ_GIT_PROXY)) {
+        $candidates += $env:DYJ_GIT_PROXY.Trim()
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:HTTPS_PROXY)) {
+        $candidates += $env:HTTPS_PROXY.Trim()
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:HTTP_PROXY)) {
+        $candidates += $env:HTTP_PROXY.Trim()
+    }
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if ($candidate) {
+            $Script:ResolvedGitProxy = $candidate
+            Write-Note "Using Git proxy: $candidate"
+            return $Script:ResolvedGitProxy
+        }
+    }
+
+    foreach ($port in @(4780, 7890, 7897, 7899, 7898, 10809, 1080)) {
+        if (Test-LocalTcpPort -Port $port) {
+            $Script:ResolvedGitProxy = "http://127.0.0.1:$port"
+            Write-Note "Auto-detected local Git proxy: $($Script:ResolvedGitProxy)"
+            return $Script:ResolvedGitProxy
+        }
+    }
+
+    foreach ($port in @(4781)) {
+        if (Test-LocalTcpPort -Port $port) {
+            $Script:ResolvedGitProxy = "socks5h://127.0.0.1:$port"
+            Write-Note "Auto-detected local SOCKS Git proxy: $($Script:ResolvedGitProxy)"
+            return $Script:ResolvedGitProxy
+        }
+    }
+
+    Write-Warn "No local Git proxy detected. Git will try a direct connection."
+    return ""
+}
+
+function New-GitArguments {
+    param([Parameter(Mandatory=$true)][string[]]$Arguments)
+
+    $proxy = Resolve-GitProxy
+    if ([string]::IsNullOrWhiteSpace($proxy)) {
+        return $Arguments
+    }
+    return @("-c", "http.proxy=$proxy", "-c", "https.proxy=$proxy") + $Arguments
 }
 
 function Save-TrackedLocalChanges {
@@ -270,8 +369,8 @@ function Pull-FrameworkChanges {
 
     Save-TrackedLocalChanges
 
-    Run-Native -FilePath "git" -Arguments @("fetch", "--no-progress", $Remote) -Name "git fetch"
-    Run-Native -FilePath "git" -Arguments @("pull", "--ff-only", $Remote, $Branch) -Name "git pull --ff-only"
+    Run-Native -FilePath "git" -Arguments (New-GitArguments -Arguments @("fetch", "--no-progress", $Remote)) -Name "git fetch"
+    Run-Native -FilePath "git" -Arguments (New-GitArguments -Arguments @("pull", "--ff-only", $Remote, $Branch)) -Name "git pull --ff-only"
 }
 
 function Install-Dependencies {

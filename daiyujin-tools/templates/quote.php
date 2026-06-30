@@ -53,7 +53,7 @@
                     </div>
                     <p class="quote-inquiry-note">
                         Looking for more material grades, custom materials, machining processes, or finishing options?
-                        <a href="mailto:great@mfg-solution.com?subject=Custom%20Manufacturing%20Request">Contact our engineers</a>
+                        <a href="https://mfg-solution.com/request-quote/" target="_blank" rel="noopener">Contact our engineers</a>
                         for a fast formal review.
                     </p>
 
