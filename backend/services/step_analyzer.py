@@ -45,7 +45,6 @@ def _export_thumbnail(shape: Any, png_path: Path) -> None:
         material=Graphic3d_NOM_ALUMINIUM,
         transparency=0.0,
         update=True,
-        dump_image=False,
     )
 
     display.View_Iso()

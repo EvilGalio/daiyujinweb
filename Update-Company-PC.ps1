@@ -65,10 +65,48 @@ function Run-Native {
 
     Write-Step $Name
     Write-Note ("Command: {0} {1}" -f $FilePath, ($Arguments -join " "))
-    & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $LogPath -Append
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Name failed with exit code $LASTEXITCODE"
+
+    $nativeLog = Join-Path $ProjectRoot ("company-update-native-{0}.tmp" -f ([guid]::NewGuid().ToString("N")))
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $FilePath @Arguments *> $nativeLog
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldEap
     }
+
+    if (Test-Path -LiteralPath $nativeLog) {
+        Get-Content -LiteralPath $nativeLog | Tee-Object -FilePath $LogPath -Append
+        Remove-Item -LiteralPath $nativeLog -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($exitCode -ne 0) {
+        throw "$Name failed with exit code $exitCode"
+    }
+}
+
+function Save-TrackedLocalChanges {
+    Write-Step "Checking tracked local code changes"
+    Set-Location -LiteralPath $ProjectRoot
+
+    $trackedChanges = @(git status --porcelain --untracked-files=no)
+    if ($trackedChanges.Count -eq 0) {
+        Write-Note "No tracked local code changes found."
+        return
+    }
+
+    Write-Warn "Tracked local code changes found. They will be stashed before pull and not automatically reapplied."
+    $trackedChanges | ForEach-Object { Write-Note $_ }
+
+    $backupDir = Join-Path $ProjectRoot "local_backups"
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+
+    $patchPath = Join-Path $backupDir "tracked-code-changes-$Stamp.patch"
+    git diff --binary | Set-Content -LiteralPath $patchPath -Encoding UTF8
+    Write-Note "Tracked code diff backup: $patchPath"
+
+    Run-Native -FilePath "git" -Arguments @("stash", "push", "-m", "company tracked code changes before update $Stamp", "--", ".") -Name "git stash tracked code changes"
 }
 
 function Find-Conda {
@@ -230,7 +268,9 @@ function Pull-FrameworkChanges {
         $status | ForEach-Object { Write-Note $_ }
     }
 
-    Run-Native -FilePath "git" -Arguments @("fetch", $Remote) -Name "git fetch"
+    Save-TrackedLocalChanges
+
+    Run-Native -FilePath "git" -Arguments @("fetch", "--no-progress", $Remote) -Name "git fetch"
     Run-Native -FilePath "git" -Arguments @("pull", "--ff-only", $Remote, $Branch) -Name "git pull --ff-only"
 }
 
