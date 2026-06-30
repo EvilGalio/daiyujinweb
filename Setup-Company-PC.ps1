@@ -19,7 +19,7 @@ The script is intentionally non-destructive:
 
 [CmdletBinding()]
 param(
-    [string]$ProjectRoot = $PSScriptRoot,
+    [string]$ProjectRoot = "",
     [string]$CondaEnvName = "occ",
     [string]$PythonVersion = "3.11",
     [int]$ApiPort = 5000,
@@ -33,6 +33,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $BackendRoot = Join-Path $ProjectRoot "backend"
 $LogPath = Join-Path $ProjectRoot "setup-company-pc.log"

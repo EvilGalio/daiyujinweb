@@ -4,7 +4,9 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-WB = PROJECT_ROOT / "A重量运费重制版.xlsx"
+WB = PROJECT_ROOT / "_private" / "source_data" / "freight" / "A重量运费重制版.xlsx"
+if not WB.exists():
+    WB = PROJECT_ROOT / "A重量运费重制版.xlsx"
 
 def _num(v):
     if v is None: return None

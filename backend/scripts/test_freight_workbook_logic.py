@@ -13,7 +13,9 @@ from typing import Any
 from openpyxl import load_workbook
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-WORKBOOK = PROJECT_ROOT / "D重量运费.xlsx"
+WORKBOOK = PROJECT_ROOT / "_private" / "source_data" / "freight" / "D重量运费.xlsx"
+if not WORKBOOK.exists():
+    WORKBOOK = PROJECT_ROOT / "D重量运费.xlsx"
 
 
 def _num(v: Any) -> float | None:

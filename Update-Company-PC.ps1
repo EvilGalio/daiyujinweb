@@ -14,7 +14,7 @@ This script keeps local application data untouched:
 
 [CmdletBinding()]
 param(
-    [string]$ProjectRoot = $PSScriptRoot,
+    [string]$ProjectRoot = "",
     [string]$Remote = "origin",
     [string]$Branch = "",
     [string]$CondaEnvName = "occ",
@@ -26,6 +26,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $BackendRoot = Join-Path $ProjectRoot "backend"
 $LogPath = Join-Path $ProjectRoot "company-update.log"

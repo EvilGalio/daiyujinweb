@@ -20,6 +20,9 @@ backend/*.db
 *.db
 *.sqlite
 *.sqlite3
+local_backups/
+_private/
+_runtime_archive/
 
 # Private planning, analysis, and commercial source files
 PRD*.md

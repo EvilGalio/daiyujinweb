@@ -7,9 +7,12 @@ from openpyxl import load_workbook
 
 
 def find_freight_workbook(root: Path) -> Path:
-    matches = sorted(root.glob("*.xlsx"))
+    private_freight_dir = root / "_private" / "source_data" / "freight"
+    matches = sorted(private_freight_dir.glob("*.xlsx")) if private_freight_dir.exists() else []
     if not matches:
-        raise FileNotFoundError("No .xlsx freight workbook found in project root")
+        matches = sorted(root.glob("*.xlsx"))
+    if not matches:
+        raise FileNotFoundError("No .xlsx freight workbook found in _private/source_data/freight or project root")
     return matches[0]
 
 

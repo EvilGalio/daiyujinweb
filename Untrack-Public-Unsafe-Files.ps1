@@ -17,7 +17,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = $PSScriptRoot
+$ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $ProjectRoot
 
 function Test-PublicUnsafePath {
@@ -42,6 +42,10 @@ function Test-PublicUnsafePath {
     if ($lower -like "*.xlsm") { return $true }
     if ($lower -like "*.pdf") { return $true }
     if ($lower -like "*.zip") { return $true }
+    if ($lower -like "199*.md") { return $true }
+    if ($p -like "DHL*运费*.md") { return $true }
+    if ($p -like "几个小工具*") { return $true }
+    if ($p -eq "力扣.md") { return $true }
     if ($p -like "*报价*") { return $true }
     if ($p -like "*运费*") { return $true }
     if ($p -eq "Task 1 fromJohnson.md") { return $true }
@@ -50,7 +54,7 @@ function Test-PublicUnsafePath {
     return $false
 }
 
-$tracked = git ls-files
+$tracked = git -c core.quotepath=false ls-files
 $unsafe = @($tracked | Where-Object { Test-PublicUnsafePath $_ })
 
 if ($unsafe.Count -eq 0) {

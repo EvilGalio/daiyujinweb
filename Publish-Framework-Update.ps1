@@ -17,7 +17,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = $PSScriptRoot
+$ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $ProjectRoot
 
 function Test-PublicUnsafePath {
@@ -42,6 +42,10 @@ function Test-PublicUnsafePath {
     if ($lower -like "*.xlsm") { return $true }
     if ($lower -like "*.pdf") { return $true }
     if ($lower -like "*.zip") { return $true }
+    if ($lower -like "199*.md") { return $true }
+    if ($p -like "DHL*运费*.md") { return $true }
+    if ($p -like "几个小工具*") { return $true }
+    if ($p -eq "力扣.md") { return $true }
     if ($p -like "*报价*") { return $true }
     if ($p -like "*运费*") { return $true }
     if ($p -eq "Task 1 fromJohnson.md") { return $true }
@@ -62,7 +66,7 @@ if ([string]::IsNullOrWhiteSpace($Branch)) {
     throw "Cannot detect current branch. Pass -Branch explicitly."
 }
 
-$trackedUnsafe = @(git ls-files | Where-Object { Test-PublicUnsafePath $_ })
+$trackedUnsafe = @(git -c core.quotepath=false ls-files | Where-Object { Test-PublicUnsafePath $_ })
 if ($trackedUnsafe.Count -gt 0) {
     Write-Host "Refusing to publish because public-unsafe files are still tracked:" -ForegroundColor Red
     $trackedUnsafe | Select-Object -First 80 | ForEach-Object { Write-Host "  $_" }
@@ -85,7 +89,7 @@ git add -A
 if ($LASTEXITCODE -ne 0) { throw "git add failed." }
 
 $blockedStaged = @()
-$nameStatus = @(git diff --cached --name-status)
+$nameStatus = @(git -c core.quotepath=false diff --cached --name-status)
 foreach ($line in $nameStatus) {
     $parts = $line -split "`t"
     if ($parts.Count -lt 2) { continue }
@@ -107,7 +111,7 @@ if ($blockedStaged.Count -gt 0) {
     exit 1
 }
 
-$staged = @(git diff --cached --name-only)
+$staged = @(git -c core.quotepath=false diff --cached --name-only)
 if ($staged.Count -eq 0) {
     Write-Host "No publishable changes staged." -ForegroundColor Yellow
     exit 0
