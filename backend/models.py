@@ -13,6 +13,10 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+def local_now() -> datetime:
+    return datetime.now().astimezone().replace(tzinfo=None)
+
+
 class AdminUser(Base, TimestampMixin):
     __tablename__ = "admin_users"
 
@@ -202,9 +206,11 @@ class SizeCost(Base):
 class Inquiry(Base):
     __tablename__ = "inquiries"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    type: Mapped[str] = mapped_column(String(40), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    part_name: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=local_now)
+    customer_name: Mapped[str | None] = mapped_column(String(120))
+    customer_email: Mapped[str | None] = mapped_column(String(255))
+    quantity: Mapped[int | None] = mapped_column(Integer)
 
     # ── business fields ──
     material_name: Mapped[str | None] = mapped_column(String(160))
@@ -212,14 +218,9 @@ class Inquiry(Base):
     weight_kg: Mapped[float | None] = mapped_column(Float)
     max_dim_mm: Mapped[float | None] = mapped_column(Float)
     tolerance_grade: Mapped[str | None] = mapped_column(String(20))
-    quantity: Mapped[int | None] = mapped_column(Integer)
     total_usd: Mapped[float | None] = mapped_column(Float)
     total_display: Mapped[str | None] = mapped_column(String(40))
     currency: Mapped[str | None] = mapped_column(String(3))
-    customer_name: Mapped[str | None] = mapped_column(String(120))
-    customer_email: Mapped[str | None] = mapped_column(String(255))
-    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
-    email_status: Mapped[str | None] = mapped_column(String(40))
     batch_id: Mapped[str | None] = mapped_column(String(80))
     batch_item_id: Mapped[str | None] = mapped_column(String(80))
     batch_item_index: Mapped[int | None] = mapped_column(Integer)
@@ -227,10 +228,10 @@ class Inquiry(Base):
 
     # ── audit fields ──
     stp_filename: Mapped[str | None] = mapped_column(String(255))
-    stp_file_path: Mapped[str | None] = mapped_column(String(500))
     client_ip: Mapped[str | None] = mapped_column(String(80))
     user_agent: Mapped[str | None] = mapped_column(String(255))
 
     # ── raw snapshots (debug / replay) ──
     input_params: Mapped[str] = mapped_column(Text, nullable=False)
     result: Mapped[str] = mapped_column(Text, nullable=False)
+    record_id: Mapped[int] = mapped_column(Integer, primary_key=True)

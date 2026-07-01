@@ -41,7 +41,7 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
     session = SessionLocal()
     try:
         inquiry = Inquiry(
-            type="formal_quote",
+            part_name=_part_name_from_payload(payload),
             material_name=payload.get("material_id", ""),
             quantity=payload.get("quantity"),
             total_usd=None,
@@ -59,6 +59,7 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
         session.commit()
         return {
             "status": "received",
+            "inquiry_id": inquiry.record_id,
             "message": "Your formal quote request has been received. Our engineering team will review and respond within 1 business day.",
         }
     finally:
@@ -75,7 +76,7 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
         contact_email = (result.get("customer_email") or payload.get("customer_email") or "").strip()
         obb_lwh = result.get("part", {}).get("obb_lwh_mm") or [0]
         inquiry = Inquiry(
-            type="quote",
+            part_name=_part_name_from_payload(payload, result),
             material_name=payload.get("material_id", ""),
             volume_mm3=payload.get("volume_mm3"),
             weight_kg=result.get("part", {}).get("stock_weight_kg"),
@@ -92,7 +93,6 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
             batch_item_index=payload.get("batch_item_index"),
             batch_item_count=payload.get("batch_item_count"),
             stp_filename=payload.get("stp_filename"),
-            stp_file_path=None,
             client_ip=client_ip,
             user_agent=user_agent,
             input_params=json.dumps({
@@ -118,3 +118,24 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
     finally:
         session.close()
         SessionLocal.remove()
+
+
+def _part_name_from_payload(payload: dict, result: dict | None = None) -> str:
+    result = result or {}
+    quote_result = payload.get("quote_result") if isinstance(payload.get("quote_result"), dict) else {}
+    candidates = [
+        payload.get("part_name"),
+        (result.get("part") or {}).get("name") if isinstance(result.get("part"), dict) else None,
+        (quote_result.get("part") or {}).get("name") if isinstance(quote_result.get("part"), dict) else None,
+    ]
+    for value in candidates:
+        text = str(value or "").strip()
+        if text:
+            return text
+
+    filename = (
+        payload.get("stp_filename")
+        or ((result.get("part") or {}).get("stp_filename") if isinstance(result.get("part"), dict) else "")
+        or ((quote_result.get("part") or {}).get("stp_filename") if isinstance(quote_result.get("part"), dict) else "")
+    )
+    return str(filename or "").replace("\\", "/").split("/")[-1].rsplit(".", 1)[0]
