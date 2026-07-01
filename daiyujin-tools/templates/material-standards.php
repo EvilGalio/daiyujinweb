@@ -1,4 +1,4 @@
-<div class="dyj-tool-embed">
+<div class="dyj-tool-embed" data-dyj-theme="<?php echo esc_attr($theme); ?>">
 <div class="tool-shell">
 <main>
     <section class="tool-hero">

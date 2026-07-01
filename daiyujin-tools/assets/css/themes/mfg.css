@@ -1,0 +1,63 @@
+/* MFG Solution theme — clean B2B manufacturing green */
+.dyj-tool-embed[data-dyj-theme="mfg"] {
+  --ink: #1f2933;
+  --ink-soft: #3f4b5a;
+  --muted: #6b7480;
+  --line: #e5ebf0;
+  --surface: #f8fafb;
+  --panel: #ffffff;
+
+  --accent: #58a070;
+  --accent-hover: #47885f;
+  --accent-strong: #60b080;
+  --accent-bright: #60d080;
+  --accent-soft: #edf7f1;
+  --accent-glow: rgba(88, 160, 112, 0.18);
+
+  --success: #58a070;
+  --success-bg: #edf7f1;
+  --warn: #c9861a;
+  --warn-bg: #fff8e8;
+  --danger: #d94b4b;
+  --danger-bg: #fff1f1;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow-card: 0 1px 2px rgba(31, 41, 51, 0.06);
+  --shadow-elevated: 0 8px 22px rgba(31, 41, 51, 0.08);
+}
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-button {
+  background: var(--accent); color: #fff; border-radius: 6px;
+}
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-button:hover { background: var(--accent-hover); }
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--line); }
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-button:disabled { opacity: .55; }
+
+.dyj-tool-embed[data-dyj-theme="mfg"] a { color: var(--accent-hover); }
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-panel {
+  border-color: var(--line); box-shadow: var(--shadow-card);
+}
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-upload {
+  border-color: var(--accent-glow);
+}
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-upload:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .quote-material-cat-btn.active,
+.dyj-tool-embed[data-dyj-theme="mfg"] .quote-material-grade-option.active {
+  border-color: var(--accent); background: var(--accent-soft);
+}
+.dyj-tool-embed[data-dyj-theme="mfg"] .quote-material-grade-option.active::after { background: var(--accent); }
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .quote-progress-fill,
+.dyj-tool-embed[data-dyj-theme="mfg"] .freight-progress-fill {
+  background: linear-gradient(90deg, var(--accent-hover), var(--accent-bright));
+}
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .quote-preview-tabs button.active {
+  color: var(--accent-hover); border-color: var(--accent);
+}
+
+.dyj-tool-embed[data-dyj-theme="mfg"] .tool-nav a[aria-current] { color: var(--accent); }

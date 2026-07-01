@@ -1,4 +1,4 @@
-<div class="dyj-tool-embed">
+<div class="dyj-tool-embed" data-dyj-theme="<?php echo esc_attr($theme); ?>">
     <div class="tool-shell quote-shell">
         <main>
             <section class="tool-hero">
@@ -53,7 +53,7 @@
                     </div>
                     <p class="quote-inquiry-note">
                         Looking for more material grades, custom materials, machining processes, or finishing options?
-                        <a href="https://mfg-solution.com/request-quote/" target="_blank" rel="noopener">Contact our engineers</a>
+                        <a href="<?php echo esc_url($formal_quote_url); ?>" target="_blank" rel="noopener">Contact our engineers</a>
                         for a fast formal review.
                     </p>
 

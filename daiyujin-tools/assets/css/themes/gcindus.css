@@ -1,0 +1,70 @@
+/* GC INDUS theme — deep blue precision engineering */
+.dyj-tool-embed[data-dyj-theme="gcindus"] {
+  --ink: #17223a;
+  --ink-soft: #30415f;
+  --muted: #6b7890;
+  --line: #dbe3ee;
+  --surface: #f4f6f8;
+  --panel: #ffffff;
+
+  --accent: #284078;
+  --accent-hover: #1f315f;
+  --accent-strong: #304d90;
+  --accent-soft: #eef3fb;
+  --accent-glow: rgba(40, 64, 120, 0.18);
+
+  --success: #23735f;
+  --success-bg: #eef8f5;
+  --warn: #b87719;
+  --warn-bg: #fff8e8;
+  --danger: #d94b4b;
+  --danger-bg: #fff1f1;
+
+  --radius: 10px;
+  --radius-sm: 8px;
+  --shadow-card: 0 2px 8px rgba(23, 34, 58, 0.06);
+  --shadow-elevated: 0 12px 28px rgba(23, 34, 58, 0.12);
+}
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-button {
+  border-radius: 999px; background: var(--accent); color: #fff;
+  box-shadow: 0 10px 24px rgba(40, 64, 120, 0.18);
+}
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-button:hover { background: var(--accent-hover); }
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-button.secondary {
+  background: #fff; color: var(--accent); border: 1px solid var(--line); box-shadow: none;
+}
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-button:disabled { opacity: .55; box-shadow: none; }
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] a { color: var(--accent-strong); }
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-panel {
+  border-color: var(--line); box-shadow: var(--shadow-card);
+}
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-upload {
+  background: linear-gradient(180deg, #ffffff, var(--accent-soft));
+  border-color: rgba(40, 64, 120, 0.25);
+}
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-upload:hover { border-color: var(--accent); }
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-material-cat-btn.active,
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-material-grade-option.active {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
+}
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-material-grade-option.active::after { background: var(--accent); }
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-progress-fill,
+.dyj-tool-embed[data-dyj-theme="gcindus"] .freight-progress-fill {
+  background: linear-gradient(90deg, var(--accent), #78b0c0);
+}
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-preview-tabs button.active {
+  color: var(--accent); border-color: var(--accent);
+}
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .quote-total {
+  color: var(--accent);
+}
+
+.dyj-tool-embed[data-dyj-theme="gcindus"] .tool-nav a[aria-current] { color: var(--accent); }

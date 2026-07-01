@@ -1,0 +1,1680 @@
+{
+  "ready": true,
+  "title": "Online Quote | Precision Machining Services | MFG SOLUTION",
+  "url": "https://mfg-solution.com/online-quote/",
+  "text": "Skip to content\nSERVICES\nCAPABILITY\nABOUT US\nBLOG\nPARTS GALLERY\nContact Us\nInstant Quoting\n\nUpload a STEP file and receive a reference manufacturing estimate. Final pricing is confirmed after engineering review.\n\nchecking\nPART & PROCESS\nChoose STEP files\n.stp / .step · multiple files · max 50 MB each\nMaterial\nProcess\nLoading…\nGeneral Tolerance\nLoading…\nPostprocess\nLoading…\nQuantity\nCurrency\nUSD\n\nLooking for more material grades, custom materials, machining processes, or finishing options? Contact our engineers for a fast formal review.\n\nContact Details (optional)\nHow should we address you? (optional)\nEmail Address (optional)\nAdd your email if you want our engineers to follow up with a formal quote.\nCalculate Current Part\n\nBy submitting this form, you confirm that you are authorized to share the uploaded file. If you provide contact details, we use them only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.\n\nPART PREVIEW\nAwaiting STEP analysis.\nREFERENCE ESTIMATE\nSelect parameters and calculate after upload.\n\nProvide you with the best solution according to your requirments and make it easy for you to get parts!\n\ngreat@mfg-solution.com\n\nIndustries\nAutomation\nAutomotive\nElectronic Assemble\nCommunication Device\nMedical Device\nRobotics\nSpare Parts\nCustom Parts\nServices\nCold Forging\nSwiss Lathe\nAuto Lathe\nCNC Machining\n5 Axis CNC Machining\nSheet Metal\nCompression Molding\n3D printing\nContact Us\n\nNeed help or have a question?\nEmail:\n\ngreat@mfg-solution.com\n\nGet A Quote Now !\n\nCopyright © 2026 - MFG SOLUTION Co., Limited ",
+  "inputs": [
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Skip to content",
+      "cls": "skip-link screen-reader-text"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-toggle-close"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Services",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SERVICE",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "COLD FORGING",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Custom fasteners, shafts, connectors",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "CNC MACHINING",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "From prototype to small batch production",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SWISS LATHE",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Cylindrical parts feature characteristics.",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "5-AXIS CNC",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Complex parts prototyping",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PRECISION CAST",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Reduce the cost of complex parts",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PCBA",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electronic Assembly Solutions",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "AUTO-LATHE",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Low-cost cylindrical parts batch production",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ONLINE AI QUOTE",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "GET QUOTE IN SECONDS",
+      "cls": "wp-block-button__link wp-element-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "FORMAL QUOTATION",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "QUOTE FROM ENGINEER",
+      "cls": "wp-block-button__link has-text-align-center wp-element-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Capability",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Plastic",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "POM",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Acrylic (PMMA)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Acetal (Delrin)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "HDPE, LDPE",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Nylon (Polyamide)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PEEK",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PP",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PTFE",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PC",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ABS",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Stainless Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 17-4",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 316",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 304",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 303",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 301",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "A2 Tool Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "D2 Tool Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Aluminum",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 7075-T6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 6082-T6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 6063-T5",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "AL 2024-T3",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 1100",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Aluminum 6061",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Aluminum MIC-6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C36000)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C23000)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C27200)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C46400)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C35300)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C27400)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1018 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1030 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1045 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "4140 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Surface Treatment",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Hardcoat Anodizing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Anodize",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Powder Coating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Polishing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electropolishing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Gold Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Nickel Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Zinc Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electroplating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "About Us",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Blog",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-mobile"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Online AI Quote",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Freight Estimate",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Weight Calculator",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Material Standards",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ISO Tolerance",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Parts Gallery",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "site-logo-container"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "site-logo-container"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SERVICES",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "wp-block-button__link wp-element-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "wp-block-button__link has-text-align-center wp-element-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "CAPABILITY",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "POM",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Acrylic (PMMA)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Acetal (Delrin)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "HDPE, LDPE",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Nylon (Polyamide)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PEEK",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PP",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PTFE",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PC",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ABS",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 17-4",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 316",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 304",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 303",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "SS 301",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "A2 Tool Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "D2 Tool Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 7075-T6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 6082-T6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 6063-T5",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "AL 2024-T3",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Al 1100",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Aluminum 6061",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Aluminum MIC-6",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C36000)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C23000)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C27200)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C46400)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C35300)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Brass (C27400)",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1018 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1030 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "1045 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "4140 Steel",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Hardcoat Anodizing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Anodize",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Powder Coating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Polishing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electropolishing",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Gold Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Nickel Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Zinc Plating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electroplating",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ABOUT US",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "BLOG",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Expand dropdown menu",
+      "cls": "ct-toggle-dropdown-desktop-ghost"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Online AI Quote",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Freight Estimate",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Weight Calculator",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Material Standards",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "ISO Tolerance",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "PARTS GALLERY",
+      "cls": "ct-menu-link"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Contact Us",
+      "cls": "ct-button"
+    },
+    {
+      "tag": "BUTTON",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Menu",
+      "cls": "ct-header-trigger ct-toggle "
+    },
+    {
+      "tag": "INPUT",
+      "type": "file",
+      "name": "file",
+      "id": "",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "SELECT",
+      "type": null,
+      "name": "process",
+      "id": "process",
+      "text": "Loading…",
+      "cls": ""
+    },
+    {
+      "tag": "SELECT",
+      "type": null,
+      "name": "tolerance_grade",
+      "id": "tolerance",
+      "text": "Loading…",
+      "cls": ""
+    },
+    {
+      "tag": "SELECT",
+      "type": null,
+      "name": "postprocess_group",
+      "id": "postprocess",
+      "text": "Loading…",
+      "cls": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "number",
+      "name": "quantity",
+      "id": "quantity",
+      "text": "100",
+      "cls": ""
+    },
+    {
+      "tag": "SELECT",
+      "type": null,
+      "name": "currency",
+      "id": "currency",
+      "text": "USD",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Contact our engineers",
+      "cls": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "name": "customer_name",
+      "id": "customer_name",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "INPUT",
+      "type": "email",
+      "name": "customer_email",
+      "id": "customer_email",
+      "text": "",
+      "cls": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": null,
+      "id": "",
+      "text": "Calculate Current Part",
+      "cls": "tool-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Automation",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Automotive",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Electronic Assemble",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Communication Device",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Medical Device",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Robotics",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Spare Parts",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Custom Parts",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Cold Forging",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Swiss Lathe",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Auto Lathe",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "CNC Machining",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "5 Axis CNC Machining",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Sheet Metal",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Compression Molding",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "3D printing",
+      "cls": ""
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Get A Quote Now !",
+      "cls": "wp-block-button__link wp-element-button"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "",
+      "cls": "ct-back-to-top ct-hidden-sm"
+    },
+    {
+      "tag": "A",
+      "type": null,
+      "name": null,
+      "id": "",
+      "text": "Home",
+      "cls": ""
+    }
+  ]
+}

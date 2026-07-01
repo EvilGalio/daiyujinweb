@@ -19,7 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const quoteScript = document.querySelector('script[src$="quote.js"]');
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
-    const FORMAL_QUOTE_URL = "https://mfg-solution.com/request-quote/";
+    const CONFIG = window.DAIYUJIN_TOOLS_CONFIG || {};
+    const FORMAL_QUOTE_URL = CONFIG.formalQuoteUrl || "https://mfg-solution.com/request-quote/";
+    const FORMAL_QUOTE_LABEL = CONFIG.formalQuoteLabel || "Request Formal Quote";
+    const ENGINEER_CONTACT_URL = CONFIG.engineerContactUrl || FORMAL_QUOTE_URL;
+    const ENGINEER_CONTACT_LABEL = CONFIG.engineerContactLabel || "Contact our engineers";
 
     /* ══════════════════════════════════════════════════
        State
@@ -513,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             ${warnings}
             <div class="tool-note" style="margin-top:0.5rem;">${formalQuoteText(e.disclaimer||"This estimate is for early cost evaluation and is not a formal commercial offer.")}</div>
-            <a class="tool-button" href="${FORMAL_QUOTE_URL}" target="_blank" rel="noopener" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">Request Formal Quote</a>
+            <a class="tool-button" href="${FORMAL_QUOTE_URL}" target="_blank" rel="noopener" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">${esc(FORMAL_QUOTE_LABEL)}</a>
         </section>`;
     }
 
@@ -580,4 +584,10 @@ document.addEventListener("DOMContentLoaded", () => {
     /* Init */
     hydrateOptions();
     render();
+
+    /* Apply config-driven links */
+    if (CONFIG.engineerContactUrl) {
+        const el = document.querySelector('[data-engineer-contact]');
+        if (el) { el.href = CONFIG.engineerContactUrl; el.textContent = ENGINEER_CONTACT_LABEL; }
+    }
 });
