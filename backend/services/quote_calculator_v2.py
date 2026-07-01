@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from services.exchange_rates import convert_rmb
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "quote_model_v2_2"
 SAFETY_MULTIPLIER = 1.00  # v2.2-A.1: removed safety pad
 DIFFICULTY_FACTOR = 1.0
@@ -425,9 +427,6 @@ def calculate_quote_v2(payload: dict) -> dict:
     suggested_unit = round(raw_unit_price * SAFETY_MULTIPLIER, 2)
     suggested_total = round(suggested_unit * quantity, 2)
 
-    usd_cny = 7.20
-    usd_eur = 0.92
-
     # ── Estimate band + stable random ──────────
     low_pct, high_pct, risk_level = _estimate_band_policy(
         cat_id, process_group, postprocess_group, quantity,
@@ -444,18 +443,11 @@ def calculate_quote_v2(payload: dict) -> dict:
 
     valid_until = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d")
 
-    if currency == "CNY":
-        unit_estimate_disp = round(unit_estimate_rmb, 2)
-        total_estimate_disp = round(unit_estimate_rmb * quantity, 2)
-    elif currency == "EUR":
-        unit_estimate_disp = round(unit_estimate_rmb / usd_cny * usd_eur, 2)
-        total_estimate_disp = round(unit_estimate_rmb * quantity / usd_cny * usd_eur, 2)
-    else:
-        unit_estimate_disp = round(unit_estimate_rmb / usd_cny, 2)
-        total_estimate_disp = round(unit_estimate_rmb * quantity / usd_cny, 2)
+    unit_estimate_disp = float(convert_rmb(unit_estimate_rmb, currency))
+    total_estimate_disp = float(convert_rmb(unit_estimate_rmb * quantity, currency))
 
-    unit_display = _display_amount(suggested_unit, currency, usd_cny, usd_eur)
-    total_display = _display_amount(suggested_total, currency, usd_cny, usd_eur)
+    unit_display = _display_amount(suggested_unit, currency)
+    total_display = _display_amount(suggested_total, currency)
 
     result = {
         "quote_status": "estimated",
@@ -552,13 +544,8 @@ def _commercial_round(amount: float) -> float:
     return round(amount / step) * step
 
 
-def _display_amount(rmb: float, currency: str, usd_cny: float, usd_eur: float) -> float:
-    if currency == "CNY":
-        return rmb
-    elif currency == "EUR":
-        return round(rmb / usd_cny * usd_eur, 2)
-    else:
-        return round(rmb / usd_cny, 2)
+def _display_amount(rmb: float, currency: str) -> float:
+    return float(convert_rmb(rmb, currency))
 
 
 # ── Public response sanitizer ───────────────────

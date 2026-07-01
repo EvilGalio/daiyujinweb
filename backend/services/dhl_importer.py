@@ -79,8 +79,6 @@ def import_dhl() -> dict[str, Any]:
             "default_currency": "USD",
             "small_multiplier": 1.8,
             "heavy_multiplier": 1.7,
-            "usd_divisor": 6,
-            "eur_divisor": 7,
             "small_weight_limit_kg": 33,
         }
 

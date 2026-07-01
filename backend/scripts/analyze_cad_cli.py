@@ -1,3 +1,4 @@
+"""Analyze STEP/IGES files via OCC in an isolated subprocess."""
 from __future__ import annotations
 
 import json
@@ -13,22 +14,21 @@ from services.cad_analyzer import analyze_cad_file
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print(
-            json.dumps(
-                {
-                    "success": False,
-                    "data": None,
-                    "warnings": [],
-                    "error": "usage: analyze_step_cli.py <cad-file> <thumbnail-dir>",
-                }
-            )
+        json.dump(
+            {
+                "success": False,
+                "data": None,
+                "warnings": [],
+                "error": "usage: analyze_cad_cli.py <cad-file> <thumbnail-dir>",
+            },
+            sys.stdout,
         )
         return 2
 
-    step_file = Path(sys.argv[1])
+    cad_file = Path(sys.argv[1])
     thumbnail_dir = Path(sys.argv[2])
-    result = analyze_cad_file(step_file, thumbnail_dir)
-    print(json.dumps(result, ensure_ascii=False))
+    result = analyze_cad_file(cad_file, thumbnail_dir)
+    json.dump(result, sys.stdout, ensure_ascii=False)
     return 0 if result.get("success") else 1
 
 

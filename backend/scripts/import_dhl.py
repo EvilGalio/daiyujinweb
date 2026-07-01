@@ -56,8 +56,6 @@ def import_all():
             ("default_currency", "USD", "Default display currency"),
             ("small_multiplier", "1.8", "Small cargo multiplier"),
             ("heavy_multiplier", "1.7", "Heavy cargo multiplier"),
-            ("usd_divisor", "6", "USD exchange divisor"),
-            ("eur_divisor", "7", "EUR exchange divisor"),
             ("small_weight_limit_kg", "33", "Threshold for small vs heavy path"),
         ]
         for key, val, desc in configs:

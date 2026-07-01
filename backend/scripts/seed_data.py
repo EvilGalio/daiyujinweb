@@ -31,8 +31,14 @@ def seed() -> None:
 
         rates = [
             ("USD", "USD", 1.0),
+            ("CNY", "CNY", 1.0),
+            ("EUR", "EUR", 1.0),
             ("USD", "CNY", 7.20),
             ("USD", "EUR", 0.92),
+            ("CNY", "USD", 1 / 7.20),
+            ("CNY", "EUR", 0.92 / 7.20),
+            ("EUR", "CNY", 7.20 / 0.92),
+            ("EUR", "USD", 1 / 0.92),
         ]
         for from_currency, to_currency, rate in rates:
             existing = (

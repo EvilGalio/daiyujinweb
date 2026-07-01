@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.3.0');
+define('DYJ_TOOLS_VERSION', '1.3.1');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 

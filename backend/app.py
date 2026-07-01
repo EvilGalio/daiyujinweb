@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
+import threading
 import uuid
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -16,6 +19,8 @@ from services.pricing import calculate_quote, get_quote_options, recalculate_wei
 from services.tolerance import calculate_tolerance, get_tolerance_presets, get_tolerance_zones, get_tolerance_capabilities
 from services.material_standards import search as material_standards_search, get_families as material_standards_families
 from services.material_weight import get_options as material_weight_options, calculate as material_weight_calculate
+from services.cad_analyzer import SUPPORTED_CAD_EXTENSIONS, cad_format_for_path
+from services.exchange_rates import ensure_recent_rates
 
 
 from services.preview_watermark import apply_preview_watermark
@@ -24,6 +29,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
+SUPPORTED_UPLOAD_EXTENSIONS = SUPPORTED_CAD_EXTENSIONS | {".zip"}
+MAX_DIRECT_CAD_BYTES = 50 * 1024 * 1024
+MAX_ZIP_BYTES = 50 * 1024 * 1024
+MAX_ZIP_CAD_TOTAL_BYTES = 150 * 1024 * 1024
+MAX_ZIP_CAD_FILES = 20
 
 # ── Preview watermark ──────────────────────────
 
@@ -36,6 +46,126 @@ def _occ_python_path():
     return Path(os.environ.get("OCC_PYTHON", r"D:\anaconda\envs\occ\python.exe"))
 
 DEFAULT_OCC_PYTHON = _occ_python_path()
+
+
+def _supported_upload_message() -> str:
+    return "Supported file types: .stp, .step, .igs, .iges, .zip"
+
+
+def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_filename: str | None = None) -> dict:
+    occ_python = Path(os.environ.get("OCC_PYTHON", str(DEFAULT_OCC_PYTHON)))
+    if not occ_python.exists():
+        return {
+            "success": False,
+            "error": f"OCC Python not found: {occ_python}",
+        }
+
+    completed = subprocess.run(
+        [
+            str(occ_python),
+            "-m",
+            "scripts.analyze_cad_cli",
+            str(saved_path),
+            str(THUMBNAIL_DIR),
+        ],
+        cwd=BACKEND_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=90,
+        check=False,
+    )
+
+    try:
+        analysis = json.loads(completed.stdout or "{}")
+    except json.JSONDecodeError:
+        analysis = {
+            "success": False,
+            "data": None,
+            "warnings": [],
+            "error": completed.stderr.strip() or completed.stdout.strip() or "CAD analysis failed",
+        }
+
+    if completed.returncode != 0 and not analysis.get("error"):
+        analysis["error"] = completed.stderr.strip() or "CAD analysis failed"
+
+    if analysis.get("success") and analysis.get("data"):
+        analysis["data"]["name"] = Path(display_name).stem
+        analysis["data"]["stored_name"] = saved_path.stem
+        analysis["data"]["source_filename"] = source_filename or display_name
+        analysis["data"]["source_format"] = cad_format_for_path(saved_path)
+
+        if analysis["data"].get("thumbnail_path"):
+            thumbnail_name = Path(analysis["data"]["thumbnail_path"]).name
+            analysis["data"]["thumbnail_url"] = f"/static/thumbnails/{thumbnail_name}"
+            thumb_path = Path(analysis["data"]["thumbnail_path"])
+            if thumb_path.exists() and not apply_preview_watermark(thumb_path):
+                app.logger.warning("Preview watermark was not applied for %s", thumb_path.name)
+
+    analysis["source_filename"] = source_filename or display_name
+    analysis["source_format"] = cad_format_for_path(saved_path)
+    return analysis
+
+
+def _save_direct_cad(uploaded, suffix: str) -> tuple[str, Path]:
+    file_id = str(uuid.uuid4())
+    saved_path = UPLOAD_DIR / f"{file_id}{suffix}"
+    uploaded.save(saved_path)
+    return file_id, saved_path
+
+
+def _is_unsafe_zip_name(name: str) -> bool:
+    normalized = name.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    return (
+        not normalized
+        or normalized.startswith("/")
+        or any(part in {"", ".", ".."} for part in path.parts)
+    )
+
+
+def _cad_zip_members(zf: zipfile.ZipFile) -> tuple[list[zipfile.ZipInfo], list[str]]:
+    warnings: list[str] = []
+    members: list[zipfile.ZipInfo] = []
+    total_size = 0
+
+    for info in zf.infolist():
+        name = info.filename.replace("\\", "/")
+        if info.is_dir() or name.startswith("__MACOSX/"):
+            continue
+        if _is_unsafe_zip_name(name):
+            raise ValueError(f"Unsafe ZIP entry path: {info.filename}")
+
+        suffix = PurePosixPath(name).suffix.lower()
+        if suffix == ".zip":
+            warnings.append(f"Nested ZIP ignored: {info.filename}")
+            continue
+        if suffix not in SUPPORTED_CAD_EXTENSIONS:
+            warnings.append(f"Unsupported file ignored: {info.filename}")
+            continue
+        if info.file_size <= 0:
+            warnings.append(f"Empty CAD file ignored: {info.filename}")
+            continue
+        if info.file_size > MAX_DIRECT_CAD_BYTES:
+            warnings.append(f"CAD file over 50 MB ignored: {info.filename}")
+            continue
+
+        total_size += info.file_size
+        if len(members) >= MAX_ZIP_CAD_FILES:
+            warnings.append(f"CAD file limit reached; ignored: {info.filename}")
+            continue
+        if total_size > MAX_ZIP_CAD_TOTAL_BYTES:
+            raise ValueError("ZIP CAD contents exceed the 150 MB extracted-size limit")
+        members.append(info)
+
+    return members, warnings
+
+
+def _refresh_exchange_rates_if_stale() -> None:
+    try:
+        ensure_recent_rates(max_age_hours=30)
+    except Exception:
+        pass
 
 
 def _cors_origins():
@@ -153,66 +283,88 @@ def create_app() -> Flask:
     def quote_upload():
         uploaded = request.files.get("file")
         if uploaded is None or not uploaded.filename:
-            return api_error("missing_file", "No STEP file uploaded", 400)
+            return api_error("missing_file", "No CAD file uploaded", 400)
 
         suffix = Path(uploaded.filename).suffix.lower()
-        if suffix not in {".stp", ".step"}:
-            return api_error("invalid_file_type", "Only .stp and .step files are supported", 400)
+        if suffix not in SUPPORTED_UPLOAD_EXTENSIONS:
+            return api_error("invalid_file_type", _supported_upload_message(), 400)
+        if request.content_length and suffix == ".zip" and request.content_length > MAX_ZIP_BYTES + 1024 * 1024:
+            return api_error("file_too_large", "ZIP uploads are limited to 50 MB.", 400)
+        if request.content_length and suffix != ".zip" and request.content_length > MAX_DIRECT_CAD_BYTES + 1024 * 1024:
+            return api_error("file_too_large", "CAD uploads are limited to 50 MB each.", 400)
 
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
-        file_id = str(uuid.uuid4())
-        saved_path = UPLOAD_DIR / f"{file_id}{suffix}"
-        uploaded.save(saved_path)
 
-        occ_python = Path(os.environ.get("OCC_PYTHON", str(DEFAULT_OCC_PYTHON)))
-        if not occ_python.exists():
-            return api_error("occ_python_missing", f"OCC Python not found: {occ_python}", 500)
+        if suffix == ".zip":
+            try:
+                uploaded.stream.seek(0)
+                with zipfile.ZipFile(uploaded.stream) as zf:
+                    members, warnings = _cad_zip_members(zf)
+                    if not members:
+                        return api_error("invalid_archive", "ZIP archive does not contain supported CAD files.", 400)
 
-        completed = subprocess.run(
-            [
-                str(occ_python),
-                "-m",
-                "scripts.analyze_step_cli",
-                str(saved_path),
-                str(THUMBNAIL_DIR),
-            ],
-            cwd=BACKEND_ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=90,
-            check=False,
-        )
-        if completed.returncode != 0:
-            return api_error("step_analysis_failed", completed.stderr.strip() or completed.stdout.strip(), 500)
+                    parts = []
+                    for info in members:
+                        inner_name = info.filename.replace("\\", "/")
+                        inner_suffix = PurePosixPath(inner_name).suffix.lower()
+                        file_id = str(uuid.uuid4())
+                        saved_path = UPLOAD_DIR / f"{file_id}{inner_suffix}"
+                        with zf.open(info) as src, saved_path.open("wb") as dst:
+                            shutil.copyfileobj(src, dst)
 
-        analysis = json.loads(completed.stdout)
-        if analysis.get("success") and analysis.get("data"):
-            analysis["data"]["name"] = Path(uploaded.filename).stem
-            analysis["data"]["stored_name"] = saved_path.stem
-        if analysis.get("success") and analysis.get("data", {}).get("thumbnail_path"):
-            thumbnail_name = Path(analysis["data"]["thumbnail_path"]).name
-            analysis["data"]["thumbnail_url"] = f"/static/thumbnails/{thumbnail_name}"
-            # Apply watermark to preview
-            thumb_path = Path(analysis["data"]["thumbnail_path"])
-            if thumb_path.exists():
-                if not apply_preview_watermark(thumb_path):
-                    app.logger.warning("Preview watermark was not applied for %s", thumb_path.name)
+                        analysis = _run_cad_analysis(app, saved_path, PurePosixPath(inner_name).name, inner_name)
+                        analysis["file_id"] = file_id
+                        part = {
+                            "success": bool(analysis.get("success")),
+                            "file_id": file_id,
+                            "source_filename": inner_name,
+                            "source_format": analysis.get("source_format"),
+                            "warnings": analysis.get("warnings", []),
+                        }
+                        if analysis.get("success"):
+                            part["data"] = analysis.get("data")
+                        else:
+                            part["error"] = analysis.get("error") or "CAD analysis failed"
+                        parts.append(part)
+            except zipfile.BadZipFile:
+                return api_error("invalid_archive", "ZIP archive could not be read.", 400)
+            except ValueError as exc:
+                return api_error("invalid_archive", str(exc), 400)
+
+            if not any(part.get("success") for part in parts):
+                return api_error(
+                    "archive_analysis_failed",
+                    "No CAD files in the archive could be analyzed.",
+                    400,
+                    details={"parts": parts, "warnings": warnings},
+                )
+            return api_ok({
+                "success": True,
+                "archive": True,
+                "source_filename": uploaded.filename,
+                "parts": parts,
+                "warnings": warnings,
+            })
+
+        file_id, saved_path = _save_direct_cad(uploaded, suffix)
+        analysis = _run_cad_analysis(app, saved_path, uploaded.filename, uploaded.filename)
         analysis["file_id"] = file_id
+        if not analysis.get("success"):
+            return api_error("cad_analysis_failed", analysis.get("error") or "CAD analysis failed", 500)
         return api_ok(analysis)
 
     @app.get("/api/public/quote/model/<file_id>")
     def quote_model_stl(file_id):
-        """Export uploaded STEP as binary STL for 3D preview."""
+        """Export uploaded STEP/IGES as binary STL for 3D preview."""
         # Sanitize file_id
         safe_id = Path(file_id).name
-        for ext in (".stp", ".step"):
+        for ext in (".stp", ".step", ".igs", ".iges"):
             src = UPLOAD_DIR / f"{safe_id}{ext}"
             if src.exists():
                 break
         else:
-            return api_error("not_found", "STEP file not found", 404)
+            return api_error("not_found", "CAD file not found", 404)
 
         stl_dir = BACKEND_ROOT / "static" / "stl"
         stl_dir.mkdir(parents=True, exist_ok=True)
@@ -285,6 +437,7 @@ def create_app() -> Flask:
         return api_ok(result)
 
     init_db()
+    threading.Thread(target=_refresh_exchange_rates_if_stale, daemon=True).start()
 
     return app
 

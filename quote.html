@@ -28,7 +28,7 @@
             <section class="tool-hero">
                 <div>
                     <h1>Instant Quoting</h1>
-                    <p>Upload a STEP file and receive a reference manufacturing estimate. Final pricing is confirmed after engineering review.</p>
+                    <p>Upload a CAD file and receive a reference manufacturing estimate. Final pricing is confirmed after engineering review.</p>
                 </div>
                 <div class="tool-status" data-api-status>checking</div>
             </section>
@@ -45,9 +45,9 @@
                 <form class="tool-panel tool-form quote-config-panel" data-quote-form>
                     <h2>Part &amp; Process</h2>
                     <label class="tool-upload" data-upload-label>
-                        <input name="file" type="file" accept=".stp,.step" multiple>
-                        <span>Choose STEP files</span>
-                        <small>.stp / .step &middot; multiple files &middot; max 50 MB each</small>
+                        <input name="file" type="file" accept=".stp,.step,.igs,.iges,.zip" multiple>
+                        <span>Choose CAD files</span>
+                        <small>.stp / .step / .igs / .iges / .zip &middot; multiple files &middot; max 50 MB each</small>
                     </label>
                     <div class="tool-field">
                         <span class="tool-label">Material</span>
@@ -109,7 +109,7 @@
                 <aside class="quote-stack" data-quote-result>
                     <section class="tool-panel quote-preview-panel">
                         <h2>Part Preview</h2>
-                        <div class="tool-note" data-part-placeholder>Awaiting STEP analysis.</div>
+                        <div class="tool-note" data-part-placeholder>Awaiting CAD analysis.</div>
                     </section>
                     <section class="tool-panel">
                         <h2>Reference Estimate</h2>

@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from database import SessionLocal
 from models import DhlSmallRate, DhlHeavyRate, DhlZone, DhlConfig
+from services.exchange_rates import convert_rmb
 
 DEFAULT_CURRENCY = "USD"
 
@@ -103,9 +104,6 @@ def calculate_dhl(country: str, weight_kg: float, currency: str = DEFAULT_CURREN
 
         small_mult = float(configs.get("small_multiplier", DhlConfig(key="x", value="1.8")).value)
         heavy_mult = float(configs.get("heavy_multiplier", DhlConfig(key="x", value="1.7")).value)
-        usd_div = float(configs.get("usd_divisor", DhlConfig(key="x", value="6")).value)
-        eur_div = float(configs.get("eur_divisor", DhlConfig(key="x", value="7")).value)
-
         # 3. Calculate
         if weight_kg <= 33:
             charge_weight = _packaging_small(weight_kg)
@@ -123,12 +121,7 @@ def calculate_dhl(country: str, weight_kg: float, currency: str = DEFAULT_CURREN
             rmb_total = rmb_unit * charge_weight
 
         # 4. Currency conversion
-        if currency == "CNY":
-            amount = round(rmb_total, 2)
-        elif currency == "EUR":
-            amount = round(rmb_total / eur_div, 2)
-        else:
-            amount = round(rmb_total / usd_div, 2)
+        amount = round(float(convert_rmb(rmb_total, currency)), 2)
 
         # Apply dynamic perturbation (always hidden from users)
         factor = _dynamic_factor(resolved_country, weight_kg)

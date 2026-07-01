@@ -55,6 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function makeFileKey(file) { return `${file.name}:${file.size}:${file.lastModified}`; }
     function cloneDefaults() { return JSON.parse(JSON.stringify(state.defaults)); }
+    const SUPPORTED_CAD_EXTENSIONS = new Set(["stp", "step", "igs", "iges", "zip"]);
 
     function makeEstimateCacheKey(part) {
         const s = part.settings || {};
@@ -63,6 +64,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getActivePart() {
         return state.parts.find(p => p.id === state.activePartId) || state.parts[0] || null;
+    }
+
+    function reindexParts() {
+        state.parts.forEach((part, index) => { part.index = index; });
+    }
+
+    function shortFileName(name) {
+        return String(name || "").split(/[\\/]/).pop() || String(name || "CAD part");
     }
 
     /* ══════════════════════════════════════════════════
@@ -141,21 +150,28 @@ document.addEventListener("DOMContentLoaded", () => {
     function addFilesToBatch(files) {
         if (!state.batchId) state.batchId = createBatchId();
         const existing = new Set(state.parts.map(p => p.fileKey));
-        const valid = files.filter(f => { const ext = f.name.toLowerCase().split(".").pop(); return ext === "stp" || ext === "step"; });
+        const valid = files.filter(f => SUPPORTED_CAD_EXTENSIONS.has((f.name.toLowerCase().split(".").pop() || "")));
         let added = 0, skipped = 0;
         valid.forEach(file => {
             const fk = makeFileKey(file);
             if (existing.has(fk)) { skipped++; return; }
             if (state.parts.length >= 20) return;
-            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "", previewMode: "png", analysisPresentation: { startedAt: 0, progress: 0, phase: "Queued for STEP analysis" } };
+            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fullFileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "", previewMode: "png", analysisPresentation: { startedAt: 0, progress: 0, phase: "Queued for CAD analysis" } };
             state.parts.push(part);
             existing.add(fk);
             added++;
         });
         if (!state.activePartId && state.parts.length) state.activePartId = state.parts[0].id;
-        if (uploadLabel) uploadLabel.querySelector("span").textContent = state.parts.length === 0 ? "Choose STEP files" : state.parts.length === 1 ? "1 STEP file selected" : `${state.parts.length} STEP files selected`;
+        updateUploadLabel();
         render();
         analyzePendingParts();
+    }
+
+    function updateUploadLabel() {
+        if (!uploadLabel) return;
+        const span = uploadLabel.querySelector("span");
+        if (!span) return;
+        span.textContent = state.parts.length === 0 ? "Choose CAD files" : state.parts.length === 1 ? "1 CAD file selected" : `${state.parts.length} CAD files selected`;
     }
 
     async function analyzePendingParts() {
@@ -165,19 +181,25 @@ document.addEventListener("DOMContentLoaded", () => {
             part.analysisPresentation = { startedAt: performance.now(), progress: 5, phase: ANALYSIS_PHASES[0] };
             renderForPartUpdate(part);
             try {
-                part.analysis = await uploadStep(part.file);
+                const uploadResult = await uploadCad(part.file);
+                if (uploadResult.archive) {
+                    expandArchivePart(part, uploadResult);
+                    render();
+                    continue;
+                }
+                part.analysis = uploadResult.analysis;
                 part.uploadStatus = "ready"; part.status = "ready";
                 part.analysisPresentation.progress = 100;
                 part.analysisPresentation.phase = "Preview ready";
             } catch (e) {
                 part.uploadStatus = "failed"; part.status = "failed"; part.error = e.message;
-                part.analysisPresentation.phase = "STEP analysis failed";
+                part.analysisPresentation.phase = "CAD analysis failed";
             }
             renderForPartUpdate(part);
         }
     }
 
-    const ANALYSIS_PHASES = ["Uploading STEP file", "Reading geometry data", "Extracting bounding dimensions", "Generating static preview", "Preparing manufacturability inputs"];
+    const ANALYSIS_PHASES = ["Uploading CAD file", "Reading geometry data", "Extracting bounding dimensions", "Generating static preview", "Preparing manufacturability inputs"];
 
     function renderForPartUpdate(part, { force = false } = {}) {
         if (!part) return;
@@ -206,11 +228,66 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setInterval(tickAnalysisProgress, 350);
 
-    async function uploadStep(file) {
+    async function uploadCad(file) {
         const body = new FormData(); body.append("file", file);
         const resp = await window.DaiyujinAPI.request("/api/public/quote/upload", { method: "POST", body });
-        if (!resp.success || !resp.data) throw new Error(resp.error || "STEP analysis failed.");
-        return { file_id: resp.file_id, ...resp.data };
+        if (resp.archive) {
+            return { archive: true, parts: resp.parts || [], warnings: resp.warnings || [], source_filename: resp.source_filename || file.name };
+        }
+        if (!resp.success || !resp.data) throw new Error(resp.error || resp.message || "CAD analysis failed.");
+        return { archive: false, analysis: { file_id: resp.file_id, source_filename: resp.source_filename || file.name, source_format: resp.source_format || "", ...resp.data } };
+    }
+
+    function normalizeArchiveAnalysis(item) {
+        const data = item.data || {};
+        return {
+            file_id: item.file_id,
+            source_filename: item.source_filename || data.source_filename || data.name || "CAD part",
+            source_format: item.source_format || data.source_format || "",
+            ...data,
+        };
+    }
+
+    function expandArchivePart(parent, uploadResult) {
+        const insertAt = state.parts.findIndex(p => p.id === parent.id);
+        if (insertAt < 0) return;
+        const children = (uploadResult.parts || []).map(item => {
+            const fullName = item.source_filename || "CAD part";
+            const ok = !!item.success;
+            return {
+                id: createPartId(),
+                index: 0,
+                file: null,
+                fileName: shortFileName(fullName),
+                fullFileName: fullName,
+                fileKey: `${parent.fileKey}::${item.file_id || fullName}`,
+                status: ok ? "ready" : "failed",
+                uploadStatus: ok ? "ready" : "failed",
+                estimateStatus: "empty",
+                analysis: ok ? normalizeArchiveAnalysis(item) : null,
+                estimate: null,
+                settings: cloneDefaults(),
+                settingsSource: "inherited",
+                estimateCacheKey: "",
+                error: item.error || "",
+                previewMode: "png",
+                analysisPresentation: { startedAt: performance.now(), progress: ok ? 100 : 0, phase: ok ? "Preview ready" : "CAD analysis failed" },
+            };
+        });
+        if (!children.length) {
+            parent.uploadStatus = "failed";
+            parent.status = "failed";
+            parent.error = "ZIP archive did not contain supported CAD files.";
+            return;
+        }
+        state.parts.splice(insertAt, 1, ...children);
+        reindexParts();
+        if (state.activePartId === parent.id) {
+            const firstReady = children.find(p => p.uploadStatus === "ready") || children[0];
+            state.activePartId = firstReady.id;
+            hydrateFormFromPart(firstReady);
+        }
+        updateUploadLabel();
     }
 
     function updateWorkspaceMode() {
@@ -229,7 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderPartList() {
         updateWorkspaceMode();
         if (!batchParts || !partList) return;
-        if (batchCount) batchCount.textContent = `${state.parts.length} file(s)`;
+        if (batchCount) batchCount.textContent = `${state.parts.length} part(s)`;
 
         if (state.parts.length <= 1) {
             partList.innerHTML = "";
@@ -240,7 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const statusLabel = { pending: "Pending", analyzing: "Analyzing", ready: "Ready", needs_recalculate: "Needs Update", calculating: "Estimating", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
             const statusClass = { estimated: "green", ready: "neutral", analyzing: "blue", calculating: "blue", failed: "red", needs_recalculate: "amber" }[p.status] || "";
             const total = p.estimate && p.status === "estimated" ? (p.estimate.total_estimate || {}).display || "" : "";
-            return `<button type="button" class="quote-part-row${p.id === state.activePartId ? ' active' : ''}" data-part-id="${esc(p.id)}">
+            return `<button type="button" class="quote-part-row${p.id === state.activePartId ? ' active' : ''}" data-part-id="${esc(p.id)}" title="${esc(p.fullFileName || p.fileName)}">
                 <span class="quote-part-index">${p.index + 1}</span>
                 <span class="quote-part-name">${esc(p.fileName)}</span>
                 <span class="quote-part-status ${statusClass}">${statusLabel}</span>
@@ -296,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function calculateCurrentPart() {
         const part = getActivePart();
-        if (!part) { renderError("Choose a STEP file first."); return; }
+        if (!part) { renderError("Choose a CAD file first."); return; }
         if (part.uploadStatus !== "ready") { renderError("This part is not ready yet."); return; }
 
         part.settings = readSettingsFromForm();
@@ -315,7 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const payload = {
                     batch_id: state.batchId, batch_item_id: part.id, batch_item_index: part.index + 1, batch_item_count: state.parts.length,
-                    file_id: part.analysis.file_id, part_name: part.analysis.name, stp_filename: part.fileName,
+                    file_id: part.analysis.file_id, part_name: part.analysis.name, stp_filename: part.fullFileName || part.fileName,
                     volume_mm3: part.analysis.volume_mm3, obb_dimensions_mm: part.analysis.obb_dimensions_mm,
                     material_category: part.settings.material_category, material_id: part.settings.material_id,
                     process: part.settings.process || state.defaults.process,
@@ -393,8 +470,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const isCalculating = part?.estimateStatus === "calculating";
         const isReady = part?.uploadStatus === "ready";
         calculateButton.disabled = !part || !isReady || isCalculating;
-        if (!part) calculateButton.textContent = "Upload STEP First";
-        else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") calculateButton.textContent = "Analyzing STEP...";
+        if (!part) calculateButton.textContent = "Upload CAD First";
+        else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") calculateButton.textContent = "Analyzing CAD...";
         else if (part.uploadStatus === "failed") calculateButton.textContent = "Analysis Failed";
         else if (isCalculating) calculateButton.textContent = "Estimating...";
         else calculateButton.textContent = "Calculate Current Part";
@@ -404,7 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const part = getActivePart();
 
         if (!part) {
-            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note">Upload STEP files to begin.</div></section>`;
+            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note">Upload CAD files to begin.</div></section>`;
         }
 
         if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") {
@@ -412,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (part.uploadStatus === "failed") {
-            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note error">STEP analysis failed: ${esc(part.error || "Unknown error")}</div></section>`;
+            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note error">CAD analysis failed: ${esc(part.error || "Unknown error")}</div></section>`;
         }
 
         if (!part.analysis) {
@@ -425,11 +502,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function previewAnalysisCard(part) {
         const p = part.analysisPresentation || {};
         const pct = Math.round(p.progress || 8);
-        const phase = p.phase || "Reading STEP geometry";
+        const phase = p.phase || "Reading CAD geometry";
         return `<section class="tool-panel quote-preview-panel quote-preview-analysis" aria-live="polite">
             <div class="quote-preview-head"><h2>Part Preview</h2></div>
             <div class="quote-analysis-card">
-                <div class="quote-analysis-title"><span>STEP analysis</span><strong>${esc(part.fileName || "Current part")}</strong></div>
+                <div class="quote-analysis-title"><span>CAD analysis</span><strong>${esc(part.fileName || "Current part")}</strong></div>
                 <div class="quote-progress">
                     <div class="quote-progress-bar"><div class="quote-progress-fill" style="width:${pct}%"></div></div>
                     <div class="quote-progress-text"><span class="quote-progress-phase">${esc(phase)}</span><span class="quote-progress-pct">${pct}%</span></div>
@@ -496,7 +573,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!part || !part.estimate) {
-            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload STEP files to begin."}</div></section>`;
+            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload CAD files to begin."}</div></section>`;
         }
         const e = part.estimate;
         const sel = e.selections || {};
