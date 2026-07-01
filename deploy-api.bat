@@ -104,7 +104,7 @@ set "DESKTOP=%USERPROFILE%\Desktop"
 :: Start API shortcut
 echo @echo off > "%DESKTOP%\Start Daiyujin API.bat"
 echo cd /d "%PROJECT_DIR%\backend" >> "%DESKTOP%\Start Daiyujin API.bat"
-echo set ALLOWED_ORIGINS=https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com >> "%DESKTOP%\Start Daiyujin API.bat"
+echo set ALLOWED_ORIGINS=https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://gcindus.com,https://www.gcindus.com >> "%DESKTOP%\Start Daiyujin API.bat"
 echo python app.py >> "%DESKTOP%\Start Daiyujin API.bat"
 echo pause >> "%DESKTOP%\Start Daiyujin API.bat"
 

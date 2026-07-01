@@ -42,7 +42,7 @@ def _cors_origins():
     raw = os.environ.get("ALLOWED_ORIGINS", "*")
     if raw.strip() == "*":
         return "*"
-    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
 
 
 def create_app() -> Flask:
