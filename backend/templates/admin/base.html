@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大余金管理后台 - {% block title %}控制台{% endblock %}</title>
+    <title>待雨尽 Tools 管理后台 - {% block title %}控制台{% endblock %}</title>
     <link rel="stylesheet" href="/admin/static/admin.css">
     {% block head %}{% endblock %}
 </head>
 <body>
 {% if session.admin_user %}
 <nav class="admin-nav">
-    <span class="admin-nav-brand">大余金管理后台</span>
+    <span class="admin-nav-brand">待雨尽 Tools 管理后台</span>
     <div class="admin-nav-links">
         <a href="/admin/dashboard" {% if request.path == '/admin/dashboard' %}class="active"{% endif %}>仪表盘</a>
         <a href="#" data-nav="inquiries" {% if request.path == '/admin/inquiries' %}class="active"{% endif %}>询盘记录</a>

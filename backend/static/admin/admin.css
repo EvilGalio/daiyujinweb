@@ -1,5 +1,18 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f5f7; color: #1a1d23; font-size: 14px; line-height: 1.5; }
+:root {
+  --admin-bg: #f4f5f7;
+  --admin-surface: #ffffff;
+  --admin-text: #1a1d23;
+  --admin-muted: #6b7280;
+  --admin-border: #e5e7eb;
+  --admin-primary: #1f2937;
+  --admin-accent: #2563eb;
+  --admin-success: #059669;
+  --admin-warning: #d97706;
+  --admin-danger: #dc2626;
+  --admin-radius: 8px;
+}
+html, body { font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif; background: #f4f5f7; color: #1a1d23; font-size: 14px; line-height: 1.5; }
 
 /* ── Nav ── */
 .admin-nav {
@@ -19,25 +32,27 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-se
 /* ── Login ── */
 .admin-login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #1a1d23; }
 .admin-login { width: 360px; padding: 2rem; background: #fff; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
-.admin-login h1 { font-size: 20px; margin-bottom: 1.5rem; text-align: center; }
+.admin-login h1 { font-size: 20px; margin-bottom: .5rem; text-align: center; }
+.admin-login-hint { text-align: center; font-size: 12px; color: #9ca3af; margin-bottom: 1.5rem; }
 .admin-login label { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; font-size: 13px; color: #6b7280; }
 .admin-login input { padding: .6rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; font-size: 14px; }
 .admin-login input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .admin-login button { width: 100%; padding: .65rem; border: none; border-radius: 6px; background: #1a1d23; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 .admin-login button:hover { background: #374151; }
-.admin-error { color: #dc2626; font-size: 13px; margin-bottom: .5rem; }
+.admin-error { color: #dc2626; font-size: 13px; margin-bottom: .5rem; background: #fef2f2; border: 1px solid #fecaca; padding: .5rem .75rem; border-radius: 6px; }
 
 /* ── Stats ── */
 .admin-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .admin-stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.25rem; }
-.admin-stat-label { display: block; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .03em; }
+.admin-stat-label { display: block; font-size: 12px; color: #6b7280; }
 .admin-stat-value { display: block; font-size: 28px; font-weight: 700; margin-top: .25rem; }
 .admin-stat-value.ok { color: #059669; font-size: 16px; }
 
 /* ── Table ── */
 .admin-table-wrap { overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
 .admin-table { width: 100%; border-collapse: collapse; }
-.admin-table th { text-align: left; padding: .6rem 1rem; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+.admin-table th { text-align: left; padding: .6rem 1rem; font-size: 12px; color: #6b7280; font-weight: 600; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+.admin-number, .admin-money, .admin-date { font-variant-numeric: tabular-nums; }
 .admin-table td { padding: .55rem 1rem; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
 .admin-table tr:hover td { background: #fafbfc; }
 .admin-empty { color: #9ca3af; text-align: center; padding: 2rem !important; }
@@ -83,6 +98,12 @@ h2 { font-size: 16px; margin-bottom: .75rem; color: #1a1d23; }
 .admin-pager button { padding: .4rem 1rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
 .admin-pager button:hover { background: #f9fafb; }
 .admin-pager span { font-size: 13px; color: #6b7280; }
+
+/* ── Site tabs ── */
+.admin-tabs { display: flex; gap: 2px; margin-bottom: 1rem; background: #f1f5f9; border-radius: 8px; padding: 3px; width: fit-content; }
+.admin-tabs button { border: none; background: transparent; padding: .45rem 1rem; border-radius: 6px; font: inherit; font-size: 13px; color: #6b7280; cursor: pointer; transition: all .15s; }
+.admin-tabs button:hover { color: #1a1d23; }
+.admin-tabs button.active { background: #fff; color: #1a1d23; box-shadow: 0 1px 3px rgba(0,0,0,.08); font-weight: 600; }
 
 /* ── Badges ── */
 .admin-badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }

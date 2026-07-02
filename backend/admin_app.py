@@ -67,7 +67,21 @@ def _admin_material_display(inquiry: Inquiry) -> str:
     raw = (inquiry.material_name or "").strip()
     if raw and not raw.startswith("mp_"):
         return raw
-    return raw or "-"
+    return f"未知材料（{raw}）" if raw else "-"
+
+
+def _admin_inquiry_search_blob(inquiry: Inquiry) -> str:
+    """Build searchable text blob for inquiry filtering."""
+    parts = [
+        inquiry.customer_name or "",
+        inquiry.customer_email or "",
+        inquiry.stp_filename or "",
+        inquiry.part_name or "",
+        inquiry.material_name or "",
+        _admin_material_display(inquiry),
+        inquiry.total_display or "",
+    ]
+    return " ".join(parts).lower()
 
 # ── Localhost guard ────────────────────────────
 
@@ -102,20 +116,30 @@ def dashboard_page():
     if r: return r
     session = SessionLocal()
     try:
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_count = session.query(Inquiry).filter(Inquiry.created_at >= today).count()
-        week_count = session.query(Inquiry).filter(Inquiry.created_at >= today - __import__("datetime").timedelta(days=7)).count()
+        # Use local time for today/week boundaries
+        from datetime import timedelta
+        now_local = datetime.now()
+        today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_count = session.query(Inquiry).filter(Inquiry.created_at >= today_start).count()
+        week_count = session.query(Inquiry).filter(Inquiry.created_at >= today_start - timedelta(days=7)).count()
         recent = session.query(Inquiry).order_by(Inquiry.created_at.desc()).limit(10).all()
     finally:
         session.close()
 
+    def _safe_total(i):
+        raw = (i.total_display or "").strip()
+        low = raw.lower()
+        if not raw or "nan" in low or "inf" in low:
+            return "报价异常"
+        return raw
+
     return render_template("dashboard.html",
         admin_user=flask_session.get("admin_user"),
-        today_count=today_count, week_count=week_count or 1,
+        today_count=today_count, week_count=week_count,
         recent=[{
             "part_name": i.part_name or i.stp_filename or "-",
             "email": i.customer_email or "-",
-            "total": i.total_display or "-",
+            "total": _safe_total(i),
             "material": _admin_material_display(i),
             "created_at": i.created_at.strftime("%Y-%m-%d %H:%M") if i.created_at else "-"
         } for i in recent] if recent else [])
@@ -188,23 +212,25 @@ def admin_inquiries():
     session = SessionLocal()
     try:
         query = session.query(Inquiry)
-        if q:
-            like = f"%{q}%"
-            query = query.filter(
-                (Inquiry.customer_email.ilike(like)) |
-                (Inquiry.stp_filename.ilike(like)) |
-                (Inquiry.part_name.ilike(like)) |
-                (Inquiry.material_name.ilike(like))
-            )
         if date_from:
             query = query.filter(Inquiry.created_at >= date_from)
         if date_to:
             query = query.filter(Inquiry.created_at <= date_to + " 23:59:59")
-        total = query.count()
-        rows = query.order_by(Inquiry.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+        # Date-filtered candidate set
+        candidates = query.order_by(Inquiry.created_at.desc()).all()
+
+        # Apply text search in Python layer (includes material display name)
+        if q:
+            q_lower = q.lower()
+            candidates = [i for i in candidates if q_lower in _admin_inquiry_search_blob(i)]
+
+        total = len(candidates)
+        start = (page - 1) * page_size
+        page_items = candidates[start:start + page_size]
 
         items = []
-        for i in rows:
+        for i in page_items:
             items.append({
                 "record_id": i.record_id,
                 "part_name": i.part_name or i.stp_filename or "-",
@@ -368,6 +394,8 @@ def admin_inquiries_export():
     try:
         rows = session.query(Inquiry).order_by(Inquiry.created_at.desc()).limit(5000).all()
         output = io.StringIO()
+        # UTF-8 BOM for Excel Chinese compatibility
+        output.write("\ufeff")
         writer = csv.writer(output)
         writer.writerow(["ID", "Time", "Part", "Customer", "Email", "Qty", "Material", "Estimate", "Currency", "Batch", "File", "IP"])
         for i in rows:

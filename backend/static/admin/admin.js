@@ -1,4 +1,4 @@
-/* 大余金管理后台 */
+/* 待雨尽 Tools 管理后台 */
 (function () {
     var toast = document.getElementById('admin-toast');
 
@@ -110,6 +110,27 @@
     }
 
     /* ── 系统设置 ── */
+    /* ── 系统设置 ── */
+    function renderSettingControl(s) {
+        var attr = 'data-admin-input="' + s.scope + '/' + s.key + '"';
+        if (s.value_type === 'bool') {
+            return '<select ' + attr + '><option value="true"' + (s.value === 'true' ? ' selected' : '') + '>是</option><option value="false"' + (s.value === 'false' ? ' selected' : '') + '>否</option></select>';
+        }
+        if (s.value_type === 'color') {
+            return '<input type="color" ' + attr + ' value="' + esc(s.value) + '" style="width:60px;height:32px"><span style="margin-left:.5rem;font-size:13px;color:#6b7280">' + esc(s.value) + '</span>';
+        }
+        if (s.value_type === 'number') {
+            return '<input type="number" ' + attr + ' value="' + esc(s.value) + '" step="0.01" style="width:120px">';
+        }
+        if (s.value_type === 'url') {
+            return '<input type="url" ' + attr + ' value="' + esc(s.value) + '" placeholder="https://...">';
+        }
+        if (s.value.length > 120) {
+            return '<textarea ' + attr + ' rows="3">' + esc(s.value) + '</textarea>';
+        }
+        return '<input type="text" ' + attr + ' value="' + esc(s.value) + '">';
+    }
+
     var settingLabels = {
         customer_name_required: '客户称呼是否必填', customer_email_required: '客户邮箱是否必填',
         formal_quote_url: '正式报价链接', formal_quote_label: '正式报价按钮文案',
@@ -128,31 +149,54 @@
         var container = document.getElementById('settings-content');
         if (!container) return;
         container.innerHTML = '<p>加载中...</p>';
-        var url = scope ? '/api/admin/settings?scope=' + encodeURIComponent(scope) : '/api/admin/settings';
+        var url = site ? '/api/admin/settings?scope=' + encodeURIComponent('quote:' + site) : '/api/admin/settings';
         fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-            var groups = {};
-            data.settings.forEach(function (s) { var g = s.scope; if (!groups[g]) groups[g] = []; groups[g].push(s); });
-            var scopes = Object.keys(groups).sort();
-            var sel = document.getElementById('site-scope');
-            if (sel && sel.options.length <= 1) {
-                sel.innerHTML = '<option value="">全部配置域</option>' + scopes.map(function (s) { return '<option value="' + esc(s) + '"' + (s === scope ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('');
-            }
-            container.innerHTML = Object.entries(groups).map(function (e) {
-                var scopeName = e[0], items = e[1];
-                return '<h3 style="margin:1.25rem 0 .5rem;font-size:14px;color:#6b7280;">' + esc(scopeName) + '</h3>' +
-                '<div class="admin-form">' + items.map(function (s) {
+            var items = data.settings || [];
+            // Filter to only show quote:site scope items
+            var scopePrefix = 'quote:' + site;
+            items = items.filter(function (s) { return s.scope === scopePrefix; });
+
+            // Group by functional category
+            var groups = {
+                'quote_entry': { title: '报价入口与 CTA', keys: ['formal_quote_url','formal_quote_label','engineer_contact_url','engineer_contact_label'] },
+                'quote_text': { title: '报价结果文案', keys: ['disclaimer_template','contact_note','privacy_note'] },
+                'quote_form': { title: '表单规则', keys: ['customer_name_required','customer_email_required','allowed_extensions'] },
+                'watermark': { title: '预览水印', keys: ['preview_watermark_text','preview_watermark_opacity','preview_watermark_color','preview_watermark_angle','preview_watermark_spacing','preview_watermark_font_scale'] },
+                'thumbnail': { title: '缩略图风格', keys: ['thumbnail_background_color','thumbnail_part_color','thumbnail_width','thumbnail_height'] },
+                'other': { title: '其他', keys: [] }
+            };
+
+            var grouped = {};
+            items.forEach(function (s) {
+                var placed = false;
+                for (var gk in groups) {
+                    if (groups[gk].keys.indexOf(s.key) >= 0) {
+                        if (!grouped[gk]) grouped[gk] = [];
+                        grouped[gk].push(s);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    if (!grouped['other']) grouped['other'] = [];
+                    grouped['other'].push(s);
+                }
+            });
+
+            container.innerHTML = '';
+            for (var gk in groups) {
+                var gItems = grouped[gk] || [];
+                if (!gItems.length) continue;
+                var cards = gItems.map(function (s) {
                     var label = settingLabels[s.key] || s.key;
                     return '<div class="admin-form-group">' +
-                        '<label>' + esc(label) + ' <small style="color:#9ca3af">(' + s.value_type + (s.is_public ? ' · 公开' : '') + ')</small>' + (s.description ? '<br><small style="color:#9ca3af">' + esc(s.description) + '</small>' : '') + '</label>' +
-                        (s.value_type === 'bool'
-                            ? '<select data-admin-input="' + s.scope + '/' + s.key + '"><option value="true"' + (s.value === 'true' ? ' selected' : '') + '>是</option><option value="false"' + (s.value === 'false' ? ' selected' : '') + '>否</option></select>'
-                            : s.value.length > 120
-                                ? '<textarea data-admin-input="' + s.scope + '/' + s.key + '" rows="3">' + esc(s.value) + '</textarea>'
-                                : '<input type="text" data-admin-input="' + s.scope + '/' + s.key + '" value="' + esc(s.value) + '">')
-                        + '<button data-admin-save data-admin-save-scope="' + s.scope + '" data-admin-save-key="' + s.key + '" style="margin-top:.35rem;">保存</button>' +
+                        '<label>' + esc(label) + (s.description ? '<br><small style="color:#9ca3af">' + esc(s.description) + '</small>' : '') + '</label>' +
+                        renderSettingControl(s) +
+                        '<button data-admin-save data-admin-save-scope="' + s.scope + '" data-admin-save-key="' + s.key + '" style="margin-top:.35rem;">保存</button>' +
                         '</div>';
-                }).join('') + '</div>';
-            }).join('');
+                }).join('');
+                container.innerHTML += '<h3 style="margin:1.25rem 0 .5rem;font-size:14px;color:#6b7280;">' + groups[gk].title + '</h3><div class="admin-form">' + cards + '</div>';
+            }
         }).catch(function () { container.innerHTML = '<p>加载设置失败</p>'; });
     }
 
@@ -166,9 +210,18 @@
 
     document.querySelector('[data-nav="settings"]') && document.querySelector('[data-nav="settings"]').addEventListener('click', function (e) {
         e.preventDefault();
-        document.querySelector('.admin-main').innerHTML = '<h2>系统设置</h2><div class="admin-toolbar"><select id="site-scope"><option value="">全部配置域</option></select></div><div id="settings-content"><p>加载中...</p></div>';
-        loadSettings('');
-        document.getElementById('site-scope').addEventListener('change', function (ev) { loadSettings(ev.target.value); });
+        var main = document.querySelector('.admin-main');
+        main.innerHTML = '<h2>系统设置</h2>' +
+            '<div class="admin-tabs" id="site-tabs"><button data-site="default" class="active">默认站点</button><button data-site="mfg">MFG Solution</button><button data-site="gcindus">GC INDUS</button><button data-site="gcnov">GCNOV</button></div>' +
+            '<div id="settings-content"><p>加载中...</p></div>';
+        loadSettings('default');
+        document.querySelectorAll('#site-tabs button').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('#site-tabs button').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                loadSettings(btn.dataset.site);
+            });
+        });
     });
 
     document.querySelector('[data-nav="system"]') && document.querySelector('[data-nav="system"]').addEventListener('click', function (e) {
@@ -219,10 +272,27 @@
         var main = document.querySelector('.admin-main');
         main.innerHTML = '<h2>账户设置</h2>' +
             '<div class="admin-form" style="max-width:400px">' +
+            '<p style="font-size:13px;color:#d97706;background:#fffbeb;padding:.5rem .75rem;border-radius:6px;margin-bottom:1rem">请勿使用默认密码 admin123。建议修改为高强度密码。</p>' +
             '<div class="admin-form-group"><label>当前密码</label><input type="password" id="pw-current"></div>' +
             '<div class="admin-form-group"><label>新密码（至少 6 个字符）</label><input type="password" id="pw-new"></div>' +
             '<div class="admin-form-group"><label>确认新密码</label><input type="password" id="pw-confirm"></div>' +
+            '<div id="pw-strength" style="margin-bottom:.5rem;font-size:12px"></div>' +
             '<button id="pw-save">修改密码</button><div id="pw-msg" style="margin-top:.5rem;font-size:13px"></div></div>';
+
+        document.getElementById('pw-new').addEventListener('input', function () {
+            var v = this.value, s = document.getElementById('pw-strength');
+            if (!v) { s.textContent = ''; return; }
+            var score = 0;
+            if (v.length >= 8) score++;
+            if (v.length >= 12) score++;
+            if (/[a-z]/.test(v) && /[A-Z]/.test(v)) score++;
+            if (/\d/.test(v)) score++;
+            if (/[^a-zA-Z0-9]/.test(v)) score++;
+            var levels = ['弱', '弱', '中', '中', '强', '强'];
+            var colors = ['#dc2626','#dc2626','#d97706','#d97706','#059669','#059669'];
+            s.textContent = '密码强度: ' + (levels[score] || '强');
+            s.style.color = colors[score] || '#059669';
+        });
 
         document.getElementById('pw-save').addEventListener('click', function () {
             var current = document.getElementById('pw-current').value;
@@ -233,7 +303,7 @@
             if (np.length < 6) { msg.textContent = '新密码至少需要 6 个字符'; msg.style.color = '#dc2626'; return; }
             fetch('/api/admin/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current: current, new: np }) })
                 .then(function (r) { return r.json(); }).then(function (d) {
-                    msg.textContent = d.ok ? '密码已修改' : (d.error || '修改失败');
+                    msg.textContent = d.ok ? '密码已修改，建议重新登录以确保安全' : (d.error || '修改失败');
                     msg.style.color = d.ok ? '#059669' : '#dc2626';
                 }).catch(function () { msg.textContent = '网络错误'; msg.style.color = '#dc2626'; });
         });
