@@ -38,6 +38,19 @@ MAX_ZIP_CAD_FILES = 20
 
 # ── Preview watermark ──────────────────────────
 
+def _find_uploaded_cad(file_id: str) -> Path | None:
+    """Find an uploaded CAD file by file_id. Supports both legacy {uuid}.ext and new {uuid}_name.ext."""
+    safe = Path(file_id).name
+    for ext in (".stp", ".step", ".igs", ".iges"):
+        legacy = UPLOAD_DIR / f"{safe}{ext}"
+        if legacy.exists():
+            return legacy
+        matches = sorted(UPLOAD_DIR.glob(f"{safe}_*{ext}"))
+        if matches:
+            return matches[0]
+    return None
+
+
 def _occ_python_path():
     env_file = BACKEND_ROOT / ".env"
     if env_file.exists():
@@ -361,13 +374,9 @@ def create_app() -> Flask:
     @app.get("/api/public/quote/model/<file_id>")
     def quote_model_stl(file_id):
         """Export uploaded STEP/IGES as binary STL for 3D preview."""
-        # Sanitize file_id
         safe_id = Path(file_id).name
-        for ext in (".stp", ".step", ".igs", ".iges"):
-            src = UPLOAD_DIR / f"{safe_id}{ext}"
-            if src.exists():
-                break
-        else:
+        src = _find_uploaded_cad(safe_id)
+        if not src:
             return api_error("not_found", "CAD file not found", 404)
 
         stl_dir = BACKEND_ROOT / "static" / "stl"

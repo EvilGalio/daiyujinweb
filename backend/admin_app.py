@@ -12,12 +12,18 @@ from database import SessionLocal, init_db
 from models import AdminUser, Inquiry
 from services.settings import get_all_settings, get_setting, update_setting, log_admin_action, get_audit_logs
 
+import time
+from collections import defaultdict
+
 BACKEND_ROOT = Path(__file__).resolve().parent
 TEMPLATES = BACKEND_ROOT / "templates" / "admin"
 STATIC = BACKEND_ROOT / "static" / "admin"
 
 app = Flask(__name__, template_folder=str(TEMPLATES), static_folder=str(STATIC), static_url_path="/admin/static")
 app.secret_key = os.environ.get("ADMIN_SECRET_KEY", "change-me-in-production")
+
+# Login rate limiting
+_login_attempts: dict[str, list[float]] = defaultdict(list)
 
 # ── Localhost guard ────────────────────────────
 
@@ -81,12 +87,19 @@ def login_action():
     data = request.form
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "")
+    ip = request.remote_addr or ""
+
+    # Rate limiting: 5 failed attempts = 5-minute cooldown
+    now = time.time()
+    _login_attempts[ip] = [t for t in _login_attempts.get(ip, []) if now - t < 300]
+    if len(_login_attempts[ip]) >= 5:
+        remaining = int(300 - (now - _login_attempts[ip][0]))
+        return render_template("login.html", error=f"Too many attempts. Try again in {remaining}s.")
 
     session = SessionLocal()
     try:
         user = session.query(AdminUser).filter_by(username=username).first()
         if not user:
-            # Auto-create default admin if table is empty
             count = session.query(AdminUser).count()
             if count == 0 and username:
                 default_pw = "admin123"
@@ -96,11 +109,14 @@ def login_action():
 
         if user and check_password_hash(user.password_hash, password):
             flask_session["admin_user"] = user.username
+            _login_attempts.pop(ip, None)
             audit("login")
             return redirect(url_for("dashboard_page"))
 
+        _login_attempts[ip].append(now)
         audit("login_failed", target_key=username)
-        return render_template("login.html", error="Invalid credentials")
+        attempts_left = 5 - len(_login_attempts[ip])
+        return render_template("login.html", error=f"Invalid credentials. {attempts_left} attempt(s) remaining.")
     finally:
         session.close()
 
@@ -146,7 +162,7 @@ def admin_inquiries():
         items = []
         for i in rows:
             items.append({
-                "record_id": i.id,
+                "record_id": i.record_id,
                 "part_name": i.part_name or i.stp_filename or "-",
                 "created_at": i.created_at.isoformat() if i.created_at else None,
                 "customer_name": i.customer_name or "-",
@@ -172,14 +188,14 @@ def admin_inquiry_detail(record_id):
 
     session = SessionLocal()
     try:
-        row = session.query(Inquiry).filter_by(id=record_id).first()
+        row = session.query(Inquiry).filter_by(record_id=record_id).first()
         if not row:
             return jsonify({"error": "not_found"}), 404
 
         import json as _json
         return jsonify({
-            "id": row.id,
-            "type": row.type,
+            "id": row.record_id,
+            
             "created_at": row.created_at.isoformat() if row.created_at else None,
             "part_name": row.part_name or row.stp_filename or "-",
             "customer_name": row.customer_name,
@@ -239,6 +255,29 @@ def admin_audit_logs():
     return jsonify({"logs": get_audit_logs(limit=200)})
 
 
+@app.put("/api/admin/password")
+def admin_change_password():
+    r = admin_required()
+    if r: return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    current = data.get("current", "")
+    new_password = data.get("new", "")
+    username = flask_session.get("admin_user", "")
+    if len(new_password) < 6:
+        return jsonify({"ok": False, "error": "Password must be at least 6 characters"})
+    session = SessionLocal()
+    try:
+        user = session.query(AdminUser).filter_by(username=username).first()
+        if not user or not check_password_hash(user.password_hash, current):
+            return jsonify({"ok": False, "error": "Current password is incorrect"})
+        user.password_hash = generate_password_hash(new_password)
+        session.commit()
+        audit("change_password")
+        return jsonify({"ok": True})
+    finally:
+        session.close()
+
+
 @app.get("/api/admin/system/health")
 def admin_system_health():
     r = admin_required()
@@ -289,7 +328,7 @@ def admin_inquiries_export():
         writer.writerow(["ID", "Time", "Part", "Customer", "Email", "Qty", "Material", "Estimate", "Currency", "Batch", "File", "IP"])
         for i in rows:
             writer.writerow([
-                i.id,
+                i.record_id,
                 i.created_at.isoformat() if i.created_at else "",
                 i.part_name or i.stp_filename or "",
                 i.customer_name or "",

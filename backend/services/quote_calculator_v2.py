@@ -404,11 +404,23 @@ def calculate_quote_v2(payload: dict) -> dict:
         raise ValueError(f"Unsupported currency: {currency!r}. Supported: CNY, USD, EUR.")
     customer_email = str(payload.get("customer_email", "")).strip()
     customer_name = str(payload.get("customer_name", "")).strip()
-    if not customer_name:
-        raise ValueError("Customer name is required.")
-    if not customer_email:
-        raise ValueError("Customer email is required.")
-    if not _looks_like_email(customer_email):
+
+    # Enforce required fields based on DB settings (not frontend)
+    site = str(payload.get("site", payload.get("theme", "default"))).strip() or "default"
+    try:
+        from services.settings import get_setting
+        name_required = get_setting(f"quote:{site}", "customer_name_required", "true").lower() == "true"
+        email_required = get_setting(f"quote:{site}", "customer_email_required", "true").lower() == "true"
+    except Exception:
+        name_required = True
+        email_required = True
+
+    if name_required and not customer_name:
+        raise ValueError("Customer name is required for this site.")
+    if email_required and not customer_email:
+        raise ValueError("Customer email is required for this site.")
+    # Email format check: always validate if email is provided, regardless of required flag
+    if customer_email and not _looks_like_email(customer_email):
         raise ValueError("A valid customer email is required.")
 
     warnings = []

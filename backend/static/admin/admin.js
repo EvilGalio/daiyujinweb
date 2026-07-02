@@ -206,4 +206,45 @@
                 </table></div>`;
         } catch (e) { main.innerHTML = '<h2>Audit Logs</h2><p>Failed to load.</p>'; }
     });
+
+    document.querySelector('[data-nav="account"]')?.addEventListener('click', e => {
+        e.preventDefault();
+        const main = document.querySelector('.admin-main');
+        main.innerHTML = `
+            <h2>Account</h2>
+            <div class="admin-form" style="max-width:400px">
+                <div class="admin-form-group">
+                    <label>Current Password</label>
+                    <input type="password" id="pw-current">
+                </div>
+                <div class="admin-form-group">
+                    <label>New Password (min 6 characters)</label>
+                    <input type="password" id="pw-new">
+                </div>
+                <div class="admin-form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="pw-confirm">
+                </div>
+                <button id="pw-save">Change Password</button>
+                <div id="pw-msg" style="margin-top:.5rem;font-size:13px"></div>
+            </div>`;
+
+        document.getElementById('pw-save').addEventListener('click', async () => {
+            const current = document.getElementById('pw-current').value;
+            const np = document.getElementById('pw-new').value;
+            const cf = document.getElementById('pw-confirm').value;
+            const msg = document.getElementById('pw-msg');
+            if (np !== cf) { msg.textContent = 'Passwords do not match.'; msg.style.color = '#dc2626'; return; }
+            if (np.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.style.color = '#dc2626'; return; }
+            try {
+                const res = await fetch('/api/admin/password', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current, new: np }),
+                });
+                const d = await res.json();
+                msg.textContent = d.ok ? 'Password changed.' : (d.error || 'Failed');
+                msg.style.color = d.ok ? '#059669' : '#dc2626';
+            } catch (e) { msg.textContent = 'Network error'; msg.style.color = '#dc2626'; }
+        });
+    });
 })();

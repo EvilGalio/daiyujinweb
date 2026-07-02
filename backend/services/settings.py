@@ -43,7 +43,7 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "quantity_min", "1", "number", is_public=True, description="Minimum quantity allowed")
     _register(f"quote:{site}", "quantity_max", "100000", "number", is_public=True, description="Maximum quantity allowed")
     _register(f"quote:{site}", "upload_max_mb", "50", "number", is_public=True, description="Max upload size in MB")
-    _register(f"quote:{site}", "allowed_extensions", '["stp","step"]', "json", is_public=True, description="Allowed file extensions")
+    _register(f"quote:{site}", "allowed_extensions", '["stp","step","igs","iges","zip"]', "json", is_public=True, description="Allowed file extensions")
 
 # ── Watermark ──
 for site in ["default", "mfg", "gcindus", "gcnov"]:

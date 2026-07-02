@@ -18,6 +18,7 @@
         <a href="#" data-nav="system" {% if request.path == '/admin/system' %}class="active"{% endif %}>System</a>
         <a href="#" data-nav="audit" {% if request.path == '/admin/audit' %}class="active"{% endif %}>Audit</a>
         <span style="margin-left:auto;color:#94a3b8;font-size:13px;">{{ session.admin_user }}</span>
+        <a href="#" data-nav="account">Account</a>
         <a href="/admin/logout">Logout</a>
     </div>
 </nav>

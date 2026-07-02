@@ -6,14 +6,26 @@ from pathlib import Path
 LOGGER = logging.getLogger(__name__)
 
 
-def apply_preview_watermark(png_path: Path) -> bool:
+def _get_watermark_settings(site: str = "default") -> dict:
+    """Try to read watermark settings from DB. Returns {} if unavailable."""
+    try:
+        from services.settings import get_setting
+        return {
+            "text": get_setting(f"quote:{site}", "preview_watermark_text"),
+            "opacity": get_setting(f"quote:{site}", "preview_watermark_opacity"),
+            "angle": get_setting(f"quote:{site}", "preview_watermark_angle"),
+            "spacing": get_setting(f"quote:{site}", "preview_watermark_spacing"),
+            "color": get_setting(f"quote:{site}", "preview_watermark_color"),
+            "font_scale": get_setting(f"quote:{site}", "preview_watermark_font_scale"),
+        }
+    except Exception:
+        return {}
+
+
+def apply_preview_watermark(png_path: Path, site: str = "default") -> bool:
     """Apply 45° tiled watermark by rotating each text tile then pasting.
 
-    Environment variables (optional):
-      QUOTE_PREVIEW_WATERMARK         text (default "GCNOV CO., LIMITED")
-      QUOTE_PREVIEW_WATERMARK_OPACITY 0–1 (default 0.12)
-      QUOTE_PREVIEW_WATERMARK_ANGLE   degrees (default 45)
-      QUOTE_PREVIEW_WATERMARK_SPACING multiplier (default 3.0)
+    Priority: DB settings > environment variables > code defaults.
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -28,14 +40,18 @@ def apply_preview_watermark(png_path: Path) -> bool:
         w, h = img.size
         overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
 
-        text = _os.environ.get("QUOTE_PREVIEW_WATERMARK", "GCNOV CO., LIMITED")
-        opacity = float(_os.environ.get("QUOTE_PREVIEW_WATERMARK_OPACITY", "0.12"))
-        angle = float(_os.environ.get("QUOTE_PREVIEW_WATERMARK_ANGLE", "45"))
-        spacing_mult = float(_os.environ.get("QUOTE_PREVIEW_WATERMARK_SPACING", "3.0"))
+        # Read settings: DB > env > defaults
+        db = _get_watermark_settings(site)
+        text = db.get("text") or _os.environ.get("QUOTE_PREVIEW_WATERMARK", "GCNOV CO., LIMITED")
+        opacity = float(db.get("opacity") or _os.environ.get("QUOTE_PREVIEW_WATERMARK_OPACITY", "0.12"))
+        angle = float(db.get("angle") or _os.environ.get("QUOTE_PREVIEW_WATERMARK_ANGLE", "45"))
+        spacing_mult = float(db.get("spacing") or _os.environ.get("QUOTE_PREVIEW_WATERMARK_SPACING", "3.0"))
+        color_hex = (db.get("color") or "").lstrip("#") or "26303e"
+        font_scale = float(db.get("font_scale") or "0.026")
+        font_scale = max(0.01, min(0.08, font_scale))
 
-        # OCC thumbnails are usually 3K-4K. If the font is too large, the
-        # required 3x text-width spacing pushes nearly every tile off-canvas.
-        font_size = max(24, int(min(w, h) * 0.026))
+        # OCC thumbnails are usually 3K-4K.
+        font_size = max(24, int(min(w, h) * font_scale))
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
         except (OSError, IOError):
@@ -59,7 +75,12 @@ def apply_preview_watermark(png_path: Path) -> bool:
         pad = int(font_size * 0.65)
         tile = Image.new("RGBA", (tw + pad * 2, th + pad * 2), (0, 0, 0, 0))
         tile_draw = ImageDraw.Draw(tile)
-        tile_draw.text((pad, pad), text, font=font, fill=(38, 48, 62, alpha))
+        # Parse DB color or default blue-gray
+        try:
+            r_c, g_c, b_c = int(color_hex[0:2], 16), int(color_hex[2:4], 16), int(color_hex[4:6], 16)
+        except (ValueError, IndexError):
+            r_c, g_c, b_c = 38, 48, 62
+        tile_draw.text((pad, pad), text, font=font, fill=(r_c, g_c, b_c, alpha))
 
         # Rotate tile
         rotated = tile.rotate(angle, expand=True, resample=Image.BILINEAR)
