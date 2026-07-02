@@ -1,44 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}仪表盘{% endblock %}
 {% block content %}
 <div class="admin-stats">
-    <div class="admin-stat-card">
-        <span class="admin-stat-label">Today</span>
-        <span class="admin-stat-value">{{ today_count }}</span>
-    </div>
-    <div class="admin-stat-card">
-        <span class="admin-stat-label">This Week</span>
-        <span class="admin-stat-value">{{ week_count }}</span>
-    </div>
-    <div class="admin-stat-card">
-        <span class="admin-stat-label">API Status</span>
-        <span class="admin-stat-value ok">Online</span>
-    </div>
+    <div class="admin-stat-card"><span class="admin-stat-label">今日询盘</span><span class="admin-stat-value">{{ today_count }}</span></div>
+    <div class="admin-stat-card"><span class="admin-stat-label">本周询盘</span><span class="admin-stat-value">{{ week_count }}</span></div>
+    <div class="admin-stat-card"><span class="admin-stat-label">API 状态</span><span class="admin-stat-value ok">在线</span></div>
 </div>
 
-<h2>Recent Inquiries</h2>
+<h2>最新询盘</h2>
 <div class="admin-table-wrap">
     <table class="admin-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Part</th>
-                <th>Email</th>
-                <th>Material</th>
-                <th>Total</th>
-            </tr>
-        </thead>
+        <thead><tr><th>时间</th><th>零件</th><th>邮箱</th><th>材料</th><th>报价</th></tr></thead>
         <tbody>
             {% for r in recent %}
-            <tr>
-                <td>{{ r.created_at }}</td>
-                <td>{{ r.part_name }}</td>
-                <td>{{ r.email }}</td>
-                <td>{{ r.material }}</td>
-                <td>{{ r.total }}</td>
-            </tr>
+            <tr><td>{{ r.created_at }}</td><td>{{ r.part_name }}</td><td>{{ r.email }}</td><td>{{ r.material }}</td><td>{{ r.total }}</td></tr>
             {% else %}
-            <tr><td colspan="4" class="admin-empty">No inquiries yet.</td></tr>
+            <tr><td colspan="5" class="admin-empty">暂无询盘记录</td></tr>
             {% endfor %}
         </tbody>
     </table>

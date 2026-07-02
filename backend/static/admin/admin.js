@@ -1,250 +1,241 @@
-/* Admin Console */
+/* 大余金管理后台 */
 (function () {
-    const toast = document.getElementById('admin-toast');
+    var toast = document.getElementById('admin-toast');
 
     function showToast(msg, ok) {
         if (!toast) return;
         toast.textContent = msg; toast.hidden = false;
         toast.style.background = ok ? '#1a1d23' : '#dc2626';
-        setTimeout(() => { toast.hidden = true; }, 2500);
+        setTimeout(function () { toast.hidden = true; }, 2500);
     }
 
-    document.addEventListener('click', e => {
-        const btn = e.target.closest('[data-admin-save]');
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-admin-save]');
         if (!btn) return;
-        const scope = btn.dataset.adminSaveScope || 'global';
-        const key = btn.dataset.adminSaveKey;
-        const input = document.querySelector(`[data-admin-input="${scope}/${key}"]`);
+        var scope = btn.dataset.adminSaveScope || 'global';
+        var key = btn.dataset.adminSaveKey;
+        var input = document.querySelector('[data-admin-input="' + scope + '/' + key + '"]');
         if (!input) return;
         btn.disabled = true;
         fetch('/api/admin/settings', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scope, key, value: input.value }),
-        }).then(r => r.json()).then(d => {
-            showToast(d.ok ? 'Saved' : 'Save failed', d.ok);
-        }).catch(() => showToast('Network error', false)).finally(() => { btn.disabled = false; });
+            body: JSON.stringify({ scope: scope, key: key, value: input.value }),
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            showToast(d.ok ? '已保存' : '保存失败', d.ok);
+        }).catch(function () { showToast('网络错误', false); }).finally(function () { btn.disabled = false; });
     });
 
-    /* ── Shared ── */
-    function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
-    function trunc(s, n) { const t = String(s); return t.length > n ? t.slice(0, n) + '...' : t; }
+    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+    function trunc(s, n) { var t = String(s); return t.length > n ? t.slice(0, n) + '...' : t; }
 
-    /* ── Inquiries ── */
-    let inqPage = 1, inqQuery = '', inqDateFrom = '', inqDateTo = '';
+    /* ── 询盘管理 ── */
+    var inqPage = 1, inqQuery = '', inqDateFrom = '', inqDateTo = '';
 
-    async function loadInquiries() {
-        const tbody = document.getElementById('inq-body');
+    function loadInquiries() {
+        var tbody = document.getElementById('inq-body');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">Loading...</td></tr>';
-        const params = new URLSearchParams({ page: inqPage, page_size: 25, q: inqQuery });
+        tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">加载中...</td></tr>';
+        var params = new URLSearchParams({ page: inqPage, page_size: 25, q: inqQuery });
         if (inqDateFrom) params.set('date_from', inqDateFrom);
         if (inqDateTo) params.set('date_to', inqDateTo);
-        try {
-            const res = await fetch(`/api/admin/inquiries?${params}`);
-            const data = await res.json();
+        fetch('/api/admin/inquiries?' + params).then(function (r) { return r.json(); }).then(function (data) {
             document.getElementById('inq-total').textContent = data.total;
-            document.getElementById('inq-export').href = `/api/admin/inquiries/export.csv?${params}`;
-            tbody.innerHTML = data.items.length ? data.items.map(r =>
-                `<tr data-inq-id="${r.record_id}">
-                    <td>${r.created_at ? r.created_at.slice(0,16).replace('T',' ') : '-'}</td>
-                    <td title="${esc(r.part_name)}">${esc(trunc(r.part_name, 28))}</td>
-                    <td>${esc(r.customer_email)}</td>
-                    <td>${r.quantity || '-'}</td>
-                    <td>${esc(trunc(r.material_name, 20))}</td>
-                    <td>${esc(r.total_display)}</td>
-                    <td>${r.batch_item_index ? `${r.batch_item_index}/${r.batch_item_count || '-'}` : '-'}</td>
-                </tr>`
-            ).join('') : '<tr><td colspan="7" class="admin-empty">No records found.</td></tr>';
-            tbody.querySelectorAll('[data-inq-id]').forEach(row => {
-                row.addEventListener('click', () => showInquiryDetail(row.dataset.inqId));
+            document.getElementById('inq-export').href = '/api/admin/inquiries/export.csv?' + params;
+            tbody.innerHTML = data.items.length ? data.items.map(function (r) {
+                return '<tr data-inq-id="' + r.record_id + '">' +
+                    '<td>' + (r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+                    '<td title="' + esc(r.part_name) + '">' + esc(trunc(r.part_name, 28)) + '</td>' +
+                    '<td>' + esc(r.customer_email) + '</td>' +
+                    '<td>' + (r.quantity || '-') + '</td>' +
+                    '<td>' + esc(trunc(r.material_name, 20)) + '</td>' +
+                    '<td>' + esc(r.total_display) + '</td>' +
+                    '<td>' + (r.batch_item_index ? r.batch_item_index + '/' + (r.batch_item_count || '-') : '-') + '</td>' +
+                    '</tr>';
+            }).join('') : '<tr><td colspan="7" class="admin-empty">未找到记录</td></tr>';
+            tbody.querySelectorAll('[data-inq-id]').forEach(function (row) {
+                row.addEventListener('click', function () { showInquiryDetail(row.dataset.inqId); });
             });
-        } catch (e) { tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">Failed to load.</td></tr>'; }
+        }).catch(function () { tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">加载失败</td></tr>'; });
     }
 
-    async function showInquiryDetail(id) {
-        try {
-            const r = await fetch(`/api/admin/inquiries/${id}`).then(r => r.json());
-            const overlay = document.createElement('div');
+    function showInquiryDetail(id) {
+        fetch('/api/admin/inquiries/' + id).then(function (r) { return r.json(); }).then(function (r) {
+            var overlay = document.createElement('div');
             overlay.className = 'admin-overlay';
-            overlay.innerHTML = `
-                <div class="admin-drawer">
-                    <div class="admin-drawer-head"><h3>Inquiry #${r.id}</h3><button class="admin-close" onclick="this.closest('.admin-overlay').remove()">&times;</button></div>
-                    <div class="admin-drawer-body">
-                        <div class="admin-detail-grid">
-                            <div><span>Time</span><strong>${r.created_at ? r.created_at.slice(0,16).replace('T',' ') : '-'}</strong></div>
-                            <div><span>Part</span><strong>${esc(r.part_name)}</strong></div>
-                            <div><span>Customer</span><strong>${esc(r.customer_name || '-')}</strong></div>
-                            <div><span>Email</span><strong>${esc(r.customer_email || '-')}</strong></div>
-                            <div><span>Qty</span><strong>${r.quantity || '-'}</strong></div>
-                            <div><span>Material</span><strong>${esc(r.material_name || '-')}</strong></div>
-                            <div><span>Total</span><strong>${esc(r.total_display || '-')}</strong></div>
-                            <div><span>Currency</span><strong>${r.currency || '-'}</strong></div>
-                            <div><span>File</span><strong>${esc(r.stp_filename || '-')}</strong></div>
-                            <div><span>IP</span><strong>${r.client_ip || '-'}</strong></div>
-                        </div>
-                        ${r.input_params ? `<details style="margin-top:1rem"><summary>Raw params</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">${esc(JSON.stringify(r.input_params, null, 2))}</pre></details>` : ''}
-                        ${r.result ? `<details style="margin-top:.5rem"><summary>Raw result</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">${esc(JSON.stringify(r.result, null, 2))}</pre></details>` : ''}
-                    </div></div>`;
+            overlay.innerHTML =
+                '<div class="admin-drawer">' +
+                '<div class="admin-drawer-head"><h3>询盘 #' + r.id + '</h3><button class="admin-close" onclick="this.closest(\'.admin-overlay\').remove()">&times;</button></div>' +
+                '<div class="admin-drawer-body">' +
+                '<div class="admin-detail-grid">' +
+                '<div><span>时间</span><strong>' + (r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : '-') + '</strong></div>' +
+                '<div><span>零件</span><strong>' + esc(r.part_name) + '</strong></div>' +
+                '<div><span>客户</span><strong>' + esc(r.customer_name || '-') + '</strong></div>' +
+                '<div><span>邮箱</span><strong>' + esc(r.customer_email || '-') + '</strong></div>' +
+                '<div><span>数量</span><strong>' + (r.quantity || '-') + '</strong></div>' +
+                '<div><span>材料</span><strong>' + esc(r.material_name || '-') + '</strong></div>' +
+                '<div><span>报价</span><strong>' + esc(r.total_display || '-') + '</strong></div>' +
+                '<div><span>货币</span><strong>' + (r.currency || '-') + '</strong></div>' +
+                '<div><span>文件</span><strong>' + esc(r.stp_filename || '-') + '</strong></div>' +
+                '<div><span>IP</span><strong>' + (r.client_ip || '-') + '</strong></div>' +
+                '</div>' +
+                (r.input_params ? '<details style="margin-top:1rem"><summary>原始参数</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">' + esc(JSON.stringify(r.input_params, null, 2)) + '</pre></details>' : '') +
+                (r.result ? '<details style="margin-top:.5rem"><summary>原始结果</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">' + esc(JSON.stringify(r.result, null, 2)) + '</pre></details>' : '') +
+                '</div></div>';
             document.body.appendChild(overlay);
-            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-        } catch (e) { showToast('Failed to load detail', false); }
+            overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+        }).catch(function () { showToast('加载详情失败', false); });
     }
 
     function renderInquiriesPage() {
-        return `<h2>Inquiries</h2>
-            <div class="admin-toolbar">
-                <input type="text" id="inq-search" placeholder="Search email / part / material..." value="${esc(inqQuery)}">
-                <input type="date" id="inq-date-from" value="${inqDateFrom}">
-                <input type="date" id="inq-date-to" value="${inqDateTo}">
-                <span style="color:#6b7280;font-size:13px"><span id="inq-total">0</span> records</span>
-                <a id="inq-export" href="/api/admin/inquiries/export.csv" style="margin-left:auto;color:#2563eb;text-decoration:none;font-size:13px;font-weight:600">Export CSV</a>
-            </div>
-            <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Time</th><th>Part</th><th>Email</th><th>Qty</th><th>Material</th><th>Total</th><th>Batch</th></tr></thead><tbody id="inq-body"></tbody></table></div>
-            <div class="admin-pager"><button id="inq-prev">Previous</button><span id="inq-page">Page 1</span><button id="inq-next">Next</button></div>`;
+        return '<h2>询盘记录</h2>' +
+            '<div class="admin-toolbar">' +
+            '<input type="text" id="inq-search" placeholder="搜索邮箱 / 零件 / 材料..." value="' + esc(inqQuery) + '">' +
+            '<input type="date" id="inq-date-from" value="' + inqDateFrom + '">' +
+            '<input type="date" id="inq-date-to" value="' + inqDateTo + '">' +
+            '<span style="color:#6b7280;font-size:13px"><span id="inq-total">0</span> 条记录</span>' +
+            '<a id="inq-export" href="/api/admin/inquiries/export.csv" style="margin-left:auto;color:#2563eb;text-decoration:none;font-size:13px;font-weight:600">导出 CSV</a>' +
+            '</div>' +
+            '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>零件</th><th>邮箱</th><th>数量</th><th>材料</th><th>报价</th><th>批次</th></tr></thead><tbody id="inq-body"></tbody></table></div>' +
+            '<div class="admin-pager"><button id="inq-prev">上一页</button><span id="inq-page">第 1 页</span><button id="inq-next">下一页</button></div>';
     }
 
     function bindInquiriesEvents() {
-        const search = document.getElementById('inq-search');
-        const from = document.getElementById('inq-date-from');
-        const to = document.getElementById('inq-date-to');
-        let timer;
-        search?.addEventListener('input', e => { clearTimeout(timer); timer = setTimeout(() => { inqQuery = e.target.value; inqPage = 1; loadInquiries(); }, 400); });
-        from?.addEventListener('change', e => { inqDateFrom = e.target.value; inqPage = 1; loadInquiries(); });
-        to?.addEventListener('change', e => { inqDateTo = e.target.value; inqPage = 1; loadInquiries(); });
-        document.getElementById('inq-prev')?.addEventListener('click', () => { if (inqPage > 1) { inqPage--; loadInquiries(); } });
-        document.getElementById('inq-next')?.addEventListener('click', () => { inqPage++; loadInquiries(); });
+        var search = document.getElementById('inq-search'), timer;
+        var from = document.getElementById('inq-date-from'), to = document.getElementById('inq-date-to');
+        search && search.addEventListener('input', function (e) { clearTimeout(timer); timer = setTimeout(function () { inqQuery = e.target.value; inqPage = 1; loadInquiries(); }, 400); });
+        from && from.addEventListener('change', function (e) { inqDateFrom = e.target.value; inqPage = 1; loadInquiries(); });
+        to && to.addEventListener('change', function (e) { inqDateTo = e.target.value; inqPage = 1; loadInquiries(); });
+        document.getElementById('inq-prev') && document.getElementById('inq-prev').addEventListener('click', function () { if (inqPage > 1) { inqPage--; loadInquiries(); } });
+        document.getElementById('inq-next') && document.getElementById('inq-next').addEventListener('click', function () { inqPage++; loadInquiries(); });
     }
 
-    /* ── Settings ── */
-    async function loadSettings(scope) {
-        const container = document.getElementById('settings-content');
+    /* ── 系统设置 ── */
+    var settingLabels = {
+        customer_name_required: '客户称呼是否必填', customer_email_required: '客户邮箱是否必填',
+        formal_quote_url: '正式报价链接', formal_quote_label: '正式报价按钮文案',
+        engineer_contact_url: '工程师联系链接', engineer_contact_label: '工程师联系文案',
+        preview_watermark_text: '预览图水印文字', preview_watermark_opacity: '水印透明度',
+        preview_watermark_angle: '水印角度', preview_watermark_spacing: '水印间距',
+        preview_watermark_color: '水印颜色', preview_watermark_font_scale: '水印字体比例',
+        allowed_extensions: '允许上传格式', disclaimer_template: '报价免责声明模板',
+        contact_note: '询盘引导文案', privacy_note: '隐私合规文案',
+        customer_name_required_label: '', customer_email_required_label: '',
+        thumbnail_background_color: '缩略图背景色', thumbnail_part_color: '缩略图零件色',
+        thumbnail_width: '缩略图宽度', thumbnail_height: '缩略图高度',
+    };
+
+    function loadSettings(scope) {
+        var container = document.getElementById('settings-content');
         if (!container) return;
-        container.innerHTML = '<p>Loading...</p>';
-        const url = scope ? `/api/admin/settings?scope=${encodeURIComponent(scope)}` : '/api/admin/settings';
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            const groups = {};
-            data.settings.forEach(s => { const g = s.scope; if (!groups[g]) groups[g] = []; groups[g].push(s); });
-            const scopes = Object.keys(groups).sort();
-            const sel = document.getElementById('site-scope');
+        container.innerHTML = '<p>加载中...</p>';
+        var url = scope ? '/api/admin/settings?scope=' + encodeURIComponent(scope) : '/api/admin/settings';
+        fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+            var groups = {};
+            data.settings.forEach(function (s) { var g = s.scope; if (!groups[g]) groups[g] = []; groups[g].push(s); });
+            var scopes = Object.keys(groups).sort();
+            var sel = document.getElementById('site-scope');
             if (sel && sel.options.length <= 1) {
-                sel.innerHTML = '<option value="">All scopes</option>' + scopes.map(s => `<option value="${esc(s)}" ${s===scope?'selected':''}>${esc(s)}</option>`).join('');
+                sel.innerHTML = '<option value="">全部配置域</option>' + scopes.map(function (s) { return '<option value="' + esc(s) + '"' + (s === scope ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('');
             }
-            container.innerHTML = Object.entries(groups).map(([scopeName, items]) =>
-                `<h3 style="margin:1.25rem 0 .5rem;font-size:14px;color:#6b7280;">${esc(scopeName)}</h3>
-                <div class="admin-form">${items.map(s => `
-                    <div class="admin-form-group">
-                        <label>${esc(s.key)} <small style="color:#9ca3af">(${s.value_type}${s.is_public?' · public':''})</small>${s.description ? `<br><small style="color:#9ca3af">${esc(s.description)}</small>` : ''}</label>
-                        ${s.value_type === 'bool'
-                            ? `<select data-admin-input="${s.scope}/${s.key}"><option value="true" ${s.value==='true'?'selected':''}>Yes</option><option value="false" ${s.value==='false'?'selected':''}>No</option></select>`
+            container.innerHTML = Object.entries(groups).map(function (e) {
+                var scopeName = e[0], items = e[1];
+                return '<h3 style="margin:1.25rem 0 .5rem;font-size:14px;color:#6b7280;">' + esc(scopeName) + '</h3>' +
+                '<div class="admin-form">' + items.map(function (s) {
+                    var label = settingLabels[s.key] || s.key;
+                    return '<div class="admin-form-group">' +
+                        '<label>' + esc(label) + ' <small style="color:#9ca3af">(' + s.value_type + (s.is_public ? ' · 公开' : '') + ')</small>' + (s.description ? '<br><small style="color:#9ca3af">' + esc(s.description) + '</small>' : '') + '</label>' +
+                        (s.value_type === 'bool'
+                            ? '<select data-admin-input="' + s.scope + '/' + s.key + '"><option value="true"' + (s.value === 'true' ? ' selected' : '') + '>是</option><option value="false"' + (s.value === 'false' ? ' selected' : '') + '>否</option></select>'
                             : s.value.length > 120
-                                ? `<textarea data-admin-input="${s.scope}/${s.key}" rows="3">${esc(s.value)}</textarea>`
-                                : `<input type="text" data-admin-input="${s.scope}/${s.key}" value="${esc(s.value)}">`
-                        }
-                        <button data-admin-save data-admin-save-scope="${s.scope}" data-admin-save-key="${s.key}" style="margin-top:.35rem;">Save</button>
-                    </div>`).join('')}</div>`
-            ).join('');
-        } catch (e) { container.innerHTML = '<p>Failed to load settings.</p>'; }
+                                ? '<textarea data-admin-input="' + s.scope + '/' + s.key + '" rows="3">' + esc(s.value) + '</textarea>'
+                                : '<input type="text" data-admin-input="' + s.scope + '/' + s.key + '" value="' + esc(s.value) + '">')
+                        + '<button data-admin-save data-admin-save-scope="' + s.scope + '" data-admin-save-key="' + s.key + '" style="margin-top:.35rem;">保存</button>' +
+                        '</div>';
+                }).join('') + '</div>';
+            }).join('');
+        }).catch(function () { container.innerHTML = '<p>加载设置失败</p>'; });
     }
 
-    /* ── Nav clicks ── */
-    document.querySelector('[data-nav="inquiries"]')?.addEventListener('click', e => {
+    /* ── 导航 ── */
+    document.querySelector('[data-nav="inquiries"]') && document.querySelector('[data-nav="inquiries"]').addEventListener('click', function (e) {
         e.preventDefault();
         document.querySelector('.admin-main').innerHTML = renderInquiriesPage();
         bindInquiriesEvents();
         loadInquiries();
     });
 
-    document.querySelector('[data-nav="settings"]')?.addEventListener('click', e => {
+    document.querySelector('[data-nav="settings"]') && document.querySelector('[data-nav="settings"]').addEventListener('click', function (e) {
         e.preventDefault();
-        document.querySelector('.admin-main').innerHTML =
-            '<h2>Settings</h2><div class="admin-toolbar"><select id="site-scope"><option value="">All scopes</option></select></div><div id="settings-content"><p>Loading...</p></div>';
+        document.querySelector('.admin-main').innerHTML = '<h2>系统设置</h2><div class="admin-toolbar"><select id="site-scope"><option value="">全部配置域</option></select></div><div id="settings-content"><p>加载中...</p></div>';
         loadSettings('');
-        document.getElementById('site-scope').addEventListener('change', ev => loadSettings(ev.target.value));
+        document.getElementById('site-scope').addEventListener('change', function (ev) { loadSettings(ev.target.value); });
     });
 
-    document.querySelector('[data-nav="system"]')?.addEventListener('click', async e => {
+    document.querySelector('[data-nav="system"]') && document.querySelector('[data-nav="system"]').addEventListener('click', function (e) {
         e.preventDefault();
-        const main = document.querySelector('.admin-main');
-        main.innerHTML = '<h2>System Health</h2><p>Loading...</p>';
-        try {
-            const h = await fetch('/api/admin/system/health').then(r => r.json());
-            main.innerHTML = `<h2>System Health</h2>
-                <div class="admin-stats">
-                    <div class="admin-stat-card"><span class="admin-stat-label">DB Size</span><span class="admin-stat-value">${h.db_size_mb} MB</span></div>
-                    <div class="admin-stat-card"><span class="admin-stat-label">Total Inquiries</span><span class="admin-stat-value">${h.total_inquiries}</span></div>
-                    <div class="admin-stat-card"><span class="admin-stat-label">Uploads</span><span class="admin-stat-value">${h.uploads.files} files / ${h.uploads.size_mb} MB</span></div>
-                    <div class="admin-stat-card"><span class="admin-stat-label">Thumbnails</span><span class="admin-stat-value">${h.thumbnails.files} files / ${h.thumbnails.size_mb} MB</span></div>
-                    <div class="admin-stat-card"><span class="admin-stat-label">STL Files</span><span class="admin-stat-value">${h.stl_files.files} files / ${h.stl_files.size_mb} MB</span></div>
-                    <div class="admin-stat-card"><span class="admin-stat-label">Latest Inquiry</span><span class="admin-stat-value" style="font-size:13px">${h.latest_inquiry}</span></div>
-                </div>
-                <div class="admin-form" style="margin-top:1rem">
-                    <p style="margin-bottom:.5rem;font-size:13px;color:#6b7280">Database: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${esc(h.db_path)}</code></p>
-                    <p style="font-size:13px;color:#6b7280">API: <span style="color:#059669;font-weight:600">${h.api_status}</span></p>
-                </div>`;
-        } catch (e) { main.innerHTML = '<h2>System Health</h2><p>Failed to load.</p>'; }
+        var main = document.querySelector('.admin-main');
+        main.innerHTML = '<h2>系统状态</h2><p>加载中...</p>';
+        fetch('/api/admin/system/health').then(function (r) { return r.json(); }).then(function (h) {
+            main.innerHTML = '<h2>系统状态</h2>' +
+                '<div class="admin-stats">' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">数据库大小</span><span class="admin-stat-value">' + h.db_size_mb + ' MB</span></div>' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">询盘总数</span><span class="admin-stat-value">' + h.total_inquiries + '</span></div>' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">上传文件</span><span class="admin-stat-value">' + h.uploads.files + ' 个 / ' + h.uploads.size_mb + ' MB</span></div>' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">缩略图</span><span class="admin-stat-value">' + h.thumbnails.files + ' 个 / ' + h.thumbnails.size_mb + ' MB</span></div>' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">STL 文件</span><span class="admin-stat-value">' + h.stl_files.files + ' 个 / ' + h.stl_files.size_mb + ' MB</span></div>' +
+                '<div class="admin-stat-card"><span class="admin-stat-label">最新询盘</span><span class="admin-stat-value" style="font-size:13px">' + h.latest_inquiry + '</span></div>' +
+                '</div>' +
+                '<div class="admin-form" style="margin-top:1rem">' +
+                '<p style="margin-bottom:.5rem;font-size:13px;color:#6b7280">数据库路径: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">' + esc(h.db_path) + '</code></p>' +
+                '<p style="font-size:13px;color:#6b7280">API 状态: <span style="color:#059669;font-weight:600">' + h.api_status + '</span></p>' +
+                '</div>';
+        }).catch(function () { main.innerHTML = '<h2>系统状态</h2><p>加载失败</p>'; });
     });
 
-    document.querySelector('[data-nav="audit"]')?.addEventListener('click', async e => {
+    document.querySelector('[data-nav="audit"]') && document.querySelector('[data-nav="audit"]').addEventListener('click', function (e) {
         e.preventDefault();
-        const main = document.querySelector('.admin-main');
-        main.innerHTML = '<h2>Audit Logs</h2><p>Loading...</p>';
-        try {
-            const logs = (await fetch('/api/admin/audit-logs').then(r => r.json())).logs || [];
-            main.innerHTML = `<h2>Audit Logs</h2>
-                <div class="admin-table-wrap"><table class="admin-table">
-                    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Old</th><th>New</th></tr></thead>
-                    <tbody>${logs.length ? logs.map(l => `<tr>
-                        <td>${l.created_at ? l.created_at.slice(0,16).replace('T',' ') : '-'}</td>
-                        <td>${esc(l.admin_username || '-')}</td>
-                        <td><span class="admin-badge ${l.action}">${esc(l.action)}</span></td>
-                        <td>${esc(l.target_key || '-')}</td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.old_value || '-')}</td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.new_value || '-')}</td>
-                    </tr>`).join('') : '<tr><td colspan="6" class="admin-empty">No audit records yet.</td></tr>'}</tbody>
-                </table></div>`;
-        } catch (e) { main.innerHTML = '<h2>Audit Logs</h2><p>Failed to load.</p>'; }
+        var main = document.querySelector('.admin-main');
+        main.innerHTML = '<h2>操作日志</h2><p>加载中...</p>';
+        fetch('/api/admin/audit-logs').then(function (r) { return r.json(); }).then(function (data) {
+            var logs = data.logs || [];
+            var badgeLabels = { login: '登录', logout: '退出', update_setting: '修改设置', export_csv: '导出CSV', login_failed: '登录失败', change_password: '修改密码' };
+            main.innerHTML = '<h2>操作日志</h2>' +
+                '<div class="admin-table-wrap"><table class="admin-table">' +
+                '<thead><tr><th>时间</th><th>用户</th><th>操作</th><th>对象</th><th>旧值</th><th>新值</th></tr></thead>' +
+                '<tbody>' + (logs.length ? logs.map(function (l) { return '<tr>' +
+                    '<td>' + (l.created_at ? l.created_at.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+                    '<td>' + esc(l.admin_username || '-') + '</td>' +
+                    '<td><span class="admin-badge ' + l.action + '">' + esc(badgeLabels[l.action] || l.action) + '</span></td>' +
+                    '<td>' + esc(l.target_key || '-') + '</td>' +
+                    '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(l.old_value || '-') + '</td>' +
+                    '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(l.new_value || '-') + '</td>' +
+                    '</tr>'; }).join('') : '<tr><td colspan="6" class="admin-empty">暂无操作日志</td></tr>') + '</tbody>' +
+                '</table></div>';
+        }).catch(function () { main.innerHTML = '<h2>操作日志</h2><p>加载失败</p>'; });
     });
 
-    document.querySelector('[data-nav="account"]')?.addEventListener('click', e => {
+    document.querySelector('[data-nav="account"]') && document.querySelector('[data-nav="account"]').addEventListener('click', function (e) {
         e.preventDefault();
-        const main = document.querySelector('.admin-main');
-        main.innerHTML = `
-            <h2>Account</h2>
-            <div class="admin-form" style="max-width:400px">
-                <div class="admin-form-group">
-                    <label>Current Password</label>
-                    <input type="password" id="pw-current">
-                </div>
-                <div class="admin-form-group">
-                    <label>New Password (min 6 characters)</label>
-                    <input type="password" id="pw-new">
-                </div>
-                <div class="admin-form-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" id="pw-confirm">
-                </div>
-                <button id="pw-save">Change Password</button>
-                <div id="pw-msg" style="margin-top:.5rem;font-size:13px"></div>
-            </div>`;
+        var main = document.querySelector('.admin-main');
+        main.innerHTML = '<h2>账户设置</h2>' +
+            '<div class="admin-form" style="max-width:400px">' +
+            '<div class="admin-form-group"><label>当前密码</label><input type="password" id="pw-current"></div>' +
+            '<div class="admin-form-group"><label>新密码（至少 6 个字符）</label><input type="password" id="pw-new"></div>' +
+            '<div class="admin-form-group"><label>确认新密码</label><input type="password" id="pw-confirm"></div>' +
+            '<button id="pw-save">修改密码</button><div id="pw-msg" style="margin-top:.5rem;font-size:13px"></div></div>';
 
-        document.getElementById('pw-save').addEventListener('click', async () => {
-            const current = document.getElementById('pw-current').value;
-            const np = document.getElementById('pw-new').value;
-            const cf = document.getElementById('pw-confirm').value;
-            const msg = document.getElementById('pw-msg');
-            if (np !== cf) { msg.textContent = 'Passwords do not match.'; msg.style.color = '#dc2626'; return; }
-            if (np.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.style.color = '#dc2626'; return; }
-            try {
-                const res = await fetch('/api/admin/password', {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ current, new: np }),
-                });
-                const d = await res.json();
-                msg.textContent = d.ok ? 'Password changed.' : (d.error || 'Failed');
-                msg.style.color = d.ok ? '#059669' : '#dc2626';
-            } catch (e) { msg.textContent = 'Network error'; msg.style.color = '#dc2626'; }
+        document.getElementById('pw-save').addEventListener('click', function () {
+            var current = document.getElementById('pw-current').value;
+            var np = document.getElementById('pw-new').value;
+            var cf = document.getElementById('pw-confirm').value;
+            var msg = document.getElementById('pw-msg');
+            if (np !== cf) { msg.textContent = '两次输入的密码不一致'; msg.style.color = '#dc2626'; return; }
+            if (np.length < 6) { msg.textContent = '新密码至少需要 6 个字符'; msg.style.color = '#dc2626'; return; }
+            fetch('/api/admin/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current: current, new: np }) })
+                .then(function (r) { return r.json(); }).then(function (d) {
+                    msg.textContent = d.ok ? '密码已修改' : (d.error || '修改失败');
+                    msg.style.color = d.ok ? '#059669' : '#dc2626';
+                }).catch(function () { msg.textContent = '网络错误'; msg.style.color = '#dc2626'; });
         });
     });
 })();

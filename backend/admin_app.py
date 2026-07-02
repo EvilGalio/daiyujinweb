@@ -1,6 +1,7 @@
 """Admin Console — separate Flask app on port 5010, localhost-only."""
 from __future__ import annotations
 
+import json as _json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,49 @@ app.secret_key = os.environ.get("ADMIN_SECRET_KEY", "change-me-in-production")
 
 # Login rate limiting
 _login_attempts: dict[str, list[float]] = defaultdict(list)
+
+# ── Material display helper ────────────────────
+
+CATEGORY_CN = {
+    "aluminum_alloy": "铝合金",
+    "carbon_alloy_steel": "碳钢 / 合金钢",
+    "engineering_plastic": "工程塑料",
+    "high_performance_plastic": "高性能塑料",
+    "stainless_steel": "不锈钢",
+    "tool_steel": "工具钢",
+}
+
+
+def _admin_material_display(inquiry: Inquiry) -> str:
+    """Return Chinese-readable material display from JSON snapshot or DB field."""
+    def from_snapshot(raw: str | None) -> str | None:
+        if not raw:
+            return None
+        try:
+            data = _json.loads(raw)
+        except Exception:
+            return None
+        selections = data.get("selections") or {}
+        material = selections.get("material") or {}
+        mat_name = str(material.get("name") or "").strip()
+        mat_id = str(material.get("id") or "").strip()
+        cat_id = str(selections.get("material_category") or "").strip()
+        cat_name = CATEGORY_CN.get(cat_id, cat_id)
+        if mat_name and cat_name:
+            return f"{cat_name} / {mat_name}"
+        if mat_name:
+            return mat_name
+        if mat_id and cat_name:
+            return f"{cat_name} / {mat_id}"
+        return None
+
+    display = from_snapshot(inquiry.result) or from_snapshot(inquiry.input_params)
+    if display:
+        return display
+    raw = (inquiry.material_name or "").strip()
+    if raw and not raw.startswith("mp_"):
+        return raw
+    return raw or "-"
 
 # ── Localhost guard ────────────────────────────
 
@@ -72,7 +116,7 @@ def dashboard_page():
             "part_name": i.part_name or i.stp_filename or "-",
             "email": i.customer_email or "-",
             "total": i.total_display or "-",
-            "material": i.material_name or "-",
+            "material": _admin_material_display(i),
             "created_at": i.created_at.strftime("%Y-%m-%d %H:%M") if i.created_at else "-"
         } for i in recent] if recent else [])
 
@@ -94,7 +138,7 @@ def login_action():
     _login_attempts[ip] = [t for t in _login_attempts.get(ip, []) if now - t < 300]
     if len(_login_attempts[ip]) >= 5:
         remaining = int(300 - (now - _login_attempts[ip][0]))
-        return render_template("login.html", error=f"Too many attempts. Try again in {remaining}s.")
+        return render_template("login.html", error=f"登录失败次数过多，请 {remaining} 秒后再试。")
 
     session = SessionLocal()
     try:
@@ -116,7 +160,7 @@ def login_action():
         _login_attempts[ip].append(now)
         audit("login_failed", target_key=username)
         attempts_left = 5 - len(_login_attempts[ip])
-        return render_template("login.html", error=f"Invalid credentials. {attempts_left} attempt(s) remaining.")
+        return render_template("login.html", error=f"用户名或密码错误，还可尝试 {attempts_left} 次。")
     finally:
         session.close()
 
@@ -168,7 +212,7 @@ def admin_inquiries():
                 "customer_name": i.customer_name or "-",
                 "customer_email": i.customer_email or "-",
                 "quantity": i.quantity,
-                "material_name": i.material_name or "-",
+                "material_name": _admin_material_display(i),
                 "total_display": i.total_display or "-",
                 "currency": i.currency or "-",
                 "batch_item_index": i.batch_item_index,
@@ -201,7 +245,7 @@ def admin_inquiry_detail(record_id):
             "customer_name": row.customer_name,
             "customer_email": row.customer_email,
             "quantity": row.quantity,
-            "material_name": row.material_name,
+            "material_name": _admin_material_display(row),
             "total_display": row.total_display,
             "currency": row.currency,
             "tolerance_grade": row.tolerance_grade,
@@ -264,12 +308,12 @@ def admin_change_password():
     new_password = data.get("new", "")
     username = flask_session.get("admin_user", "")
     if len(new_password) < 6:
-        return jsonify({"ok": False, "error": "Password must be at least 6 characters"})
+        return jsonify({"ok": False, "error": "新密码至少需要 6 个字符"})
     session = SessionLocal()
     try:
         user = session.query(AdminUser).filter_by(username=username).first()
         if not user or not check_password_hash(user.password_hash, current):
-            return jsonify({"ok": False, "error": "Current password is incorrect"})
+            return jsonify({"ok": False, "error": "当前密码不正确"})
         user.password_hash = generate_password_hash(new_password)
         session.commit()
         audit("change_password")
@@ -334,7 +378,7 @@ def admin_inquiries_export():
                 i.customer_name or "",
                 i.customer_email or "",
                 i.quantity or "",
-                i.material_name or "",
+                _admin_material_display(i),
                 i.total_display or "",
                 i.currency or "",
                 f"{i.batch_item_index}/{i.batch_item_count}" if i.batch_item_index else "",

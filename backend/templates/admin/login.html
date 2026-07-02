@@ -1,27 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daiyujin Admin — Login</title>
+    <title>大余金管理后台 - 登录</title>
     <link rel="stylesheet" href="/admin/static/admin.css">
 </head>
 <body class="admin-login-body">
 <main class="admin-login">
-    <h1>Daiyujin Admin</h1>
+    <h1>大余金管理后台</h1>
     <form method="post" action="/admin/login">
-        <label>
-            Username
-            <input type="text" name="username" required autofocus>
-        </label>
-        <label>
-            Password
-            <input type="password" name="password" required>
-        </label>
-        {% if error %}
-        <div class="admin-error">{{ error }}</div>
-        {% endif %}
-        <button type="submit">Sign in</button>
+        <label>用户名 <input type="text" name="username" required autofocus></label>
+        <label>密码 <input type="password" name="password" required></label>
+        {% if error %}<div class="admin-error">{{ error }}</div>{% endif %}
+        <button type="submit">登录</button>
     </form>
 </main>
 </body>
