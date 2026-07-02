@@ -235,3 +235,37 @@ class Inquiry(Base):
     input_params: Mapped[str] = mapped_column(Text, nullable=False)
     result: Mapped[str] = mapped_column(Text, nullable=False)
     record_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+# ═══════════════════════════════════════════
+# Admin Console tables
+# ═══════════════════════════════════════════
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    scope: Mapped[str] = mapped_column(String(80), nullable=False, default="global")
+    key: Mapped[str] = mapped_column(String(120), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    value_type: Mapped[str] = mapped_column(String(20), nullable=False, default="string")
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    description: Mapped[str | None] = mapped_column(String(255))
+    updated_by: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    admin_username: Mapped[str | None] = mapped_column(String(80))
+    action: Mapped[str] = mapped_column(String(80), nullable=False)
+    target_type: Mapped[str | None] = mapped_column(String(80))
+    target_key: Mapped[str | None] = mapped_column(String(180))
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    client_ip: Mapped[str | None] = mapped_column(String(80))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

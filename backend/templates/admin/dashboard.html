@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="admin-stats">
+    <div class="admin-stat-card">
+        <span class="admin-stat-label">Today</span>
+        <span class="admin-stat-value">{{ today_count }}</span>
+    </div>
+    <div class="admin-stat-card">
+        <span class="admin-stat-label">This Week</span>
+        <span class="admin-stat-value">{{ week_count }}</span>
+    </div>
+    <div class="admin-stat-card">
+        <span class="admin-stat-label">API Status</span>
+        <span class="admin-stat-value ok">Online</span>
+    </div>
+</div>
+
+<h2>Recent Inquiries</h2>
+<div class="admin-table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Part</th>
+                <th>Email</th>
+                <th>Material</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in recent %}
+            <tr>
+                <td>{{ r.created_at }}</td>
+                <td>{{ r.part_name }}</td>
+                <td>{{ r.email }}</td>
+                <td>{{ r.material }}</td>
+                <td>{{ r.total }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="admin-empty">No inquiries yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

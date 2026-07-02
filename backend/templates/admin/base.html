@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daiyujin Admin — {% block title %}Console{% endblock %}</title>
+    <link rel="stylesheet" href="/admin/static/admin.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+{% if session.admin_user %}
+<nav class="admin-nav">
+    <span class="admin-nav-brand">Daiyujin Admin</span>
+    <div class="admin-nav-links">
+        <a href="/admin/dashboard" {% if request.path == '/admin/dashboard' %}class="active"{% endif %}>Dashboard</a>
+        <a href="#" data-nav="inquiries" {% if request.path.startswith('/admin/inquiries') %}class="active"{% endif %}>Inquiries</a>
+        <a href="#" data-nav="settings" {% if request.path == '/admin/settings' %}class="active"{% endif %}>Settings</a>
+        <a href="#" data-nav="system" {% if request.path == '/admin/system' %}class="active"{% endif %}>System</a>
+        <a href="#" data-nav="audit" {% if request.path == '/admin/audit' %}class="active"{% endif %}>Audit</a>
+        <span style="margin-left:auto;color:#94a3b8;font-size:13px;">{{ session.admin_user }}</span>
+        <a href="/admin/logout">Logout</a>
+    </div>
+</nav>
+{% endif %}
+
+<main class="admin-main">
+    {% block content %}{% endblock %}
+</main>
+
+<div id="admin-toast" class="admin-toast" hidden></div>
+<script src="/admin/static/admin.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

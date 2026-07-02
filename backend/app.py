@@ -24,6 +24,7 @@ from services.exchange_rates import ensure_recent_rates
 
 
 from services.preview_watermark import apply_preview_watermark
+from services.settings import get_public_settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
@@ -109,7 +110,9 @@ def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_fi
 
 def _save_direct_cad(uploaded, suffix: str) -> tuple[str, Path]:
     file_id = str(uuid.uuid4())
-    saved_path = UPLOAD_DIR / f"{file_id}{suffix}"
+    # Safe filename: keep original name, sanitize path separators
+    safe_name = uploaded.filename.replace("\\", "_").replace("/", "_").replace(":", "_")[:120]
+    saved_path = UPLOAD_DIR / f"{file_id}_{safe_name}"
     uploaded.save(saved_path)
     return file_id, saved_path
 
@@ -309,7 +312,8 @@ def create_app() -> Flask:
                         inner_name = info.filename.replace("\\", "/")
                         inner_suffix = PurePosixPath(inner_name).suffix.lower()
                         file_id = str(uuid.uuid4())
-                        saved_path = UPLOAD_DIR / f"{file_id}{inner_suffix}"
+                        safe_inner = PurePosixPath(inner_name).name.replace("\\", "_").replace("/", "_").replace(":", "_")[:120]
+                        saved_path = UPLOAD_DIR / f"{file_id}_{safe_inner}"
                         with zf.open(info) as src, saved_path.open("wb") as dst:
                             shutil.copyfileobj(src, dst)
 
@@ -435,6 +439,15 @@ def create_app() -> Flask:
         except ValueError as exc:
             return api_error("invalid_quote_request", str(exc), 400)
         return api_ok(result)
+
+    @app.get("/api/public/settings")
+    def public_settings():
+        tool = request.args.get("tool", "quote")
+        site = request.args.get("site", "default")
+        return api_ok({
+            "tool": tool, "site": site,
+            "settings": get_public_settings(tool=tool, site=site),
+        })
 
     init_db()
     threading.Thread(target=_refresh_exchange_rates_if_stale, daemon=True).start()

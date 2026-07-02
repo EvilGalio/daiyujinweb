@@ -12,7 +12,7 @@ from typing import Any
 
 from database import SessionLocal
 from models import Inquiry
-from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2, public_quote_response
+from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2, public_quote_response, _public_material_display
 
 
 def get_quote_options() -> dict:
@@ -77,7 +77,7 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
         obb_lwh = result.get("part", {}).get("obb_lwh_mm") or [0]
         inquiry = Inquiry(
             part_name=_part_name_from_payload(payload, result),
-            material_name=payload.get("material_id", ""),
+            material_name=_resolve_material_display(payload, result),
             volume_mm3=payload.get("volume_mm3"),
             weight_kg=result.get("part", {}).get("stock_weight_kg"),
             max_dim_mm=max(obb_lwh),
@@ -118,6 +118,20 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
     finally:
         session.close()
         SessionLocal.remove()
+
+
+def _resolve_material_display(payload: dict, result: dict | None = None) -> str:
+    mat_id = payload.get("material_id", "")
+    cat_id = payload.get("material_category", "")
+    if not mat_id:
+        return "-"
+    try:
+        display = _public_material_display(material_id=mat_id, category_id=cat_id)
+        label = display.get("material", "")
+        cat = display.get("category", "")
+        return f"{cat} / {label}" if cat and label else mat_id
+    except Exception:
+        return mat_id
 
 
 def _part_name_from_payload(payload: dict, result: dict | None = None) -> str:
