@@ -83,6 +83,15 @@ def _admin_inquiry_search_blob(inquiry: Inquiry) -> str:
     ]
     return " ".join(parts).lower()
 
+
+def _admin_estimate_display(inquiry: Inquiry) -> dict:
+    """Return clean estimate display for admin UI. Filters nan/inf/empty."""
+    raw = (inquiry.total_display or "").strip()
+    low = raw.lower()
+    if not raw or "nan" in low or "inf" in low or low in ("none", "null"):
+        return {"status": "error", "label": "报价异常", "value": "-"}
+    return {"status": "ok", "label": "已报价", "value": raw}
+
 # ── Localhost guard ────────────────────────────
 
 @app.before_request
@@ -139,7 +148,7 @@ def dashboard_page():
         recent=[{
             "part_name": i.part_name or i.stp_filename or "-",
             "email": i.customer_email or "-",
-            "total": _safe_total(i),
+            "total": "报价异常" if _admin_estimate_display(i)["status"] == "error" else _admin_estimate_display(i)["value"],
             "material": _admin_material_display(i),
             "created_at": i.created_at.strftime("%Y-%m-%d %H:%M") if i.created_at else "-"
         } for i in recent] if recent else [])
@@ -231,6 +240,7 @@ def admin_inquiries():
 
         items = []
         for i in page_items:
+            est = _admin_estimate_display(i)
             items.append({
                 "record_id": i.record_id,
                 "part_name": i.part_name or i.stp_filename or "-",
@@ -239,7 +249,8 @@ def admin_inquiries():
                 "customer_email": i.customer_email or "-",
                 "quantity": i.quantity,
                 "material_name": _admin_material_display(i),
-                "total_display": i.total_display or "-",
+                "total_display": est["value"],
+                "estimate_status": est["status"],
                 "currency": i.currency or "-",
                 "batch_item_index": i.batch_item_index,
                 "batch_item_count": i.batch_item_count,
@@ -272,7 +283,8 @@ def admin_inquiry_detail(record_id):
             "customer_email": row.customer_email,
             "quantity": row.quantity,
             "material_name": _admin_material_display(row),
-            "total_display": row.total_display,
+            "total_display": _admin_estimate_display(row)["value"],
+            "estimate_status": _admin_estimate_display(row)["status"],
             "currency": row.currency,
             "tolerance_grade": row.tolerance_grade,
             "volume_mm3": row.volume_mm3,
@@ -407,7 +419,7 @@ def admin_inquiries_export():
                 i.customer_email or "",
                 i.quantity or "",
                 _admin_material_display(i),
-                i.total_display or "",
+                _admin_estimate_display(i)["value"],
                 i.currency or "",
                 f"{i.batch_item_index}/{i.batch_item_count}" if i.batch_item_index else "",
                 i.stp_filename or "",

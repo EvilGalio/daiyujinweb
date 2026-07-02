@@ -17,19 +17,47 @@
         var input = document.querySelector('[data-admin-input="' + scope + '/' + key + '"]');
         if (!input) return;
         btn.disabled = true;
+        btn.textContent = '保存中...';
+        // Get value based on input type (toggle vs text)
+        var value = input.type === 'checkbox' ? (input.checked ? 'true' : 'false') : input.value;
+        if (input.type === 'url' && value && !value.startsWith('https://')) {
+            btn.textContent = '需 https://'; btn.style.color = '#dc2626';
+            setTimeout(function () { btn.textContent = '保存'; btn.style.color = ''; btn.disabled = false; }, 2000);
+            return;
+        }
         fetch('/api/admin/settings', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scope: scope, key: key, value: input.value }),
+            body: JSON.stringify({ scope: scope, key: key, value: value }),
         }).then(function (r) { return r.json(); }).then(function (d) {
-            showToast(d.ok ? '已保存' : '保存失败', d.ok);
-        }).catch(function () { showToast('网络错误', false); }).finally(function () { btn.disabled = false; });
+            btn.textContent = d.ok ? '已保存' : '保存失败';
+            btn.style.color = d.ok ? '#059669' : '#dc2626';
+            setTimeout(function () { btn.textContent = '保存'; btn.style.color = ''; btn.disabled = false; }, 2000);
+        }).catch(function () {
+            btn.textContent = '网络错误';
+            setTimeout(function () { btn.textContent = '保存'; btn.style.color = ''; btn.disabled = false; }, 2000);
+        });
+    });
+
+    // Toggle auto-save
+    document.addEventListener('change', function (e) {
+        var toggle = e.target.closest('.admin-toggle input[type="checkbox"]');
+        if (!toggle || !toggle.dataset.adminInput) return;
+        var parts = toggle.dataset.adminInput.split('/');
+        var scope = parts[0], key = parts.slice(1).join('/');
+        var value = toggle.checked ? 'true' : 'false';
+        fetch('/api/admin/settings', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope: scope, key: key, value: value }),
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.ok) showToast('已保存', true); else showToast('保存失败', false);
+        }).catch(function () { showToast('网络错误', false); });
     });
 
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
     function trunc(s, n) { var t = String(s); return t.length > n ? t.slice(0, n) + '...' : t; }
 
     /* ── 询盘管理 ── */
-    var inqPage = 1, inqQuery = '', inqDateFrom = '', inqDateTo = '';
+    var inqPage = 1, inqQuery = '', inqDateFrom = '', inqDateTo = '', inqStatus = '';
 
     function loadInquiries() {
         var tbody = document.getElementById('inq-body');
@@ -42,13 +70,16 @@
             document.getElementById('inq-total').textContent = data.total;
             document.getElementById('inq-export').href = '/api/admin/inquiries/export.csv?' + params;
             tbody.innerHTML = data.items.length ? data.items.map(function (r) {
+                // Client-side status filter
+                if (inqStatus && r.estimate_status !== inqStatus) return '';
+                var statusBadge = r.estimate_status === 'error' ? '<span class="admin-badge status-error">报价异常</span>' : (r.estimate_status === 'ok' ? '<span class="admin-badge status-ok">已报价</span>' : '');
                 return '<tr data-inq-id="' + r.record_id + '">' +
                     '<td>' + (r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
                     '<td title="' + esc(r.part_name) + '">' + esc(trunc(r.part_name, 28)) + '</td>' +
                     '<td>' + esc(r.customer_email) + '</td>' +
                     '<td>' + (r.quantity || '-') + '</td>' +
                     '<td>' + esc(trunc(r.material_name, 20)) + '</td>' +
-                    '<td>' + esc(r.total_display) + '</td>' +
+                    '<td>' + statusBadge + esc(r.total_display) + '</td>' +
                     '<td>' + (r.batch_item_index ? r.batch_item_index + '/' + (r.batch_item_count || '-') : '-') + '</td>' +
                     '</tr>';
             }).join('') : '<tr><td colspan="7" class="admin-empty">未找到记录</td></tr>';
@@ -66,17 +97,27 @@
                 '<div class="admin-drawer">' +
                 '<div class="admin-drawer-head"><h3>询盘 #' + r.id + '</h3><button class="admin-close" onclick="this.closest(\'.admin-overlay\').remove()">&times;</button></div>' +
                 '<div class="admin-drawer-body">' +
+                '<h4 style="font-size:13px;color:#6b7280;margin-bottom:.5rem">客户信息</h4>' +
                 '<div class="admin-detail-grid">' +
-                '<div><span>时间</span><strong>' + (r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : '-') + '</strong></div>' +
-                '<div><span>零件</span><strong>' + esc(r.part_name) + '</strong></div>' +
-                '<div><span>客户</span><strong>' + esc(r.customer_name || '-') + '</strong></div>' +
+                '<div><span>称呼</span><strong>' + esc(r.customer_name || '-') + '</strong></div>' +
                 '<div><span>邮箱</span><strong>' + esc(r.customer_email || '-') + '</strong></div>' +
-                '<div><span>数量</span><strong>' + (r.quantity || '-') + '</strong></div>' +
+                '<div><span>时间</span><strong>' + (r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : '-') + '</strong></div>' +
+                '<div><span>IP</span><strong>' + (r.client_ip || '-') + '</strong></div>' +
+                '</div>' +
+                '<h4 style="font-size:13px;color:#6b7280;margin:1rem 0 .5rem;padding-top:.75rem;border-top:1px solid #e5e7eb">零件信息</h4>' +
+                '<div class="admin-detail-grid">' +
+                '<div><span>零件名</span><strong>' + esc(r.part_name) + '</strong></div>' +
+                '<div><span>文件</span><strong>' + esc(r.stp_filename || '-') + '</strong></div>' +
+                '<div><span>体积</span><strong>' + (r.volume_mm3 ? Number(r.volume_mm3).toLocaleString() + ' mm³' : '-') + '</strong></div>' +
+                '<div><span>批次</span><strong>' + (r.batch_id ? r.batch_id.slice(0, 8) + '...  #' + (r.batch_item_index || '-') + '/' + (r.batch_item_count || '-') : '-') + '</strong></div>' +
+                '</div>' +
+                '<h4 style="font-size:13px;color:#6b7280;margin:1rem 0 .5rem;padding-top:.75rem;border-top:1px solid #e5e7eb">报价信息</h4>' +
+                '<div class="admin-detail-grid">' +
                 '<div><span>材料</span><strong>' + esc(r.material_name || '-') + '</strong></div>' +
+                '<div><span>数量</span><strong>' + (r.quantity || '-') + '</strong></div>' +
+                '<div><span>公差</span><strong>' + (r.tolerance_grade || '-') + '</strong></div>' +
                 '<div><span>报价</span><strong>' + esc(r.total_display || '-') + '</strong></div>' +
                 '<div><span>货币</span><strong>' + (r.currency || '-') + '</strong></div>' +
-                '<div><span>文件</span><strong>' + esc(r.stp_filename || '-') + '</strong></div>' +
-                '<div><span>IP</span><strong>' + (r.client_ip || '-') + '</strong></div>' +
                 '</div>' +
                 (r.input_params ? '<details style="margin-top:1rem"><summary>原始参数</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">' + esc(JSON.stringify(r.input_params, null, 2)) + '</pre></details>' : '') +
                 (r.result ? '<details style="margin-top:.5rem"><summary>原始结果</summary><pre style="font-size:11px;overflow:auto;max-height:300px;background:#f9fafb;padding:.5rem;border-radius:4px">' + esc(JSON.stringify(r.result, null, 2)) + '</pre></details>' : '') +
@@ -92,6 +133,7 @@
             '<input type="text" id="inq-search" placeholder="搜索邮箱 / 零件 / 材料..." value="' + esc(inqQuery) + '">' +
             '<input type="date" id="inq-date-from" value="' + inqDateFrom + '">' +
             '<input type="date" id="inq-date-to" value="' + inqDateTo + '">' +
+            '<select id="inq-status"><option value="">全部状态</option><option value="ok"' + (inqStatus==='ok'?' selected':'') + '>已报价</option><option value="error"' + (inqStatus==='error'?' selected':'') + '>报价异常</option></select>' +
             '<span style="color:#6b7280;font-size:13px"><span id="inq-total">0</span> 条记录</span>' +
             '<a id="inq-export" href="/api/admin/inquiries/export.csv" style="margin-left:auto;color:#2563eb;text-decoration:none;font-size:13px;font-weight:600">导出 CSV</a>' +
             '</div>' +
@@ -105,6 +147,8 @@
         search && search.addEventListener('input', function (e) { clearTimeout(timer); timer = setTimeout(function () { inqQuery = e.target.value; inqPage = 1; loadInquiries(); }, 400); });
         from && from.addEventListener('change', function (e) { inqDateFrom = e.target.value; inqPage = 1; loadInquiries(); });
         to && to.addEventListener('change', function (e) { inqDateTo = e.target.value; inqPage = 1; loadInquiries(); });
+        var statusSel = document.getElementById('inq-status');
+        statusSel && statusSel.addEventListener('change', function (e) { inqStatus = e.target.value; inqPage = 1; loadInquiries(); });
         document.getElementById('inq-prev') && document.getElementById('inq-prev').addEventListener('click', function () { if (inqPage > 1) { inqPage--; loadInquiries(); } });
         document.getElementById('inq-next') && document.getElementById('inq-next').addEventListener('click', function () { inqPage++; loadInquiries(); });
     }
@@ -114,7 +158,8 @@
     function renderSettingControl(s) {
         var attr = 'data-admin-input="' + s.scope + '/' + s.key + '"';
         if (s.value_type === 'bool') {
-            return '<select ' + attr + '><option value="true"' + (s.value === 'true' ? ' selected' : '') + '>是</option><option value="false"' + (s.value === 'false' ? ' selected' : '') + '>否</option></select>';
+            var checked = s.value === 'true' ? ' checked' : '';
+            return '<label class="admin-toggle"><input type="checkbox" ' + attr + checked + '><span class="admin-toggle-slider"></span></label>';
         }
         if (s.value_type === 'color') {
             return '<input type="color" ' + attr + ' value="' + esc(s.value) + '" style="width:60px;height:32px"><span style="margin-left:.5rem;font-size:13px;color:#6b7280">' + esc(s.value) + '</span>';
@@ -145,7 +190,28 @@
         thumbnail_width: '缩略图宽度', thumbnail_height: '缩略图高度',
     };
 
-    function loadSettings(scope) {
+    var settingDescriptions = {
+        formal_quote_url: '客户点击"正式报价"按钮后跳转的页面链接',
+        formal_quote_label: '结果区域底部 CTA 按钮上显示的文字',
+        engineer_contact_url: '页面中"联系我们工程师"链接的目标地址',
+        engineer_contact_label: '页面中"联系我们工程师"链接显示的文字',
+        disclaimer_template: '报价结果下方显示的免责声明，支持 {customer_name} 变量',
+        contact_note: '材料选择器下方的询盘引导提示文案',
+        privacy_note: '表单提交按钮下方的隐私与保密说明',
+        customer_name_required: '开启后客户必须填写称呼才能提交报价',
+        customer_email_required: '开启后客户必须填写邮箱才能提交报价',
+        allowed_extensions: '允许客户上传的文件格式，当前支持 stp/step/igs/iges/zip',
+        preview_watermark_text: 'STEP 预览图片中显示的水印文字内容',
+        preview_watermark_opacity: '水印透明度，0.02 为几乎不可见，0.35 为较明显',
+        preview_watermark_color: '水印文字颜色，使用十六进制色值',
+        preview_watermark_angle: '水印文字旋转角度，正值向右倾斜',
+        preview_watermark_spacing: '水印文字之间的间距倍数，数值越大越稀疏',
+        preview_watermark_font_scale: '水印字体相对于图片尺寸的比例',
+        thumbnail_background_color: 'CAD 缩略图生成的背景颜色',
+        thumbnail_part_color: 'CAD 缩略图中零件的渲染颜色',
+    };
+
+    function loadSettings(site) {
         var container = document.getElementById('settings-content');
         if (!container) return;
         container.innerHTML = '<p>加载中...</p>';
@@ -189,8 +255,9 @@
                 if (!gItems.length) continue;
                 var cards = gItems.map(function (s) {
                     var label = settingLabels[s.key] || s.key;
+                    var desc = settingDescriptions[s.key] || s.description || '';
                     return '<div class="admin-form-group">' +
-                        '<label>' + esc(label) + (s.description ? '<br><small style="color:#9ca3af">' + esc(s.description) + '</small>' : '') + '</label>' +
+                        '<label>' + esc(label) + (desc ? '<br><small style="color:#9ca3af">' + esc(desc) + '</small>' : '') + '</label>' +
                         renderSettingControl(s) +
                         '<button data-admin-save data-admin-save-scope="' + s.scope + '" data-admin-save-key="' + s.key + '" style="margin-top:.35rem;">保存</button>' +
                         '</div>';
