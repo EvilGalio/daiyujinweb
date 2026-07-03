@@ -43,4 +43,21 @@ $env:DATABASE_URL = "sqlite:///$dbPath"
 $env:OCC_PYTHON = $OccPython
 $env:ALLOWED_ORIGINS = "https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500"
 
+# Load backend/.env for email/SMTP settings
+$envFile = Join-Path $BackendRoot ".env"
+if (Test-Path -LiteralPath $envFile) {
+    foreach ($line in Get-Content -LiteralPath $envFile -Encoding UTF8) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith("#") -or -not $trimmed.Contains("=")) {
+            continue
+        }
+        $parts = $trimmed.Split("=", 2)
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim().Trim('"').Trim("'")
+        if ($key -match '^[A-Za-z_][A-Za-z0-9_]*$') {
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+        }
+    }
+}
+
 & $OccPython -m waitress "--listen=127.0.0.1:$ApiPort" app:app

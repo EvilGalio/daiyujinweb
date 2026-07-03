@@ -269,3 +269,19 @@ class AdminAuditLog(Base):
     client_ip: Mapped[str | None] = mapped_column(String(80))
     user_agent: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class QuoteEmailLog(Base):
+    __tablename__ = "quote_email_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    inquiry_id: Mapped[int | None] = mapped_column(Integer)
+    site: Mapped[str | None] = mapped_column(String(40))
+    customer_email: Mapped[str | None] = mapped_column(String(255))
+    customer_name: Mapped[str | None] = mapped_column(String(120))
+    recipient: Mapped[str | None] = mapped_column(String(500))
+    subject: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime)

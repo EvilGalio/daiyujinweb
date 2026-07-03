@@ -51,6 +51,15 @@ def _find_uploaded_cad(file_id: str) -> Path | None:
     return None
 
 
+def _client_real_ip(request) -> str:
+    return (
+        request.headers.get("CF-Connecting-IP")
+        or (request.headers.get("X-Forwarded-For", "").split(",")[0].strip())
+        or request.remote_addr
+        or ""
+    )
+
+
 def _occ_python_path():
     env_file = BACKEND_ROOT / ".env"
     if env_file.exists():
@@ -429,7 +438,8 @@ def create_app() -> Flask:
         try:
             result = calculate_quote(
                 payload,
-                client_ip=request.remote_addr,
+                client_ip=_client_real_ip(request),
+                client_country=request.headers.get("CF-IPCountry", ""),
                 user_agent=request.headers.get("User-Agent"),
             )
         except ValueError as exc:

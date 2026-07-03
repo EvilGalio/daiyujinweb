@@ -13,16 +13,21 @@ from typing import Any
 from database import SessionLocal
 from models import Inquiry
 from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2, public_quote_response, _public_material_display
+from services.quote_email_notifications import notify_quote_submitted
 
 
 def get_quote_options() -> dict:
     return get_quote_options_v2()
 
 
-def calculate_quote(payload: dict, *, client_ip: str = "", user_agent: str = "") -> dict:
-    """Calculate quote using v2.1 additive formula, log full inquiry, return public-safe."""
+def calculate_quote(payload: dict, *, client_ip: str = "", client_country: str = "", user_agent: str = "") -> dict:
+    """Calculate quote, log inquiry, send email notification for allowed sites."""
     result = calculate_quote_v2(payload)
-    _record_inquiry(payload, result, client_ip, user_agent)
+    inquiry_id = _record_inquiry(payload, result, client_ip, user_agent)
+    notify_quote_submitted(
+        payload=payload, result=result, inquiry_id=inquiry_id,
+        client_ip=client_ip, client_country=client_country, user_agent=user_agent,
+    )
     return public_quote_response(result)
 
 
@@ -67,7 +72,7 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
         SessionLocal.remove()
 
 
-def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str) -> None:
+def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str) -> int:
     session = SessionLocal()
     try:
         total = result.get("total_estimate") or result.get("total", {})
@@ -115,6 +120,7 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
         )
         session.add(inquiry)
         session.commit()
+        return inquiry.record_id
     finally:
         session.close()
         SessionLocal.remove()
