@@ -133,6 +133,18 @@ def _build_context(*, payload: dict, result: dict, inquiry_id: int | None, clien
     unit = result.get("unit_estimate", {}) or {}
     total = result.get("total_estimate", {}) or {}
 
+    def _l(v):
+        """Extract public label from dict or return string as-is."""
+        if v is None:
+            return ""
+        if isinstance(v, dict):
+            for key in ("public_label", "label", "name", "display"):
+                val = v.get(key)
+                if val:
+                    return str(val)
+            return ""
+        return str(v)
+
     return {
         "customer_name": result.get("customer_name") or payload.get("customer_name", ""),
         "customer_email": result.get("customer_email") or payload.get("customer_email", ""),
@@ -146,11 +158,11 @@ def _build_context(*, payload: dict, result: dict, inquiry_id: int | None, clien
         "obb_dimensions": part.get("obb_dimensions_mm", ""),
         "weight_kg": part.get("stock_weight_kg", ""),
         "volume_mm3": part.get("volume_mm3") or payload.get("volume_mm3", ""),
-        "material": sel.get("material", "") or "",
-        "material_category": sel.get("material_category", "") or "",
-        "process": sel.get("process", "") or "",
-        "postprocess": sel.get("postprocess_public_label", "") or sel.get("postprocess_group", "") or "",
-        "tolerance": sel.get("tolerance_grade", "") or sel.get("tolerance_label", "") or "",
+        "material": _l(sel.get("material")),
+        "material_category": _l(sel.get("material_category")),
+        "process": _l(sel.get("process")),
+        "postprocess": _l(sel.get("postprocess_public_label") or sel.get("postprocess_group")),
+        "tolerance": _l(sel.get("tolerance_grade") or sel.get("tolerance_label")),
         "quantity": sel.get("quantity", "") or payload.get("quantity", ""),
         "currency": result.get("currency", ""),
         "unit_display": unit.get("display", ""),

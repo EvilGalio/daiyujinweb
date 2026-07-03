@@ -52,9 +52,9 @@
                         </select>
                     </div>
                     <p class="quote-inquiry-note">
-                        Looking for more material grades, custom materials, machining processes, or finishing options?
-                        <a href="<?php echo esc_url($formal_quote_url); ?>" target="_blank" rel="noopener">Contact our engineers</a>
-                        for a fast formal review.
+                        <span data-quote-contact-note>Looking for more material grades, custom materials, machining processes, or finishing options?</span>
+                        <a href="<?php echo esc_url($formal_quote_url); ?>" data-engineer-contact target="_blank" rel="noopener">Contact our engineers</a>
+                        <span data-quote-contact-tail> for a fast formal review.</span>
                     </p>
 
 
@@ -74,7 +74,7 @@
                     <div class="quote-action-row">
                         <button class="tool-button" type="submit" data-calculate-current>Calculate Current Part</button>
                     </div>
-                    <p class="quote-privacy-note">By submitting this form, you confirm that you are authorized to share the uploaded file. We use your contact details only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.</p>
+                    <p class="quote-privacy-note" data-quote-privacy-note>By submitting this form, you confirm that you are authorized to share the uploaded file. We use your contact details only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.</p>
                 </form>
 
                 <aside class="quote-stack" data-quote-result>
