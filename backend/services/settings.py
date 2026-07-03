@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from typing import Any
 
 from database import SessionLocal
@@ -9,6 +10,20 @@ from models import AdminAuditLog, AppSetting
 
 
 DEFAULTS: dict[tuple[str, str], dict[str, Any]] = {}
+
+
+def _env(key: str, default: str = "") -> str:
+    return os.environ.get(key, default).strip()
+
+
+def _env_bool(key: str, default: str = "false") -> bool:
+    return _env(key, default).lower() in ("true", "1", "yes", "on")
+
+
+def _email_enabled_default(site: str) -> str:
+    allowed = [s.strip().lower() for s in _env("QUOTE_EMAIL_ALLOWED_SITES", "").split(",") if s.strip()]
+    enabled = _env_bool("QUOTE_EMAIL_ENABLED") and site.lower() in allowed
+    return "true" if enabled else "false"
 
 def _register(scope: str, key: str, value: Any, value_type: str = "string", is_public: bool = False, description: str = ""):
     DEFAULTS[(scope, key)] = {
@@ -60,6 +75,19 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "thumbnail_part_color", "#949aa3", "color", is_public=False, description="CAD preview part color")
     _register(f"quote:{site}", "thumbnail_width", "3840", "number", is_public=False, description="Preview image width (px)")
     _register(f"quote:{site}", "thumbnail_height", "2880", "number", is_public=False, description="Preview image height (px)")
+
+
+# ── Internal quote email notifications ──
+for site in ["default", "mfg", "gcindus", "gcnov"]:
+    _register(f"quote:{site}", "quote_email_enabled", _email_enabled_default(site), "bool", is_public=False, description="Enable internal quote notification emails for this site")
+    _register(f"quote:{site}", "quote_email_recipients", _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"), is_public=False, description="Comma-separated internal recipients")
+    _register(f"quote:{site}", "quote_email_throttle_minutes", "30", "number", is_public=False, description="Do not resend for the same customer email within this many minutes")
+    _register(f"quote:{site}", "quote_email_from_name", _env("SMTP_FROM_NAME", "GCNOV Online Quote"), is_public=False, description="Email sender display name")
+    _register(f"quote:{site}", "quote_email_from_address", _env("SMTP_FROM", _env("SMTP_USERNAME", "")), is_public=False, description="Email From address")
+    _register(f"quote:{site}", "quote_email_smtp_host", _env("SMTP_HOST", "smtppro.zoho.com"), is_public=False, description="SMTP server host")
+    _register(f"quote:{site}", "quote_email_smtp_port", _env("SMTP_PORT", "465"), "number", is_public=False, description="SMTP SSL port")
+    _register(f"quote:{site}", "quote_email_smtp_username", _env("SMTP_USERNAME", ""), is_public=False, description="SMTP login username; password remains in backend .env")
+    _register(f"quote:{site}", "quote_email_smtp_timeout_seconds", _env("SMTP_TIMEOUT_SECONDS", "12"), "number", is_public=False, description="SMTP timeout in seconds")
 
 
 def _seed_defaults():

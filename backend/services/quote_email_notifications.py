@@ -25,6 +25,41 @@ def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
 
 
+def _site_setting(site: str, key: str, default: str = "") -> str:
+    try:
+        from services.settings import get_setting
+
+        value = get_setting(f"quote:{site}", key, default)
+        return str(value).strip()
+    except Exception:
+        return default
+
+
+def _bool_setting(site: str, key: str, default: bool = False) -> bool:
+    value = _site_setting(site, key, "true" if default else "false").lower()
+    return value in ("true", "1", "yes", "on")
+
+
+def _float_setting(site: str, key: str, default: float) -> float:
+    try:
+        return float(_site_setting(site, key, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _int_setting(site: str, key: str, default: int) -> int:
+    try:
+        return int(float(_site_setting(site, key, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _legacy_site_enabled(site: str) -> bool:
+    enabled = _env("QUOTE_EMAIL_ENABLED", "false").lower() == "true"
+    allowed = [s.strip().lower() for s in _env("QUOTE_EMAIL_ALLOWED_SITES", "").split(",") if s.strip()]
+    return enabled and site.lower() in allowed
+
+
 def notify_quote_submitted(
     *,
     payload: dict,
@@ -45,15 +80,10 @@ def notify_quote_submitted(
 
 
 def _notify_impl(**kwargs):
-    enabled = _env("QUOTE_EMAIL_ENABLED", "false").lower() == "true"
-    if not enabled:
-        _log(status="disabled", **kwargs)
-        return
-
     site = _site_from_payload(kwargs["payload"])
-    allowed = _env("QUOTE_EMAIL_ALLOWED_SITES", "").split(",")
-    allowed = [s.strip().lower() for s in allowed if s.strip()]
-    if site.lower() not in allowed:
+
+    enabled = _bool_setting(site, "quote_email_enabled", _legacy_site_enabled(site))
+    if not enabled:
         _log(status="site_not_allowed", site=site, **kwargs)
         return
 
@@ -63,16 +93,18 @@ def _notify_impl(**kwargs):
         _log(status="missing_contact", site=site, **kwargs)
         return
 
-    # Throttle: 8-hour dedup
-    throttle_hours = int(_env("QUOTE_EMAIL_THROTTLE_HOURS", "8"))
+    # Throttle: default 30-minute dedup, configurable per site in Admin Console.
+    throttle_minutes = max(0.0, _float_setting(site, "quote_email_throttle_minutes", 30.0))
     session = SessionLocal()
     try:
-        exists = session.query(QuoteEmailLog).filter(
-            QuoteEmailLog.site == site,
-            QuoteEmailLog.customer_email == customer_email.lower().strip(),
-            QuoteEmailLog.status == "sent",
-            QuoteEmailLog.sent_at >= datetime.utcnow() - timedelta(hours=throttle_hours),
-        ).first()
+        exists = None
+        if throttle_minutes > 0:
+            exists = session.query(QuoteEmailLog).filter(
+                QuoteEmailLog.site == site,
+                QuoteEmailLog.customer_email == customer_email.lower().strip(),
+                QuoteEmailLog.status == "sent",
+                QuoteEmailLog.sent_at >= datetime.now() - timedelta(minutes=throttle_minutes),
+            ).first()
     finally:
         session.close()
     if exists:
@@ -97,15 +129,15 @@ def _notify_impl(**kwargs):
             msg.add_attachment(f.read(), maintype="image", subtype="png", filename="part-preview.png")
 
     # Send
-    recipients_raw = _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com")
+    recipients_raw = _site_setting(site, "quote_email_recipients", _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"))
     recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
     try:
-        host = _env("SMTP_HOST", "smtppro.zoho.com")
-        port = int(_env("SMTP_PORT", "465"))
-        username = _env("SMTP_USERNAME", "")
+        host = _site_setting(site, "quote_email_smtp_host", _env("SMTP_HOST", "smtppro.zoho.com"))
+        port = _int_setting(site, "quote_email_smtp_port", int(_env("SMTP_PORT", "465") or "465"))
+        username = _site_setting(site, "quote_email_smtp_username", _env("SMTP_USERNAME", ""))
         password = _env("SMTP_PASSWORD", "")
-        timeout = int(_env("SMTP_TIMEOUT_SECONDS", "12"))
+        timeout = _int_setting(site, "quote_email_smtp_timeout_seconds", int(_env("SMTP_TIMEOUT_SECONDS", "12") or "12"))
 
         if not username or not password:
             _log(status="failed", error_message="SMTP credentials not configured", site=site, **kwargs)
@@ -188,9 +220,9 @@ def _build_subject(ctx: dict, site: str) -> str:
 
 
 def _build_message(ctx: dict, customer_email: str, site: str) -> EmailMessage:
-    from_addr = _env("SMTP_FROM", _env("SMTP_USERNAME", ""))
-    from_name = _env("SMTP_FROM_NAME", "GCNOV Online Quote")
-    recipients_raw = _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com")
+    from_addr = _site_setting(site, "quote_email_from_address", _env("SMTP_FROM", _env("SMTP_USERNAME", "")))
+    from_name = _site_setting(site, "quote_email_from_name", _env("SMTP_FROM_NAME", "GCNOV Online Quote"))
+    recipients_raw = _site_setting(site, "quote_email_recipients", _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"))
     recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
     msg = EmailMessage()
@@ -315,12 +347,10 @@ def _find_thumbnail(file_id: str, stored_name: str) -> Path | None:
 
 def _log(status: str, **kwargs):
     try:
-        payload = kwargs.get("payload", {})
-        result = kwargs.get("result", {})
         site = kwargs.get("site") or (kwargs.get("payload", {}).get("site") or kwargs.get("payload", {}).get("theme", ""))
         customer_email = kwargs.get("customer_email") or kwargs.get("payload", {}).get("customer_email", "")
         customer_name = kwargs.get("customer_name") or kwargs.get("payload", {}).get("customer_name", "")
-        recipient = kwargs.get("recipient") or os.environ.get("QUOTE_EMAIL_RECIPIENTS", "")
+        recipient = kwargs.get("recipient") or _site_setting(site or "default", "quote_email_recipients", os.environ.get("QUOTE_EMAIL_RECIPIENTS", ""))
         session = SessionLocal()
         log = QuoteEmailLog(
             inquiry_id=kwargs.get("inquiry_id"),

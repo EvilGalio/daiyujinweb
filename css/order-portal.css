@@ -1,0 +1,62 @@
+/* Order Portal — clean login + dashboard styling */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --ink: #1a1d23; --muted: #6b7280; --line: #e5e7eb;
+  --surface: #f8fafc; --panel: #ffffff;
+  --accent: #2563eb; --accent-hover: #1d4ed8;
+  --radius: 8px; --shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f5f7; color: var(--ink); font-size: 14px; }
+.portal-body { display: flex; align-items: center; justify-content: center; }
+.portal-shell { width: 100%; max-width: 420px; padding: 1.5rem; }
+.portal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.portal-header h1 { font-size: 20px; font-weight: 700; }
+.portal-api-status { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.portal-api-status[data-state="ready"] { background: #d1fae5; color: #065f46; }
+.portal-api-status[data-state="error"] { background: #fee2e2; color: #991b1b; }
+
+.portal-login-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
+.portal-login-card h2 { font-size: 16px; margin-bottom: .25rem; }
+.portal-hint { color: var(--muted); font-size: 13px; margin-bottom: 1rem; }
+.portal-field { margin-bottom: .85rem; }
+.portal-field label { display: block; font-size: 13px; color: #374151; margin-bottom: .25rem; }
+.portal-field input { width: 100%; padding: .55rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; font-size: 14px; }
+.portal-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.portal-error { color: #dc2626; font-size: 13px; margin-bottom: .5rem; background: #fef2f2; padding: .4rem .75rem; border-radius: 6px; }
+.portal-error[hidden] { display: none; }
+.portal-btn { width: 100%; padding: .6rem; border: none; border-radius: 6px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+.portal-btn:hover { background: var(--accent-hover); }
+.portal-btn:disabled { opacity: .55; cursor: not-allowed; }
+.portal-footnote { margin-top: .75rem; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* ── Dashboard ── */
+.portal-dashboard { display: grid; gap: 1rem; max-width: 720px; margin: 0 auto; }
+.portal-order-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+.portal-order-card h3 { font-size: 15px; margin-bottom: .25rem; }
+.portal-order-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.portal-order-meta span { display: flex; align-items: center; gap: .25rem; }
+.portal-badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
+.portal-badge.active { background: #dbeafe; color: #1e40af; }
+.portal-badge.shipped { background: #d1fae5; color: #065f46; }
+.portal-badge.hold { background: #fef3c7; color: #92400e; }
+.portal-user-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.portal-user-bar span { font-size: 13px; color: var(--muted); }
+.portal-user-bar button { border: none; background: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; }
+.portal-empty { text-align: center; color: var(--muted); padding: 2rem; }
+
+/* Timeline */
+.portal-timeline { padding: .5rem 0; }
+.portal-timeline-item { display: flex; gap: .75rem; padding: .5rem 0; }
+.portal-timeline-dot { width: 10px; height: 10px; min-width: 10px; border-radius: 50%; background: var(--accent); margin-top: 5px; position: relative; }
+.portal-timeline-item:not(:last-child) .portal-timeline-dot::after { content: ''; position: absolute; top: 12px; left: 4px; width: 2px; height: calc(100% + .5rem); background: var(--line); }
+.portal-timeline-content { flex: 1; min-width: 0; }
+.portal-timeline-content strong { font-size: 14px; }
+.portal-timeline-content small { display: block; margin-top: .15rem; font-size: 12px; }
+.portal-note-card { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: var(--radius); padding: .75rem; font-size: 13px; margin-bottom: .5rem; }
+.portal-order-detail h2 { font-size: 18px; margin-bottom: .25rem; }
+
+/* Media grid */
+.portal-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .75rem; }
+.portal-media-item { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.portal-media-item img { width: 100%; height: 140px; object-fit: cover; display: block; }
+.portal-media-item small { display: block; padding: .35rem .5rem; font-size: 12px; color: var(--muted); }

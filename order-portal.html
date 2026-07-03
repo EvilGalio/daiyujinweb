@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Portal — Daiyujin Precision</title>
+    <link rel="stylesheet" href="css/order-portal.css">
+</head>
+<body class="portal-body">
+<div class="portal-shell">
+    <header class="portal-header">
+        <h1>Order Portal</h1>
+        <span class="portal-api-status" data-api-status>checking</span>
+    </header>
+
+    <main class="portal-main" data-portal-main>
+        <form class="portal-login-card" data-login-form>
+            <h2>Sign in to your orders</h2>
+            <p class="portal-hint">Access your active orders and production progress.</p>
+            <div class="portal-field">
+                <label for="login-email">Email</label>
+                <input id="login-email" type="email" placeholder="your@email.com" autocomplete="email" required>
+            </div>
+            <div class="portal-field">
+                <label for="login-password">Password</label>
+                <input id="login-password" type="password" placeholder="Password" required>
+            </div>
+            <div class="portal-error" data-login-error hidden></div>
+            <button class="portal-btn" type="submit" data-login-btn>Sign In</button>
+            <p class="portal-footnote">Don't have an account? Contact your sales representative.</p>
+        </form>
+    </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/order-portal.js"></script>
+</body>
+</html>

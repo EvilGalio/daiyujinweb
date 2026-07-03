@@ -188,6 +188,15 @@
         customer_name_required_label: '', customer_email_required_label: '',
         thumbnail_background_color: '缩略图背景色', thumbnail_part_color: '缩略图零件色',
         thumbnail_width: '缩略图宽度', thumbnail_height: '缩略图高度',
+        quote_email_enabled: '启用报价邮件通知',
+        quote_email_recipients: '收件邮箱',
+        quote_email_throttle_minutes: '同邮箱节流时间（分钟）',
+        quote_email_from_name: '发件显示名称',
+        quote_email_from_address: '发件邮箱',
+        quote_email_smtp_host: 'SMTP 主机',
+        quote_email_smtp_port: 'SMTP 端口',
+        quote_email_smtp_username: 'SMTP 登录账号',
+        quote_email_smtp_timeout_seconds: 'SMTP 超时秒数',
     };
 
     var settingDescriptions = {
@@ -209,6 +218,15 @@
         preview_watermark_font_scale: '水印字体相对于图片尺寸的比例',
         thumbnail_background_color: 'CAD 缩略图生成的背景颜色',
         thumbnail_part_color: 'CAD 缩略图中零件的渲染颜色',
+        quote_email_enabled: '开启后，该站点提交报价时会向公司邮箱发送内部通知',
+        quote_email_recipients: '内部接收报价通知的邮箱，多个邮箱用英文逗号分隔',
+        quote_email_throttle_minutes: '同一客户邮箱在该时间内只发送一封通知；填 0 表示不做节流',
+        quote_email_from_name: '邮件里显示的发件人名称，例如 GCNOV Online Quote',
+        quote_email_from_address: '邮件 From 地址；通常与 SMTP 登录账号一致或同域',
+        quote_email_smtp_host: 'Zoho 当前通常为 smtppro.zoho.com',
+        quote_email_smtp_port: 'SSL SMTP 通常为 465',
+        quote_email_smtp_username: 'SMTP 登录邮箱账号；密码仍保存在服务器 backend\\.env，不在后台保存',
+        quote_email_smtp_timeout_seconds: 'SMTP 连接和发送超时时间，网络较慢可适当调大',
     };
 
     function loadSettings(site) {
@@ -227,6 +245,7 @@
                 'quote_entry': { title: '报价入口与 CTA', keys: ['formal_quote_url','formal_quote_label','engineer_contact_url','engineer_contact_label'] },
                 'quote_text': { title: '报价结果文案', keys: ['disclaimer_template','contact_note','privacy_note'] },
                 'quote_form': { title: '表单规则', keys: ['customer_name_required','customer_email_required','allowed_extensions'] },
+                'quote_email': { title: '邮件通知', keys: ['quote_email_enabled','quote_email_recipients','quote_email_throttle_minutes','quote_email_from_name','quote_email_from_address','quote_email_smtp_host','quote_email_smtp_port','quote_email_smtp_username','quote_email_smtp_timeout_seconds'] },
                 'watermark': { title: '预览水印', keys: ['preview_watermark_text','preview_watermark_opacity','preview_watermark_color','preview_watermark_angle','preview_watermark_spacing','preview_watermark_font_scale'] },
                 'thumbnail': { title: '缩略图风格', keys: ['thumbnail_background_color','thumbnail_part_color','thumbnail_width','thumbnail_height'] },
                 'other': { title: '其他', keys: [] }

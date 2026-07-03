@@ -26,6 +26,7 @@ from services.exchange_rates import ensure_recent_rates
 
 from services.preview_watermark import apply_preview_watermark
 from services.settings import get_public_settings
+from services.portal_auth import portal_bp
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
@@ -230,6 +231,7 @@ def _cors_origins():
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": _cors_origins()}})
+    app.register_blueprint(portal_bp)
     app.teardown_appcontext(shutdown_session)
 
     @app.errorhandler(404)

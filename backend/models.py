@@ -285,3 +285,92 @@ class QuoteEmailLog(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+# ═══════════════════════════════════════════
+# Order Portal tables
+# ═══════════════════════════════════════════
+
+class PortalUser(Base):
+    __tablename__ = "portal_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="customer")
+    display_name: Mapped[str | None] = mapped_column(String(160))
+    company_name: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(60))
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    assigned_sales_id: Mapped[int | None] = mapped_column(Integer)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_by_user_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PortalSession(Base):
+    __tablename__ = "portal_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    client_ip: Mapped[str | None] = mapped_column(String(80))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class PortalOrder(Base):
+    __tablename__ = "portal_orders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_no: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    customer_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    sales_user_id: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(String(255))
+    po_number: Mapped[str | None] = mapped_column(String(120))
+    quote_inquiry_id: Mapped[int | None] = mapped_column(Integer)
+    current_stage: Mapped[str | None] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    estimated_delivery_date: Mapped[str | None] = mapped_column(String(40))
+    actual_delivery_date: Mapped[str | None] = mapped_column(String(40))
+    shipping_tracking_no: Mapped[str | None] = mapped_column(String(120))
+    internal_note: Mapped[str | None] = mapped_column(Text)
+    customer_visible_note: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PortalOrderUpdate(Base):
+    __tablename__ = "portal_order_updates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage_key: Mapped[str | None] = mapped_column(String(40))
+    title: Mapped[str | None] = mapped_column(String(255))
+    message: Mapped[str | None] = mapped_column(Text)
+    progress_percent: Mapped[int | None] = mapped_column(Integer)
+    visible_to_customer: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PortalOrderMedia(Base):
+    __tablename__ = "portal_order_media"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    update_id: Mapped[int | None] = mapped_column(Integer)
+    uploaded_by_user_id: Mapped[int | None] = mapped_column(Integer)
+    stored_filename: Mapped[str | None] = mapped_column(String(255))
+    original_filename: Mapped[str | None] = mapped_column(String(255))
+    mime_type: Mapped[str | None] = mapped_column(String(40))
+    file_size: Mapped[int | None] = mapped_column(Integer)
+    caption: Mapped[str | None] = mapped_column(String(500))
+    visible_to_customer: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

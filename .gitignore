@@ -49,3 +49,5 @@ build/
 .idea/
 Thumbs.db
 desktop.ini
+
+backend/private/

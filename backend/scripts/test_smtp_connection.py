@@ -1,10 +1,12 @@
-"""Test SMTP connection using .env configuration."""
+"""Test SMTP connection using .env password plus optional Admin Console settings."""
+import argparse
 import os, sys, smtplib
 from email.message import EmailMessage
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
 ENV = BACKEND / ".env"
+sys.path.insert(0, str(BACKEND))
 
 
 def load_env():
@@ -20,21 +22,35 @@ def load_env():
     return config
 
 
+def setting(site: str, key: str, env_config: dict, env_key: str, default: str = "") -> str:
+    try:
+        from services.settings import get_setting
+
+        return str(get_setting(f"quote:{site}", key, env_config.get(env_key, default))).strip()
+    except Exception:
+        return env_config.get(env_key, default)
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Send a test quote notification email.")
+    parser.add_argument("--site", default="gcnov", choices=["default", "mfg", "gcindus", "gcnov"])
+    args = parser.parse_args()
+
     config = load_env()
 
-    host = config.get("SMTP_HOST", "smtppro.zoho.com")
-    port = int(config.get("SMTP_PORT", "465"))
-    username = config.get("SMTP_USERNAME", "")
+    host = setting(args.site, "quote_email_smtp_host", config, "SMTP_HOST", "smtppro.zoho.com")
+    port = int(float(setting(args.site, "quote_email_smtp_port", config, "SMTP_PORT", "465")))
+    username = setting(args.site, "quote_email_smtp_username", config, "SMTP_USERNAME", "")
     password = config.get("SMTP_PASSWORD", "")
-    from_addr = config.get("SMTP_FROM", username)
-    from_name = config.get("SMTP_FROM_NAME", "GCNOV Online Quote")
-    recipients = config.get("QUOTE_EMAIL_RECIPIENTS", "").split(",")
+    from_addr = setting(args.site, "quote_email_from_address", config, "SMTP_FROM", username)
+    from_name = setting(args.site, "quote_email_from_name", config, "SMTP_FROM_NAME", "GCNOV Online Quote")
+    recipients = setting(args.site, "quote_email_recipients", config, "QUOTE_EMAIL_RECIPIENTS", "").split(",")
 
     if not username or not password:
-        print("Error: SMTP_USERNAME or SMTP_PASSWORD not set in .env")
+        print("Error: SMTP username or SMTP_PASSWORD not configured. Password must stay in backend\\.env.")
         return 1
 
+    print(f"Site: {args.site}")
     print(f"Connecting to {host}:{port} as {username}")
     print(f"From: {from_name} <{from_addr}>")
     print(f"To: {', '.join(r.strip() for r in recipients if r.strip())}")
