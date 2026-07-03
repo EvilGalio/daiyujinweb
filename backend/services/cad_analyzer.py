@@ -38,6 +38,44 @@ def _format_dimensions(values: list[float]) -> str:
     return " x ".join(f"{value:.2f}" for value in values)
 
 
+def _get_thumbnail_settings(site: str = "default") -> dict[str, str]:
+    try:
+        from services.settings import get_setting
+
+        return {
+            "background_color": get_setting(f"quote:{site}", "thumbnail_background_color", "#f0f0f5"),
+            "part_color": get_setting(f"quote:{site}", "thumbnail_part_color", "#949aa3"),
+            "width": get_setting(f"quote:{site}", "thumbnail_width", "3840"),
+            "height": get_setting(f"quote:{site}", "thumbnail_height", "2880"),
+        }
+    except Exception:
+        return {}
+
+
+def _hex_rgb(value: str, fallback: tuple[float, float, float]) -> tuple[float, float, float]:
+    raw = str(value or "").strip().lstrip("#")
+    if len(raw) == 3:
+        raw = "".join(ch * 2 for ch in raw)
+    try:
+        if len(raw) != 6:
+            raise ValueError
+        return (
+            int(raw[0:2], 16) / 255.0,
+            int(raw[2:4], 16) / 255.0,
+            int(raw[4:6], 16) / 255.0,
+        )
+    except ValueError:
+        return fallback
+
+
+def _bounded_int(value: str, fallback: int, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(float(value))
+    except (TypeError, ValueError):
+        parsed = fallback
+    return max(minimum, min(maximum, parsed))
+
+
 def read_cad_shape(file_path: str | Path) -> Any:
     file_path = Path(file_path).resolve()
     suffix = file_path.suffix.lower()
@@ -69,19 +107,25 @@ def read_cad_shape(file_path: str | Path) -> Any:
     return shape
 
 
-def _export_thumbnail(shape: Any, png_path: Path) -> None:
+def _export_thumbnail(shape: Any, png_path: Path, site: str = "default") -> None:
     from OCC.Core.Graphic3d import Graphic3d_NOM_ALUMINIUM
     from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB
     from OCC.Display.SimpleGui import OffscreenRenderer
 
-    with _suppress_occ_noise():
-        display = OffscreenRenderer(screen_size=(3840, 2880))
+    settings = _get_thumbnail_settings(site)
+    width = _bounded_int(settings.get("width", "3840"), 3840, 800, 6000)
+    height = _bounded_int(settings.get("height", "2880"), 2880, 600, 6000)
+    bg_rgb = _hex_rgb(settings.get("background_color", "#f0f0f5"), (0.94, 0.94, 0.96))
+    part_rgb = _hex_rgb(settings.get("part_color", "#949aa3"), (0.58, 0.60, 0.64))
 
-    bg_color = Quantity_Color(0.94, 0.94, 0.96, Quantity_TOC_RGB)
+    with _suppress_occ_noise():
+        display = OffscreenRenderer(screen_size=(width, height))
+
+    bg_color = Quantity_Color(*bg_rgb, Quantity_TOC_RGB)
     display.View.SetBackgroundColor(bg_color)
     display.DisplayShape(
         shape,
-        color=Quantity_Color(0.58, 0.60, 0.64, Quantity_TOC_RGB),
+        color=Quantity_Color(*part_rgb, Quantity_TOC_RGB),
         material=Graphic3d_NOM_ALUMINIUM,
         transparency=0.0,
         update=True,
@@ -93,7 +137,7 @@ def _export_thumbnail(shape: Any, png_path: Path) -> None:
     time.sleep(0.2)
 
 
-def analyze_cad_file(file_path: str | Path, thumb_dir: str | Path) -> dict[str, Any]:
+def analyze_cad_file(file_path: str | Path, thumb_dir: str | Path, site: str = "default") -> dict[str, Any]:
     file_path = Path(file_path).resolve()
     thumb_dir = Path(thumb_dir).resolve()
     thumb_dir.mkdir(parents=True, exist_ok=True)
@@ -138,7 +182,7 @@ def analyze_cad_file(file_path: str | Path, thumb_dir: str | Path) -> dict[str, 
 
         thumbnail_path = thumb_dir / f"{file_path.stem}.png"
         try:
-            _export_thumbnail(shape, thumbnail_path)
+            _export_thumbnail(shape, thumbnail_path, site=site)
         except Exception as exc:
             thumbnail_path = None
             result["warnings"].append(f"thumbnail generation failed: {type(exc).__name__}: {exc}")

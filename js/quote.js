@@ -20,6 +20,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const viewerModuleUrl = window.DAIYUJIN_QUOTE_3D_MODULE_URL
         || new URL("quote-3d-viewer.js", quoteScript ? quoteScript.src : new URL("js/quote.js", window.location.href).href).href;
     const CONFIG = window.DAIYUJIN_TOOLS_CONFIG || {};
+    const toolRoot = form.closest(".dyj-tool-embed") || document;
+    function queryTool(selector) {
+        return toolRoot.querySelector ? toolRoot.querySelector(selector) : document.querySelector(selector);
+    }
+    function queryToolAll(selector) {
+        return toolRoot.querySelectorAll ? Array.from(toolRoot.querySelectorAll(selector)) : Array.from(document.querySelectorAll(selector));
+    }
+    function currentSite() {
+        const raw = (toolRoot.dataset && toolRoot.dataset.dyjTheme) || CONFIG.theme || "default";
+        const site = String(raw || "default").trim().toLowerCase();
+        const allowed = new Set(["default", "mfg", "gcindus", "gcnov"]);
+        return allowed.has(site) ? site : "default";
+    }
+    CONFIG.theme = currentSite();
     function formalQuoteUrl() { return CONFIG.formalQuoteUrl || "https://mfg-solution.com/request-quote/"; }
     function formalQuoteLabel() { return CONFIG.formalQuoteLabel || "Request Formal Quote"; }
     function engineerContactUrl() { return CONFIG.engineerContactUrl || formalQuoteUrl(); }
@@ -234,7 +248,11 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(tickAnalysisProgress, 350);
 
     async function uploadCad(file) {
-        const body = new FormData(); body.append("file", file);
+        const site = currentSite();
+        const body = new FormData();
+        body.append("file", file);
+        body.append("site", site);
+        body.append("theme", site);
         const resp = await window.DaiyujinAPI.request("/api/public/quote/upload", { method: "POST", body });
         if (resp.archive) {
             return { archive: true, parts: resp.parts || [], warnings: resp.warnings || [], source_filename: resp.source_filename || file.name };
@@ -419,9 +437,10 @@ document.addEventListener("DOMContentLoaded", () => {
             estimate = part.estimate;
         } else {
             try {
+                const site = currentSite();
                 const payload = {
-                    site: CONFIG.theme || "default",
-                    theme: CONFIG.theme || "default",
+                    site,
+                    theme: site,
                     batch_id: state.batchId, batch_item_id: part.id, batch_item_index: part.index + 1, batch_item_count: state.parts.length,
                     file_id: part.analysis.file_id, part_name: part.analysis.name, stp_filename: part.fullFileName || part.fileName,
                     volume_mm3: part.analysis.volume_mm3, obb_dimensions_mm: part.analysis.obb_dimensions_mm,
@@ -711,15 +730,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* Apply config-driven links */
     if (CONFIG.engineerContactUrl) {
-        const el = document.querySelector('[data-engineer-contact]');
+        const el = queryTool('[data-engineer-contact]');
         if (el) { el.href = CONFIG.engineerContactUrl; el.textContent = engineerContactLabel(); }
     }
 
     /* Fetch live public settings from API */
     (async () => {
         try {
-            const site = CONFIG.theme || 'default';
-            const res = await window.DaiyujinAPI.request(`/api/public/settings?tool=quote&site=${site}`);
+            const site = currentSite();
+            const res = await window.DaiyujinAPI.request(`/api/public/settings?tool=quote&site=${encodeURIComponent(site)}`);
             const live = res.settings || {};
             if (live.formal_quote_url) CONFIG.formalQuoteUrl = live.formal_quote_url;
             if (live.formal_quote_label) CONFIG.formalQuoteLabel = live.formal_quote_label;
@@ -739,13 +758,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const part = getActivePart();
             if (part && part.estimate) render();
             console.log('Live settings loaded for', site);
-        } catch (e) { /* Keep defaults on failure */ }
+        } catch (e) {
+            console.warn('Live settings failed', e);
+        }
     })();
-});
 
 function renderContactRequired(rules) {
-    const nameEl = document.querySelector('[name="customer_name"]');
-    const emailEl = document.querySelector('[name="customer_email"]');
+    const nameEl = queryTool('[name="customer_name"]');
+    const emailEl = queryTool('[name="customer_email"]');
     if (nameEl) {
         if (rules.customer_name_required) nameEl.setAttribute('required', '');
         else nameEl.removeAttribute('required');
@@ -763,28 +783,18 @@ function asBool(v, fallback) {
 }
 
 function applyLiveTextSettings() {
-    const contactNote = document.querySelector('[data-quote-contact-note]');
+    const contactNote = queryTool('[data-quote-contact-note]');
     if (contactNote && CONFIG.contactNote) {
         contactNote.textContent = CONFIG.contactNote.trim() + ' ';
     }
-    const privacyNote = document.querySelector('[data-quote-privacy-note]');
+    const privacyNote = queryTool('[data-quote-privacy-note]');
     if (privacyNote && CONFIG.privacyNote) {
         privacyNote.textContent = CONFIG.privacyNote;
     }
-    const engineer = document.querySelector('[data-engineer-contact]');
-    if (engineer) {
+    queryToolAll('[data-engineer-contact]').forEach(engineer => {
         engineer.href = engineerContactUrl();
         engineer.textContent = engineerContactLabel();
-    }
+    });
 }
 
-function estimateDisclaimer(customerName) {
-    const name = String(customerName || "").trim();
-    if (CONFIG.disclaimerTemplate) {
-        return CONFIG.disclaimerTemplate
-            .replace(/\{customer_name\}/g, name || "Customer")
-            .replace(/\{formal_quote_label\}/g, formalQuoteLabel());
-    }
-    const opening = name ? 'Dear ' + name + ', this' : 'This';
-    return opening + ' reference estimate is generated by our AI-assisted quoting system, which is continuously learning from manufacturing data. At this stage, the price is for reference only. For accurate pricing, please click ' + formalQuoteLabel() + '.';
-}
+});

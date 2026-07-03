@@ -13,13 +13,13 @@ from services.cad_analyzer import analyze_cad_file
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         json.dump(
             {
                 "success": False,
                 "data": None,
                 "warnings": [],
-                "error": "usage: analyze_cad_cli.py <cad-file> <thumbnail-dir>",
+                "error": "usage: analyze_cad_cli.py <cad-file> <thumbnail-dir> [site]",
             },
             sys.stdout,
         )
@@ -27,7 +27,8 @@ def main() -> int:
 
     cad_file = Path(sys.argv[1])
     thumbnail_dir = Path(sys.argv[2])
-    result = analyze_cad_file(cad_file, thumbnail_dir)
+    site = sys.argv[3] if len(sys.argv) == 4 else "default"
+    result = analyze_cad_file(cad_file, thumbnail_dir, site=site)
     json.dump(result, sys.stdout, ensure_ascii=False)
     return 0 if result.get("success") else 1
 

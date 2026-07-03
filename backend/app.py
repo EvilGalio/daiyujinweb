@@ -8,6 +8,7 @@ import threading
 import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -60,6 +61,31 @@ def _client_real_ip(request) -> str:
     )
 
 
+def _normalize_site(site: str | None) -> str:
+    value = str(site or "").strip().lower()
+    return value if value in {"default", "mfg", "gcindus", "gcnov"} else ""
+
+
+def _site_from_request_origin(request) -> str:
+    source = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    host = urlparse(source).netloc.lower()
+    if "mfg-solution.com" in host:
+        return "mfg"
+    if "gcindus.com" in host:
+        return "gcindus"
+    if "gcnov.com" in host:
+        return "gcnov"
+    return ""
+
+
+def _site_from_request(request, candidate: str | None = None) -> str:
+    site = _normalize_site(candidate)
+    origin_site = _site_from_request_origin(request)
+    if origin_site and site in {"", "default"}:
+        return origin_site
+    return site or origin_site or "default"
+
+
 def _occ_python_path():
     env_file = BACKEND_ROOT / ".env"
     if env_file.exists():
@@ -75,7 +101,7 @@ def _supported_upload_message() -> str:
     return "Supported file types: .stp, .step, .igs, .iges, .zip"
 
 
-def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_filename: str | None = None) -> dict:
+def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_filename: str | None = None, site: str = "default") -> dict:
     occ_python = Path(os.environ.get("OCC_PYTHON", str(DEFAULT_OCC_PYTHON)))
     if not occ_python.exists():
         return {
@@ -90,6 +116,7 @@ def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_fi
             "scripts.analyze_cad_cli",
             str(saved_path),
             str(THUMBNAIL_DIR),
+            site,
         ],
         cwd=BACKEND_ROOT,
         capture_output=True,
@@ -122,7 +149,7 @@ def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_fi
             thumbnail_name = Path(analysis["data"]["thumbnail_path"]).name
             analysis["data"]["thumbnail_url"] = f"/static/thumbnails/{thumbnail_name}"
             thumb_path = Path(analysis["data"]["thumbnail_path"])
-            if thumb_path.exists() and not apply_preview_watermark(thumb_path):
+            if thumb_path.exists() and not apply_preview_watermark(thumb_path, site=site):
                 app.logger.warning("Preview watermark was not applied for %s", thumb_path.name)
 
     analysis["source_filename"] = source_filename or display_name
@@ -309,6 +336,7 @@ def create_app() -> Flask:
         uploaded = request.files.get("file")
         if uploaded is None or not uploaded.filename:
             return api_error("missing_file", "No CAD file uploaded", 400)
+        site = _site_from_request(request, request.form.get("site") or request.form.get("theme"))
 
         suffix = Path(uploaded.filename).suffix.lower()
         if suffix not in SUPPORTED_UPLOAD_EXTENSIONS:
@@ -339,7 +367,7 @@ def create_app() -> Flask:
                         with zf.open(info) as src, saved_path.open("wb") as dst:
                             shutil.copyfileobj(src, dst)
 
-                        analysis = _run_cad_analysis(app, saved_path, PurePosixPath(inner_name).name, inner_name)
+                        analysis = _run_cad_analysis(app, saved_path, PurePosixPath(inner_name).name, inner_name, site=site)
                         analysis["file_id"] = file_id
                         part = {
                             "success": bool(analysis.get("success")),
@@ -374,7 +402,7 @@ def create_app() -> Flask:
             })
 
         file_id, saved_path = _save_direct_cad(uploaded, suffix)
-        analysis = _run_cad_analysis(app, saved_path, uploaded.filename, uploaded.filename)
+        analysis = _run_cad_analysis(app, saved_path, uploaded.filename, uploaded.filename, site=site)
         analysis["file_id"] = file_id
         if not analysis.get("success"):
             return api_error("cad_analysis_failed", analysis.get("error") or "CAD analysis failed", 500)
@@ -435,6 +463,9 @@ def create_app() -> Flask:
     @app.post("/api/public/quote/calculate")
     def quote_calculate():
         payload = request.get_json(silent=True) or {}
+        site = _site_from_request(request, payload.get("site") or payload.get("theme"))
+        payload["site"] = site
+        payload["theme"] = site
         try:
             result = calculate_quote(
                 payload,
@@ -462,7 +493,7 @@ def create_app() -> Flask:
     @app.get("/api/public/settings")
     def public_settings():
         tool = request.args.get("tool", "quote")
-        site = request.args.get("site", "default")
+        site = _site_from_request(request, request.args.get("site", "default"))
         return api_ok({
             "tool": tool, "site": site,
             "settings": get_public_settings(tool=tool, site=site),
