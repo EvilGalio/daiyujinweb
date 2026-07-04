@@ -7,15 +7,30 @@
     <link rel="stylesheet" href="css/order-portal.css">
 </head>
 <body class="portal-body">
-<div class="portal-shell">
+<div class="portal-shell" data-portal-shell>
     <header class="portal-header">
-        <h1>Order Portal</h1>
-        <span class="portal-api-status" data-api-status>checking</span>
+        <div>
+            <p class="portal-eyebrow">Manufacturing Order Portal</p>
+            <h1>Order Portal</h1>
+        </div>
+        <div class="portal-header-status">
+            <span class="portal-api-status" data-api-status>checking</span>
+        </div>
     </header>
 
     <main class="portal-main" data-portal-main>
+        <div class="portal-login-layout" data-login-layout>
+        <div class="portal-login-intro">
+            <h2>Order Portal</h2>
+            <p class="portal-hint">Secure production progress access for Daiyujin Precision customers, sales representatives, and administrators.</p>
+            <ul class="portal-login-features">
+                <li>Track production progress</li>
+                <li>View inspection and shipment photos</li>
+                <li>Message your sales representative</li>
+            </ul>
+        </div>
         <form class="portal-login-card" data-login-form>
-            <h2>Sign in to your orders</h2>
+            <h3>Sign in to your orders</h3>
             <p class="portal-hint">Access your active orders and production progress.</p>
             <div class="portal-field">
                 <label for="login-email">Email</label>
@@ -29,6 +44,7 @@
             <button class="portal-btn" type="submit" data-login-btn>Sign In</button>
             <p class="portal-footnote">Don't have an account? Contact your sales representative.</p>
         </form>
+        </div>
     </main>
 </div>
 

@@ -335,17 +335,25 @@ def sales_create_order():
 
     data = request.get_json(silent=True) or {}
     customer_email = (data.get("customer_email") or "").strip().lower()
+    customer_user_id_raw = data.get("customer_user_id")
     title = (data.get("title") or "").strip()
     stage = (data.get("current_stage") or "order_confirmed").strip().lower()
 
-    if not customer_email or not title:
-        return jsonify({"error": True, "message": "customer_email and title are required"}), 400
+    if (not customer_email and not customer_user_id_raw) or not title:
+        return jsonify({"error": True, "message": "customer_email or customer_user_id, and title are required"}), 400
     if stage not in VALID_STAGES:
         return jsonify({"error": True, "message": f"Invalid stage: {stage}"}), 400
 
     session = SessionLocal()
     try:
-        customer = session.query(PortalUser).filter_by(email=customer_email, role="customer").first()
+        if customer_user_id_raw not in (None, ""):
+            try:
+                customer_user_id = int(customer_user_id_raw)
+            except (TypeError, ValueError):
+                return jsonify({"error": True, "message": "customer_user_id must be an integer"}), 400
+            customer = session.query(PortalUser).filter_by(id=customer_user_id, role="customer").first()
+        else:
+            customer = session.query(PortalUser).filter_by(email=customer_email, role="customer").first()
         if not customer:
             return jsonify({"error": True, "message": "Customer not found. Create the customer first."}), 404
         if u["role"] != "admin" and customer.assigned_sales_id != u["id"]:
@@ -730,7 +738,9 @@ def admin_create_user():
         if existing:
             return jsonify({"error": True, "message": "Email already in use"}), 409
         assigned_sales_id = None
-        if role == "customer" and data.get("assigned_sales_id") not in (None, ""):
+        if role == "customer":
+            if data.get("assigned_sales_id") in (None, ""):
+                return jsonify({"error": True, "message": "Customer must be assigned to an active sales user"}), 400
             try:
                 assigned_sales_id = int(data.get("assigned_sales_id"))
             except (TypeError, ValueError):
