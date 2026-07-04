@@ -21,7 +21,14 @@
         ordersById: {},
         updatesByOrderId: {},
         messagesByOrderId: {},
-        mediaByOrderId: {}
+        mediaByOrderId: {},
+        changedOrders: {},
+        toastQueue: [],
+        activeToasts: [],
+        syncStatus: 'connecting',
+        lastEventAt: null,
+        dirtyLists: {},
+        sseFailCount: 0
     };
 
     function setCurrentView(view, opts) {
@@ -29,6 +36,21 @@
         portalState.currentView = view;
         portalState.currentOrderId = opts.orderId || null;
         portalState.currentIsSales = !!opts.isSales;
+    }
+
+    function markOrderChanged(orderId, evt) {
+        var entry = portalState.changedOrders[orderId] || { count: 0, types: {}, lastAt: null };
+        entry.count++;
+        entry.types[evt.event_type] = true;
+        entry.lastAt = new Date().toISOString();
+        portalState.changedOrders[orderId] = entry;
+        portalState.dirtyLists['orders'] = true;
+        portalState.dirtyLists['sales-orders'] = true;
+        portalState.dirtyLists['admin-orders'] = true;
+    }
+
+    function clearOrderChanged(orderId) {
+        delete portalState.changedOrders[orderId];
     }
 
     function startAutoRefresh(loader, intervalMs) {
@@ -144,6 +166,7 @@
     function connectPortalEvents() {
         if (!token()) return;
         disconnectPortalEvents();
+        setSyncStatus('connecting');
         var controller = new AbortController();
         portalState.eventAbort = controller;
         streamPortalEvents(controller.signal);
@@ -168,9 +191,16 @@
             var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token() }, signal: signal });
             if (resp.status === 401) { clearSession(); leaveAppMode(); return; }
             if (!resp.ok || !resp.body) throw new Error('Event stream failed');
+            setSyncStatus('live');
             await readSseStream(resp.body, signal);
         } catch (e) {
-            if (!signal.aborted) { console.warn('Portal event stream disconnected:', e); scheduleEventReconnect(); }
+            if (!signal.aborted) {
+                portalState.sseFailCount++;
+                var status = portalState.sseFailCount > 20 ? 'offline' : 'reconnecting';
+                setSyncStatus(status);
+                console.warn('Portal event stream disconnected:', e);
+                scheduleEventReconnect();
+            }
         }
     }
 
@@ -222,7 +252,7 @@
             case 'message_created': refreshCurrentOrderMessages(evt.order_id || evt.payload.order_id); break;
             case 'order_update_created': refreshCurrentOrderUpdates(evt.order_id || evt.payload.order_id); break;
             case 'media_created': refreshCurrentOrderMedia(evt.order_id || evt.payload.order_id); break;
-            case 'order_stage_changed': refreshCurrentOrderSummary(evt.order_id || evt.payload.order_id); break;
+            case 'order_stage_changed': refreshCurrentOrderSummary(evt.order_id || evt.payload.order_id); refreshCurrentOrderUpdates(evt.order_id || evt.payload.order_id); break;
             default: refreshCurrentOrderSummary(evt.order_id || evt.payload.order_id);
         }
     }
@@ -251,7 +281,120 @@
     }
 
     function markBackgroundOrderChanged(orderId, evt) {
-        console.info('Background order changed:', orderId, evt.event_type);
+        markOrderChanged(orderId, evt);
+        patchOrderCardBadge(orderId);
+        enqueueEventToast(evt);
+        if (portalState.currentView === 'admin-dashboard') refreshAdminOrderBadge();
+    }
+
+    /* ── Toast ── */
+    function enqueueEventToast(evt) {
+        var msg = eventToastMessage(evt);
+        if (!msg) return;
+        var orderId = evt.order_id || (evt.payload && evt.payload.order_id);
+        // Merge if same order toasted within 10s
+        var recent = portalState.activeToasts.find(function (t) { return t.orderId === orderId; });
+        if (recent) {
+            recent.count = (recent.count || 1) + 1;
+            recent.el.querySelector('.portal-toast-count').textContent = recent.count + ' updates';
+            recent.el.querySelector('.portal-toast-title').textContent = 'Order #' + orderId;
+            return;
+        }
+        showPortalToast({ title: msg, orderId: orderId });
+    }
+
+    function eventToastMessage(evt) {
+        var t = evt.event_type;
+        if (t === 'message_created') return 'New message';
+        if (t === 'order_update_created') return 'Progress updated';
+        if (t === 'media_created') return 'New production photo';
+        if (t === 'order_stage_changed') return 'Stage changed';
+        if (t === 'order_summary_changed') return 'Order details updated';
+        if (t === 'order_created') return 'New order created';
+        return null;
+    }
+
+    function showPortalToast(opts) {
+        var region = document.getElementById('toast-region');
+        if (!region) return;
+        if (portalState.activeToasts.length >= 3) {
+            var oldest = portalState.activeToasts.shift();
+            if (oldest.el) oldest.el.remove();
+            if (oldest.timer) clearTimeout(oldest.timer);
+        }
+        var el = document.createElement('div');
+        el.className = 'portal-toast is-entering';
+        el.setAttribute('role', 'status');
+        el.innerHTML = '<div class="portal-toast-title">' + esc(opts.title) + '</div>' +
+            '<span class="portal-toast-count">1 update</span>';
+        if (opts.orderId) {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', function () {
+                if (user().role === 'customer') showCustomerOrderDetail(opts.orderId);
+                else showSalesOrderDetail(opts.orderId);
+            });
+        }
+        region.appendChild(el);
+        requestAnimationFrame(function () { el.classList.remove('is-entering'); });
+        var entry = { el: el, orderId: opts.orderId, count: 1 };
+        entry.timer = setTimeout(function () { dismissPortalToast(entry); }, 5000);
+        el.addEventListener('mouseenter', function () { clearTimeout(entry.timer); });
+        el.addEventListener('mouseleave', function () { entry.timer = setTimeout(function () { dismissPortalToast(entry); }, 3000); });
+        portalState.activeToasts.push(entry);
+    }
+
+    function dismissPortalToast(entry) {
+        if (!entry || !entry.el) return;
+        entry.el.style.opacity = '0';
+        entry.el.style.transform = 'translateY(8px)';
+        setTimeout(function () { if (entry.el) entry.el.remove(); }, 200);
+        portalState.activeToasts = portalState.activeToasts.filter(function (t) { return t !== entry; });
+    }
+
+    /* ── Order card badge ── */
+    function patchOrderCardBadge(orderId) {
+        var badge = document.querySelector('[data-order-unread-badge="' + orderId + '"]');
+        if (!badge) {
+            showListRefreshBanner();
+            return false;
+        }
+        badge.hidden = false;
+        badge.textContent = portalState.changedOrders[orderId] ? portalState.changedOrders[orderId].count : '!';
+        var card = document.getElementById('portal-order-card-' + orderId);
+        if (card) card.classList.add('has-updates');
+        return true;
+    }
+
+    function showListRefreshBanner() {
+        var existing = document.getElementById('list-refresh-banner');
+        if (existing) return;
+        var bar = document.querySelector('.portal-user-bar, .portal-role-header, .portal-bar');
+        if (!bar) return;
+        var banner = document.createElement('div');
+        banner.id = 'list-refresh-banner';
+        banner.className = 'portal-note-card';
+        banner.style.cssText = 'cursor:pointer;margin:0 0 1rem;display:flex;justify-content:space-between;align-items:center';
+        banner.innerHTML = '<span>Updates available — refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary" style="width:auto">Refresh</button>';
+        banner.querySelector('button').onclick = function () {
+            banner.remove();
+            var role = user().role;
+            if (role === 'customer') { showCustomerDashboard(); }
+            else if (role === 'sales') { showSalesOrders(); }
+            else if (role === 'admin') { showAdminDashboard(); }
+        };
+        bar.parentNode.insertBefore(banner, bar.nextSibling);
+    }
+
+    function refreshAdminOrderBadge() {}
+
+    /* ── Sync status ── */
+    function setSyncStatus(status) {
+        portalState.syncStatus = status;
+        var dot = document.getElementById('sync-dot');
+        if (!dot) return;
+        dot.className = 'portal-sync-dot portal-sync-' + status;
+        dot.title = status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting...' : status === 'offline' ? 'Offline' : 'Connecting...';
+        if (status === 'live') { portalState.lastEventAt = new Date().toISOString(); portalState.sseFailCount = 0; }
     }
 
     window.showCustomerDashboard = showCustomerDashboard;
@@ -301,7 +444,6 @@
             var u = user();
             main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') +
                 '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p style="font-size:12px;color:var(--portal-muted)">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
-            startAutoRefresh(showCustomerDashboard, 30000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load orders.</div>'; }
     }
 
@@ -311,9 +453,9 @@
     function renderOrderCard(order) {
         var stageLabel = stageLabels[order.current_stage] || 'N/A';
         var progress = stageProgress[order.current_stage] || stageDefaultProgress;
-        return '<article class="portal-order-card" style="cursor:pointer" onclick="showOrderDetail(' + order.id + ')">' +
+        return '<article class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" style="cursor:pointer" onclick="showOrderDetail(' + order.id + ')">' +
             '<div class="portal-card-head"><div>' +
-            '<p class="portal-eyebrow">Order #' + esc(order.order_no) + '</p>' +
+            '<p class="portal-eyebrow">Order #' + esc(order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></p>' +
             '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
             '</div><span class="portal-badge status-' + esc(order.status) + '">' + esc(order.status) + '</span></div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
@@ -348,7 +490,6 @@
             else if (tab === 'customers') await renderAdminCustomers();
             else if (tab === 'orders') await renderAdminOrders();
             else if (tab === 'activity') await renderAdminActivity();
-            startAutoRefresh(function () { showAdminTab(tab); }, tab === 'activity' ? 10000 : 30000);
         } catch (e) { document.getElementById('admin-content').innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
@@ -598,7 +739,6 @@
                 renderSalesCommandBar('orders') +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                 '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
-            startAutoRefresh(showSalesOrders, 20000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
@@ -614,8 +754,8 @@
     }
 
     function renderSalesOrderCard(order) {
-        return '<div class="portal-order-card" style="cursor:pointer" onclick="showSalesOrderDetail(' + order.id + ')">' +
-            '<h3>' + esc(order.title || 'Order #' + order.order_no) + '</h3>' +
+        return '<div class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" style="cursor:pointer" onclick="showSalesOrderDetail(' + order.id + ')">' +
+            '<h3>' + esc(order.title || 'Order #' + order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></h3>' +
             '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
             '<span>Delivery: ' + esc(order.estimated_delivery_date || 'TBD') + '</span><span>' + esc(order.updated_at || '-') + '</span></div></div>';
     }
@@ -633,7 +773,6 @@
                 '<div class="portal-dashboard">' + (customers.length ? customers.map(function (c) {
                     return '<div class="portal-order-card"><h3>' + esc(c.display_name || c.email) + '</h3><div class="portal-order-meta"><span>' + esc(c.email) + '</span><span>' + esc(c.company_name || '-') + '</span><span>' + esc(c.status) + '</span></div></div>';
                 }).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">👥</div><h3>No customers yet</h3><p>Add a customer account before creating orders.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button></div></div>') + '</div>';
-            startAutoRefresh(showSalesCustomers, 30000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
@@ -775,6 +914,7 @@
 
     function renderOrderDetail(o, updates, messages, media, isSales) { enterAppMode();
         setCurrentView('order-detail', { orderId: o.id, isSales: isSales });
+        clearOrderChanged(o.id);
         portalState.ordersById[o.id] = o;
         portalState.updatesByOrderId[o.id] = updates;
         portalState.messagesByOrderId[o.id] = messages;
@@ -835,12 +975,10 @@
     function patchMessages(orderId, messages, isSales) {
         var el = document.getElementById('order-messages');
         if (!el) return;
-        var draft = document.getElementById('msg-text') ? document.getElementById('msg-text').value : '';
-        var focused = document.activeElement && document.activeElement.id === 'msg-text';
+        var mainActive = document.activeElement && document.activeElement.id === 'msg-text';
         var replyActive = document.activeElement && document.activeElement.id === 'reply-text';
-        var replyDraft = replyActive ? document.getElementById('reply-text').value : '';
         portalState.messagesByOrderId[orderId] = messages || [];
-        if (replyActive && draft) {
+        if (mainActive || replyActive) {
             var banner = document.getElementById('order-messages-banner');
             if (!banner) {
                 banner = document.createElement('div');
@@ -855,10 +993,12 @@
         }
         var banner = document.getElementById('order-messages-banner');
         if (banner) banner.remove();
+        var draft = document.getElementById('msg-text') ? document.getElementById('msg-text').value : '';
+        var wasFocused = document.activeElement && document.activeElement.id === 'msg-text';
         el.innerHTML = renderMessages(messages, isSales, orderId);
         var input = document.getElementById('msg-text');
         if (input && draft) input.value = draft;
-        if (input && focused) input.focus();
+        if (input && wasFocused) input.focus();
     }
 
     function patchMedia(orderId, media) {

@@ -14,6 +14,7 @@
             <h1>Order Portal</h1>
         </div>
         <div class="portal-header-status">
+            <span class="portal-sync-dot" id="sync-dot" title="Connecting..."></span>
             <span class="portal-api-status" data-api-status>checking</span>
         </div>
     </header>
@@ -51,5 +52,6 @@
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script src="js/order-portal.js"></script>
+<div class="portal-toast-region" id="toast-region" aria-live="polite"></div>
 </body>
 </html>

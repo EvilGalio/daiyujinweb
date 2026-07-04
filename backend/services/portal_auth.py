@@ -370,7 +370,7 @@ def sales_create_order():
         session.add(o)
         session.flush()
         log_portal_action(session, u, "sales_create_order", entity_type="portal_order", entity_label=f"#{o.order_no} {title}")
-        emit_portal_event(session, "order_created", "order", entity_id=o.id, order_id=o.id, actor_user_id=u["id"], visibility="internal", payload={"order_id": o.id, "order_no": o.order_no, "title": title, "current_stage": stage})
+        emit_portal_event(session, "order_created", "order", entity_id=o.id, order_id=o.id, actor_user_id=u["id"], visibility="public", payload={"order_id": o.id, "order_no": o.order_no, "title": title, "current_stage": stage})
         session.commit()
         return jsonify({"error": False, "order": {"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage}})
     finally:
@@ -488,6 +488,11 @@ def sales_update_order(order_id):
         log_portal_action(session, u, "sales_update_order_stage", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={data.get('current_stage','')} status={data.get('status','')}".strip())
         if "current_stage" in data:
             emit_portal_event(session, "order_stage_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "current_stage": data["current_stage"]})
+        summary_keys = ["status", "estimated_delivery_date", "customer_visible_note", "shipping_tracking_no"]
+        if any(k in data for k in summary_keys):
+            emit_portal_event(session, "order_summary_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "changed_keys": [k for k in summary_keys if k in data]})
+        if "internal_note" in data:
+            emit_portal_event(session, "order_internal_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="internal", payload={"order_id": order_id})
         session.commit()  # single commit for order + timeline
         return jsonify({"error": False, "message": "Order updated", "order_id": o.id})
     finally:
@@ -1132,6 +1137,5 @@ def portal_events_stream():
 
     return Response(stream(), mimetype="text/event-stream", headers={
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
     })
