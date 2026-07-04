@@ -70,7 +70,7 @@
         var me = user();
         main.innerHTML = renderRoleHeader('Account Settings', me.display_name || me.email, required ? 'Password change required.' : 'Update your password.') +
             (required ? '<p style="color:var(--portal-danger);font-size:13px;margin:0 0 1rem">You must change your password before continuing.</p>' : '') +
-            '<div class="portal-panel" style="max-width:440px">' +
+            '<div class="portal-panel portal-panel-compact">' +
             '<h3>' + (required ? 'Set New Password' : 'Change Password') + '</h3>' +
             '<p><input id="chpwd-current" type="password" placeholder="Current password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
             '<p><input id="chpwd-new" type="password" placeholder="New password (min 10 characters)" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
@@ -138,10 +138,16 @@
     }
 
 
+    function renderErrorState(title, detail, backLabel, backAction) {
+        return '<div class="portal-empty-state portal-error-state"><h3>' + esc(title) + '</h3>' +
+            '<p>' + esc(detail || 'Please try again. If the issue persists, contact your sales representative.') + '</p>' +
+            '<div class="portal-cta-row"><button class="portal-btn portal-btn-secondary portal-btn-sm" onclick="' + backAction + '">' + esc(backLabel || 'Back') + '</button></div></div>';
+    }
+
     function renderRoleHeader(title, name, subtitle) {
         return '<div class="portal-role-header"><h2>' + esc(title) + '</h2>' +
             '<b>' + esc(name) + '</b><span>' + esc(subtitle) + '</span>' +
-            '<div style="display:flex;gap:.25rem"><button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm">Change Password</button>' +
+            '<div class="portal-header-actions"><button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm">Change Password</button>' +
             '<button onclick="portalLogout()" class="portal-btn portal-btn-ghost portal-btn-sm">Sign Out</button></div></div>';
     }
 
@@ -226,13 +232,14 @@
         var reps = d.sales_reps || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Sales Reps</h3><span>Monitor workload and customer ownership. ' + reps.length + ' reps found.</span><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="showAdminCreateUser()">+ Create User</button></div>' +
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Customers</th><th>Orders</th><th>Last Activity</th><th></th></tr></thead><tbody>' +
             reps.map(function (r) {
                 return '<tr><td>' + esc(r.display_name || '-') + '</td><td>' + esc(r.email) + '</td>' +
                     '<td><span class="portal-badge status-' + r.status + '">' + esc(r.status) + '</span></td>' +
                     '<td>' + r.customer_count + '</td><td>' + r.order_count + '</td>' +
                     '<td>' + (r.last_action || '—') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '') + '</td>' +
                     '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminSalesRepDetail(' + r.id + ')">View</button></td></tr>';
-            }).join('') + '</tbody></table>';
+            }).join('') + '</tbody></table></div>';
     }
 
     window.showAdminSalesRepDetail = async function(sid) {
@@ -256,12 +263,13 @@
         var cxs = d.customers || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Customers</h3><span>Search by name, company, email, or sales rep. ' + cxs.length + ' records.</span></div>' +
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Sales Rep</th><th>Orders</th><th>Latest Status</th><th></th></tr></thead><tbody>' +
             cxs.map(function(c) {
                 return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td>' +
                     '<td>' + esc(c.sales_name || '—') + '</td><td>' + c.order_count + '</td>' +
                     '<td>' + esc(c.latest_order_status || '—') + '</td>' +
                     '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminCustomerDetail(' + c.id + ')">View</button></td></tr>';
-            }).join('') + '</tbody></table>';
+            }).join('') + '</tbody></table></div>';
     }
 
     window.showAdminCustomerDetail = async function(cid) {
@@ -280,13 +288,14 @@
         var ords = d.orders || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Orders</h3><span>All orders across all sales reps and customers. ' + ords.length + ' total.</span></div>' +
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order #</th><th>Title</th><th>Customer</th><th>Sales</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
             ords.map(function(o) {
                 return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer">' +
                     '<td>' + esc(o.order_no) + '</td><td>' + esc(o.title || '—') + '</td>' +
                     '<td>' + esc(o.customer_name || '—') + '</td><td>' + esc(o.sales_name || '—') + '</td>' +
                     '<td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td>' +
                     '<td>' + (o.updated_at||'').slice(0,10) + '</td></tr>';
-            }).join('') + '</tbody></table>';
+            }).join('') + '</tbody></table></div>';
     }
 
     window.showAdminOrderDetail = async function(orderId) {
@@ -351,7 +360,7 @@
         var me = user();
         selectedAdminSalesRep = null;
         main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Create a new user account.') +
-            '<div class="portal-panel" style="max-width:440px">' +
+            '<div class="portal-panel portal-panel-compact">' +
             '<h3>Create User</h3>' +
             '<p><input id="new-user-email" placeholder="Email" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
             '<p><input id="new-user-name" placeholder="Display name (optional)" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
@@ -492,7 +501,7 @@
     function showCreateCustomer() {
         stopAutoRefresh();
         main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Add a new customer account.') +
-            '<div class="portal-panel" style="max-width:500px"><h3>Create Customer</h3>' +
+            '<div class="portal-panel portal-panel-narrow"><h3>Create Customer</h3>' +
             '<div class="portal-field"><label>Email</label><input id="new-cust-email" type="email" placeholder="customer@example.com"></div>' +
             '<div class="portal-field"><label>Display Name</label><input id="new-cust-name" type="text" placeholder="John Smith"></div>' +
             '<div class="portal-field"><label>Company</label><input id="new-cust-company" type="text" placeholder="Optional"></div>' +
@@ -518,7 +527,7 @@
         stopAutoRefresh();
         selectedOrderCustomer = null;
         main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Create a new order.') +
-            '<div class="portal-panel" style="max-width:500px"><h3>Create Order</h3>' +
+            '<div class="portal-panel portal-panel-narrow"><h3>Create Order</h3>' +
             '<div class="portal-field"><label>Customer</label>' +
                 '<input id="order-customer-search" type="text" placeholder="Search customer name, company, or email">' +
                 '<div id="order-customer-selected"></div>' +
@@ -610,7 +619,7 @@
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, false);
             startAutoRefresh(function () { showCustomerOrderDetail(orderId); }, 10000);
-        } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
+        } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showCustomerDashboard()'); }
     }
 
     async function showSalesOrderDetail(orderId) {
@@ -622,7 +631,7 @@
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, true);
             startAutoRefresh(function () { showSalesOrderDetail(orderId); }, 8000);
-        } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
+        } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showSalesOrders()'); }
     }
 
     function renderOrderDetail(o, updates, messages, media, isSales) { enterAppMode();
@@ -630,7 +639,7 @@
         main.innerHTML =
             renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', user().display_name || user().email, '') +
             '<div class="portal-panel" style="margin-bottom:1rem">' +
-            '<h3 style="margin:0">' + esc(o.title) + ' <span style="font-weight:400;font-size:13px;color:var(--portal-muted)">#' + esc(o.order_no) + '</span></h3>' +
+            '<h3 class="portal-order-title">' + esc(o.title) + ' <small>#' + esc(o.order_no) + '</small></h3>' +
             '<div class="portal-order-meta" style="margin-top:.5rem">' +
             '<span>Status: <span class="portal-badge ' + (o.status === 'active' ? 'active' : 'shipped') + '">' + esc(o.status) + '</span></span>' +
             '<span>Delivery: ' + esc(o.estimated_delivery_date || 'TBD') + '</span></div>' +
@@ -645,15 +654,15 @@
             '<div><div class="portal-section-title">Photos</div>' +
             '<div class="portal-media-grid" id="media-grid">' + (media.length ? '<div class="portal-empty">Loading photos...</div>' : '<div class="portal-empty">No photos yet.</div>') + '</div>' +
             (isSales ? '<div class="portal-section-title">Actions</div><div class="portal-action-rail">' +
-                '<button class="portal-btn portal-btn-secondary" onclick="showAddUpdate(' + o.id + ')">Add Progress Update</button>' +
-                '<button class="portal-btn portal-btn-secondary" onclick="showUploadMedia(' + o.id + ')">Upload Photo</button></div>' : '') +
+                '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpdate()">Go to Progress Form</button>' +
+                '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpload()">Go to Photo Upload</button></div>' : '') +
             '</div></div>';
 
         if (media.length) loadAuthorizedImages(o.id, media);
     }
 
     function renderSalesActions(orderId) {
-        return '<div class="portal-sales-actions">' +
+        return '<div class="portal-sales-actions" id="sales-actions">' +
             '<h4 style="margin:.5rem 0">Update Stage</h4>' +
             '<select id="update-stage" style="margin-right:.5rem;padding:.3rem">' + Object.keys(stageLabels).map(function (k) { return '<option value="' + k + '">' + stageLabels[k] + '</option>'; }).join('') + '</select>' +
             '<button class="portal-btn" style="width:auto;padding:.3rem .75rem" onclick="updateOrderStage(' + orderId + ')">Update</button>' +
@@ -691,6 +700,20 @@
             await api('/api/portal/sales/orders/' + orderId + '/updates', { method: 'POST', body: JSON.stringify(body) });
             showSalesOrderDetail(orderId);
         } catch (e) { alert('Failed to add update.'); }
+    };
+
+    window.focusSalesUpdate = function () {
+        var el = document.getElementById('update-title');
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+    };
+
+    window.focusSalesUpload = function () {
+        var el = document.getElementById('upload-file');
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
     };
 
     window.uploadPhoto = async function (orderId) {
@@ -789,7 +812,6 @@
     };
 
     /* ═══ Helpers ═══ */
-    var stageLabels = { order_confirmed: 'Order Confirmed', material_purchasing: 'Material Purchasing', material_ready: 'Material Ready', machining: 'CNC Machining', in_process_qc: 'In-process QC', surface_treatment: 'Surface Treatment', final_inspection: 'Final Inspection', packing: 'Packing', shipped: 'Shipped', delivered: 'Delivered', on_hold: 'On Hold' };
 
     function renderTimelineItem(u) {
         var label = stageLabels[u.stage_key] || u.stage_key || 'Update';
@@ -816,5 +838,17 @@
         }
     }
 
+    var stageOrder = ["order_confirmed","material_purchasing","material_ready","machining","in_process_qc","surface_treatment","final_inspection","packing","shipped","delivered"];
+
     bootstrapPortal();
-})();var stageOrder = ["order_confirmed","material_purchasing","material_ready","machining","in_process_qc","surface_treatment","final_inspection","packing","shipped","delivered"];
+
+    function renderStageStepper(currentStage) {
+        var currentIdx = stageOrder.indexOf(currentStage);
+        if (currentIdx < 0) currentIdx = 0;
+        return '<div class="portal-stepper">' + stageOrder.map(function (s, i) {
+            var cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : '';
+            return '<div class="portal-stepper-step ' + cls + '"><div class="portal-stepper-dot"></div><small>' + (stageLabels[s] || s) + '</small></div>';
+        }).join('') + '</div>';
+    }
+
+})();
