@@ -21,7 +21,6 @@
             if (!resp.token) throw new Error('No token returned');
             sessionStorage.setItem('portal_token', resp.token);
             sessionStorage.setItem('portal_user', JSON.stringify(resp.user));
-            document.body.classList.add('portal-authenticated');
             var role = resp.user.role;
             if (role === 'sales' || role === 'admin') { showSalesWorkspace(); }
             else { showCustomerDashboard(); }
@@ -31,6 +30,7 @@
 
     function showError(msg) { error.textContent = msg; error.hidden = false; }
     var token = function () { return sessionStorage.getItem('portal_token'); };
+    function enterAppMode() { document.body.classList.add('portal-authenticated'); }
     var api = function (path, opts) {
         opts = opts || {};
         opts.headers = opts.headers || {};
@@ -50,9 +50,18 @@
     };
     var user = function () { return JSON.parse(sessionStorage.getItem('portal_user') || '{}'); };
 
+    
+    window.showCustomerDashboard = showCustomerDashboard;
+    window.showSalesWorkspace = showSalesWorkspace;
+    window.showSalesOrders = showSalesOrders;
+    window.showSalesCustomers = showSalesCustomers;
+    window.showCreateCustomer = showCreateCustomer;
+    window.showCreateOrder = showCreateOrder;
+    window.clearMediaUrls = clearMediaUrls;
+
     window.portalLogout = async function () {
         try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
-        sessionStorage.clear(); location.reload();
+        sessionStorage.clear(); document.body.classList.remove('portal-authenticated'); location.reload();
     };
 
     function esc(v) { return String(v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]; }); }
@@ -193,7 +202,7 @@
         } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
     }
 
-    function renderOrderDetail(o, updates, media, isSales) {
+    function renderOrderDetail(o, updates, media, isSales) { enterAppMode();
         var backFn = isSales ? 'showSalesOrders()' : 'showCustomerDashboard()';
         var base = window.DaiyujinAPI.config.baseUrl;
         main.innerHTML =
