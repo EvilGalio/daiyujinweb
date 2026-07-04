@@ -12,8 +12,8 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import SessionLocal
-from services.settings import get_audit_logs, log_admin_action
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage
+from services.portal_audit import log_portal_action, list_portal_audit_logs
+from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog
 
 from pathlib import Path
 
@@ -242,6 +242,7 @@ def sales_create_customer():
             assigned_sales_id=u["id"], must_change_password=True, created_by_user_id=u["id"],
         )
         session.add(c)
+        log_portal_action(session, u, "sales_create_customer", entity_type="portal_user", entity_label=c.email)
         session.commit()
         return jsonify({"error": False, "customer": _user_json(c), "initial_password": pw, "user_id": c.id})
     finally:
@@ -340,6 +341,7 @@ def sales_create_order():
             created_by_user_id=u["id"],
         )
         session.add(o)
+        log_portal_action(session, u, "sales_create_order", entity_type="portal_order", entity_label=f"#{o.order_no} {title}")
         session.commit()
         return jsonify({"error": False, "order": {"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage}})
     finally:
@@ -404,6 +406,7 @@ def sales_add_update(order_id):
             created_by_user_id=u["id"],
         )
         session.add(upd)
+        log_portal_action(session, u, "sales_add_order_update", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={sk or 'note'}")
         session.commit()
         return jsonify({"error": False, "update_id": upd.id})
     finally:
@@ -450,6 +453,7 @@ def sales_update_order(order_id):
                 created_by_user_id=u["id"],
             ))
 
+        log_portal_action(session, u, "sales_update_order_stage", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={data.get('current_stage','')} status={data.get('status','')}".strip())
         session.commit()  # single commit for order + timeline
         return jsonify({"error": False, "message": "Order updated", "order_id": o.id})
     finally:
@@ -573,6 +577,7 @@ def sales_upload_media(order_id):
             visible_to_customer=visible,
         )
         session.add(media)
+        log_portal_action(session, u, "sales_upload_media", entity_type="portal_order_media", entity_id=order_id, entity_label=f"{stored}")
         session.commit()
         return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
     except Exception:
@@ -660,6 +665,7 @@ def sales_reply_message(order_id, message_id):
         reply = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="replied", parent_message_id=parent.id)
         parent.status = "replied"
         session.add(reply)
+        log_portal_action(session, u, "sales_reply_message", entity_type="portal_message", entity_id=message_id, entity_label=f"order={order_id}")
         session.commit()
         return jsonify({"error": False, "message_id": reply.id})
     finally:
@@ -727,12 +733,13 @@ def admin_create_user():
             assigned_sales_id=assigned_sales_id,
         )
         session.add(user)
-        session.commit()
+        session.flush()
 
         user_payload = _user_json(user)
         user_id = user.id
 
-        log_admin_action(u["email"], "portal_create_user", target_type="portal_user", target_key=f"id={user_id} role={role}", client_ip=request.remote_addr or "")
+        log_portal_action(session, u, "portal_create_user", entity_type="portal_user", entity_id=user_id, entity_label=f"role={role}")
+        session.commit()
         return jsonify({"error": False, "user": user_payload, "initial_password": pw, "user_id": user_id})
     finally:
         session.close()
@@ -765,15 +772,19 @@ def admin_update_user(user_id):
             pw = secrets.token_hex(8)
             target.password_hash = generate_password_hash(pw)
             target.must_change_password = True
-            session.commit()
             target_id = target.id
-            log_admin_action(u["email"], "portal_reset_password", target_type="portal_user", target_key=f"id={user_id}", client_ip=request.remote_addr or "")
+            log_portal_action(session, u, "portal_reset_password", entity_type="portal_user", entity_id=user_id)
+            session.commit()
             return jsonify({"error": False, "user_id": target_id, "initial_password": pw})
 
-        session.commit()
         target_id = target.id
+        changed = []
         if audit_action:
-            log_admin_action(u["email"], audit_action, target_type="portal_user", target_key=f"id={user_id}", client_ip=request.remote_addr or "")
+            log_portal_action(session, u, audit_action, entity_type="portal_user", entity_id=user_id)
+            changed.append(audit_action)
+        if not audit_action and any(k in data for k in ("role", "display_name", "assigned_sales_id")):
+            log_portal_action(session, u, "portal_update_user", entity_type="portal_user", entity_id=user_id, entity_label=",".join(k for k in ("role","display_name","assigned_sales_id") if k in data))
+        session.commit()
         return jsonify({"error": False, "user_id": target_id})
     finally:
         session.close()
@@ -786,15 +797,209 @@ def admin_list_orders():
 
     session = SessionLocal()
     try:
-        rows = session.query(PortalOrder).order_by(PortalOrder.updated_at.desc()).limit(200).all()
+        sales_id = request.args.get("sales_id", type=int)
+        customer_id = request.args.get("customer_id", type=int)
+        status = request.args.get("status")
+        stage = request.args.get("stage")
+        q = request.args.get("q", "").strip()
+
+        query = session.query(PortalOrder)
+        if sales_id:
+            query = query.filter(PortalOrder.sales_user_id == sales_id)
+        if customer_id:
+            query = query.filter(PortalOrder.customer_user_id == customer_id)
+        if status:
+            query = query.filter(PortalOrder.status == status)
+        if stage:
+            query = query.filter(PortalOrder.current_stage == stage)
+        if q:
+            query = query.filter(
+                PortalOrder.title.ilike(f"%{q}%") | PortalOrder.order_no.ilike(f"%{q}%")
+            )
+
+        rows = query.order_by(PortalOrder.updated_at.desc()).limit(200).all()
+        user_ids = set()
+        for o in rows:
+            if o.customer_user_id: user_ids.add(o.customer_user_id)
+            if o.sales_user_id: user_ids.add(o.sales_user_id)
+        users = {u2.id: u2 for u2 in session.query(PortalUser).filter(PortalUser.id.in_(user_ids)).all()} if user_ids else {}
+
+        def _count(model, field, val):
+            return session.query(model).filter(field == val).count()
+
         return jsonify({"error": False, "orders": [{
             "id": o.id, "order_no": o.order_no, "title": o.title,
             "customer_user_id": o.customer_user_id, "sales_user_id": o.sales_user_id,
+            "customer_name": (users.get(o.customer_user_id).display_name or users.get(o.customer_user_id).email) if o.customer_user_id in users else None,
+            "customer_email": users.get(o.customer_user_id).email if o.customer_user_id in users else None,
+            "sales_name": (users.get(o.sales_user_id).display_name or users.get(o.sales_user_id).email) if o.sales_user_id in users else None,
+            "sales_email": users.get(o.sales_user_id).email if o.sales_user_id in users else None,
             "current_stage": o.current_stage, "status": o.status,
             "estimated_delivery_date": o.estimated_delivery_date,
+            "updates_count": _count(PortalOrderUpdate, PortalOrderUpdate.order_id, o.id),
+            "media_count": _count(PortalOrderMedia, PortalOrderMedia.order_id, o.id),
+            "messages_count": _count(PortalMessage, PortalMessage.order_id, o.id),
             "created_at": o.created_at.isoformat() if o.created_at else None,
             "updated_at": o.updated_at.isoformat() if o.updated_at else None,
         } for o in rows]})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/overview")
+def admin_overview():
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        sales_count = session.query(PortalUser).filter_by(role="sales", status="active").count()
+        customer_count = session.query(PortalUser).filter_by(role="customer", status="active").count()
+        active_orders = session.query(PortalOrder).filter_by(status="active").count()
+        today = datetime.utcnow().date()
+        week_updates = session.query(PortalOrderUpdate).filter(PortalOrderUpdate.created_at >= today).count()
+        return jsonify({"error": False, "overview": {
+            "sales_count": sales_count, "customer_count": customer_count,
+            "active_orders": active_orders, "updates_today": week_updates,
+        }})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/sales-reps")
+def admin_sales_reps():
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        rows = session.query(PortalUser).filter_by(role="sales").order_by(PortalUser.created_at.desc()).all()
+        result = []
+        for s in rows:
+            customer_count = session.query(PortalUser).filter_by(role="customer", assigned_sales_id=s.id).count()
+            order_count = session.query(PortalOrder).filter_by(sales_user_id=s.id).count()
+            last_log = session.query(PortalAuditLog).filter_by(actor_user_id=s.id).order_by(PortalAuditLog.created_at.desc()).first()
+            result.append({
+                "id": s.id, "email": s.email, "display_name": s.display_name, "status": s.status,
+                "customer_count": customer_count, "order_count": order_count,
+                "last_activity": last_log.created_at.isoformat() if last_log and last_log.created_at else None,
+                "last_action": last_log.action if last_log else None,
+            })
+        return jsonify({"error": False, "sales_reps": result})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/sales-reps/<int:sales_id>")
+def admin_sales_rep_detail(sales_id):
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        rep = session.query(PortalUser).filter_by(id=sales_id, role="sales").first()
+        if not rep:
+            return jsonify({"error": True, "message": "Sales rep not found"}), 404
+        customers = session.query(PortalUser).filter_by(role="customer", assigned_sales_id=sales_id).all()
+        orders = session.query(PortalOrder).filter_by(sales_user_id=sales_id).order_by(PortalOrder.updated_at.desc()).limit(50).all()
+        logs = list_portal_audit_logs(session, limit=50, actor_email=rep.email)
+        return jsonify({"error": False, "rep": _user_json(rep),
+            "customers": [_user_json(c) for c in customers],
+            "orders": [{"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage, "status": o.status} for o in orders],
+            "recent_logs": logs})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/customers")
+def admin_customers():
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        sales_id = request.args.get("sales_id", type=int)
+        status = request.args.get("status", "active")
+        q = request.args.get("q", "").strip()
+
+        query = session.query(PortalUser).filter_by(role="customer")
+        if status:
+            query = query.filter(PortalUser.status == status)
+        if sales_id:
+            query = query.filter(PortalUser.assigned_sales_id == sales_id)
+        if q:
+            query = query.filter(
+                PortalUser.display_name.ilike(f"%{q}%") | PortalUser.email.ilike(f"%{q}%")
+            )
+
+        rows = query.order_by(PortalUser.created_at.desc()).limit(200).all()
+        sales_ids = {c.assigned_sales_id for c in rows if c.assigned_sales_id}
+        sales_map = {s.id: s for s in session.query(PortalUser).filter(PortalUser.id.in_(sales_ids)).all()} if sales_ids else {}
+
+        result = []
+        for c in rows:
+            order_count = session.query(PortalOrder).filter_by(customer_user_id=c.id).count()
+            latest = session.query(PortalOrder).filter_by(customer_user_id=c.id).order_by(PortalOrder.updated_at.desc()).first()
+            s2 = sales_map.get(c.assigned_sales_id)
+            result.append({
+                "id": c.id, "email": c.email, "display_name": c.display_name, "status": c.status,
+                "sales_name": (s2.display_name or s2.email) if s2 else None,
+                "assigned_sales_id": c.assigned_sales_id,
+                "order_count": order_count,
+                "latest_order_status": latest.status if latest else None,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            })
+        return jsonify({"error": False, "customers": result})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/customers/<int:customer_id>")
+def admin_customer_detail(customer_id):
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        c = session.query(PortalUser).filter_by(id=customer_id, role="customer").first()
+        if not c:
+            return jsonify({"error": True, "message": "Customer not found"}), 404
+        orders = session.query(PortalOrder).filter_by(customer_user_id=customer_id).order_by(PortalOrder.updated_at.desc()).all()
+        s2 = session.query(PortalUser).filter_by(id=c.assigned_sales_id).first() if c.assigned_sales_id else None
+        return jsonify({"error": False, "customer": _user_json(c),
+            "sales_name": (s2.display_name or s2.email) if s2 else None,
+            "orders": [{"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage, "status": o.status, "updated_at": o.updated_at.isoformat() if o.updated_at else None} for o in orders]})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/admin/orders/<int:order_id>/full")
+def admin_order_full(order_id):
+    u, err = _require_role(("admin",))
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        o = session.query(PortalOrder).filter_by(id=order_id).first()
+        if not o:
+            return jsonify({"error": True, "message": "Order not found"}), 404
+        customer = session.query(PortalUser).filter_by(id=o.customer_user_id).first()
+        sales = session.query(PortalUser).filter_by(id=o.sales_user_id).first()
+        updates = session.query(PortalOrderUpdate).filter_by(order_id=order_id).order_by(PortalOrderUpdate.created_at.desc()).all()
+        media = session.query(PortalOrderMedia).filter_by(order_id=order_id).order_by(PortalOrderMedia.created_at.desc()).all()
+        msgs = session.query(PortalMessage).filter_by(order_id=order_id).order_by(PortalMessage.created_at.asc()).all()
+        return jsonify({"error": False, "order": {
+            "id": o.id, "order_no": o.order_no, "title": o.title, "po_number": o.po_number,
+            "current_stage": o.current_stage, "status": o.status,
+            "estimated_delivery_date": o.estimated_delivery_date,
+            "shipping_tracking_no": o.shipping_tracking_no,
+            "customer_visible_note": o.customer_visible_note, "internal_note": o.internal_note,
+            "customer": _user_json(customer) if customer else None,
+            "sales": _user_json(sales) if sales else None,
+            "updates": [{"id": up.id, "stage_key": up.stage_key, "title": up.title, "message": up.message, "progress_percent": up.progress_percent, "created_at": up.created_at.isoformat() if up.created_at else None} for up in updates],
+            "media": [{"id": m.id, "original_filename": m.original_filename, "mime_type": m.mime_type, "caption": m.caption, "visible_to_customer": m.visible_to_customer, "created_at": m.created_at.isoformat() if m.created_at else None} for m in media],
+            "messages": [{"id": msg.id, "sender_user_id": msg.sender_user_id, "message": msg.message, "status": msg.status, "parent_message_id": msg.parent_message_id, "created_at": msg.created_at.isoformat() if msg.created_at else None} for msg in msgs],
+        }})
     finally:
         session.close()
 
@@ -821,10 +1026,17 @@ def admin_assign_sales(order_id):
         target = session.query(PortalUser).filter_by(id=sales_id, role="sales", status="active").first()
         if not target:
             return jsonify({"error": True, "message": "Target user must be an active sales user"}), 400
+        old_sales_id = order.sales_user_id
         order.sales_user_id = sales_id
-        session.commit()
         order_id_val = order.id
-        log_admin_action(u["email"], "portal_assign_sales", target_type="portal_order", target_key=f"order_id={order_id} sales={sales_id}", client_ip=request.remote_addr or "")
+        log_portal_action(
+            session, u, "portal_assign_sales",
+            entity_type="portal_order", entity_id=order_id,
+            entity_label=f"sales={sales_id}",
+            before={"sales_user_id": old_sales_id},
+            after={"sales_user_id": sales_id},
+        )
+        session.commit()
         return jsonify({"error": False, "order_id": order_id_val})
     finally:
         session.close()
@@ -835,4 +1047,9 @@ def admin_audit_logs():
     u, err = _require_role(("admin",))
     if err: return err
 
-    return jsonify({"error": False, "logs": get_audit_logs(limit=200)})
+    session = SessionLocal()
+    try:
+        logs = list_portal_audit_logs(session, limit=200)
+        return jsonify({"error": False, "logs": logs})
+    finally:
+        session.close()

@@ -387,3 +387,21 @@ class PortalMessage(Base):
     parent_message_id: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PortalAuditLog(Base):
+    __tablename__ = "portal_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_user_id: Mapped[int | None] = mapped_column(Integer)
+    actor_email: Mapped[str | None] = mapped_column(String(255))
+    actor_role: Mapped[str | None] = mapped_column(String(20))
+    action: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_type: Mapped[str | None] = mapped_column(String(40))
+    entity_id: Mapped[int | None] = mapped_column(Integer)
+    entity_label: Mapped[str | None] = mapped_column(String(255))
+    before_json: Mapped[str | None] = mapped_column(Text)
+    after_json: Mapped[str | None] = mapped_column(Text)
+    client_ip: Mapped[str | None] = mapped_column(String(80))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

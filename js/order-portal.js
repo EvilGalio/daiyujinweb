@@ -89,64 +89,170 @@
     }
 
     /* ══════════════════════════════════════════════════
-       Admin Workspace
+       Admin Workspace — Order Portal Operations Console
        ══════════════════════════════════════════════════ */
 
     function showAdminWorkspace() { clearMediaUrls(); showAdminDashboard(); }
     window.showAdminDashboard = showAdminDashboard;
+    window.showAdminTab = showAdminTab;
     window.showAdminCreateUser = showAdminCreateUser;
 
-    async function showAdminDashboard() {
-        var u = user();
+    async function showAdminDashboard() { showAdminTab("overview"); }
+
+    async function showAdminTab(tab) {
+        var me = user();
+        main.innerHTML = '<div class="portal-user-bar"><span>Order Portal Admin</span>' +
+            '<b>' + esc(me.display_name || me.email) + '</b><span class="portal-muted">View all reps, customers, orders, and portal activity.</span>' +
+            '<button onclick="portalLogout()">Sign Out</button></div>' +
+            '<div class="portal-admin-tabs">' +
+            ['overview','sales-reps','customers','orders','activity'].map(function (t) {
+                return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard','Sales Reps','Customers','Orders','Activity Logs'][['overview','sales-reps','customers','orders','activity'].indexOf(t)] + '</button>';
+            }).join('') + '</div>' +
+            '<div id="admin-content" class="portal-admin-content">Loading...</div>';
         try {
-            var usersData = await api('/api/portal/admin/users');
-            var ordersData = await api('/api/portal/admin/orders');
-            var logData = await api('/api/portal/admin/audit-logs');
-            var users = usersData.users || [];
-            var orders = ordersData.orders || [];
-            var logs = logData.logs || [];
-            main.innerHTML = '<div class="portal-user-bar"><span>Admin: ' + esc(u.display_name || u.email) + '</span>' +
-                '<button onclick="portalLogout()">Sign Out</button><button onclick="showAdminCreateUser()">+ New User</button></div>' +
-                '<div class="portal-admin-grid">' +
-                '<div class="portal-admin-section"><h3>Users (' + users.length + ')</h3>' +
-                '<div class="portal-admin-list">' + (users.length ? users.map(renderAdminUserRow).join('') : '<div class="portal-empty">No users.</div>') + '</div></div>' +
-                '<div class="portal-admin-section"><h3>Recent Orders (' + orders.length + ')</h3>' +
-                '<div class="portal-admin-list">' + (orders.length ? orders.slice(0,30).map(renderAdminOrderRow).join('') : '<div class="portal-empty">No orders.</div>') + '</div></div>' +
-                '<div class="portal-admin-section"><h3>Audit Logs (' + logs.length + ')</h3>' +
-                '<div class="portal-admin-list">' + (logs.length ? logs.slice(0,40).map(renderAuditLogRow).join('') : '<div class="portal-empty">No logs.</div>') + '</div></div></div>';
-        } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load admin dashboard.</div>'; }
+            if (tab === 'overview') await renderAdminOverview();
+            else if (tab === 'sales-reps') await renderAdminSalesReps();
+            else if (tab === 'customers') await renderAdminCustomers();
+            else if (tab === 'orders') await renderAdminOrders();
+            else if (tab === 'activity') await renderAdminActivity();
+        } catch (e) { document.getElementById('admin-content').innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
-    function renderAdminUserRow(u) {
-        return '<div class="portal-admin-row"><span>' + esc(u.display_name || u.email) + '</span>' +
-            '<span>' + esc(u.role) + '</span>' +
-            '<span class="portal-badge status-' + u.status + '">' + esc(u.status) + '</span>' +
-            (u.status === 'active' ? '<button onclick="adminDisableUser(' + u.id + ')">Disable</button>' : '') + '</div>';
+    async function renderAdminOverview() {
+        var ov = (await api('/api/portal/admin/overview')).overview;
+        document.getElementById('admin-content').innerHTML =
+            '<div class="portal-admin-kpi-grid">' +
+            ['Sales Reps','Customers','Active Orders','Updates Today'].map(function (label, i) {
+                var val = [ov.sales_count, ov.customer_count, ov.active_orders, ov.updates_today][i];
+                return '<div class="portal-admin-kpi"><strong>' + val + '</strong><span>' + label + '</span></div>';
+            }).join('') + '</div>' +
+            '<div style="margin-top:1rem"><button class="portal-btn" style="width:auto;padding:.3rem .75rem" onclick="showAdminCreateUser()">+ Create User</button></div>';
     }
 
-    function renderAdminOrderRow(o) {
-        var stage = o.current_stage || 'N/A', status = o.status || 'open';
-        return '<div class="portal-admin-row"><span>' + esc(o.title || 'Order #' + o.order_no) + '</span>' +
-            '<span class="portal-badge active">' + esc(stage) + '</span>' +
-            '<span class="portal-badge status-' + status + '">' + esc(status) + '</span></div>';
+    async function renderAdminSalesReps() {
+        var d = await api('/api/portal/admin/sales-reps');
+        var reps = d.sales_reps || [];
+        document.getElementById('admin-content').innerHTML =
+            '<table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Customers</th><th>Orders</th><th>Last Activity</th><th></th></tr></thead><tbody>' +
+            reps.map(function (r) {
+                return '<tr><td>' + esc(r.display_name || '-') + '</td><td>' + esc(r.email) + '</td>' +
+                    '<td><span class="portal-badge status-' + r.status + '">' + esc(r.status) + '</span></td>' +
+                    '<td>' + r.customer_count + '</td><td>' + r.order_count + '</td>' +
+                    '<td>' + (r.last_action || '—') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '') + '</td>' +
+                    '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminSalesRepDetail(' + r.id + ')">View</button></td></tr>';
+            }).join('') + '</tbody></table>';
     }
 
-    function renderAuditLogRow(l) {
-        var ts = l.created_at ? l.created_at.slice(0,16).replace('T',' ') : '-';
-        return '<div class="portal-admin-row"><span>' + esc(ts) + '</span>' +
-            '<span>' + esc(l.admin_username || '-') + '</span>' +
-            '<span>' + esc(l.action) + '</span>' +
-            '<span>' + esc(l.target_key || '-') + '</span></div>';
+    window.showAdminSalesRepDetail = async function(sid) {
+        var d = await api('/api/portal/admin/sales-reps/' + sid);
+        var r = d.rep; var cxs = d.customers || []; var ords = d.orders || []; var logs = d.recent_logs || [];
+        document.getElementById('admin-content').innerHTML =
+            '<h3>' + esc(r.display_name || r.email) + ' <span class="portal-badge status-' + (r.status||'active') + '">' + esc(r.status||'active') + '</span></h3>' +
+            '<p>Email: ' + esc(r.email) + '</p>' +
+            '<h4>Customers (' + cxs.length + ')</h4>' +
+            '<table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody>' +
+            cxs.map(function(c) { return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.status) + '</td></tr>'; }).join('') + '</tbody></table>' +
+            '<h4>Orders (' + ords.length + ')</h4>' +
+            '<table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th></tr></thead><tbody>' +
+            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td></tr>'; }).join('') + '</tbody></table>' +
+            '<h4>Recent Activity</h4>' +
+            renderActivityTable(logs);
+    };
+
+    async function renderAdminCustomers() {
+        var d = await api('/api/portal/admin/customers');
+        var cxs = d.customers || [];
+        document.getElementById('admin-content').innerHTML =
+            '<table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Sales Rep</th><th>Orders</th><th>Latest Status</th><th></th></tr></thead><tbody>' +
+            cxs.map(function(c) {
+                return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td>' +
+                    '<td>' + esc(c.sales_name || '—') + '</td><td>' + c.order_count + '</td>' +
+                    '<td>' + esc(c.latest_order_status || '—') + '</td>' +
+                    '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminCustomerDetail(' + c.id + ')">View</button></td></tr>';
+            }).join('') + '</tbody></table>';
+    }
+
+    window.showAdminCustomerDetail = async function(cid) {
+        var d = await api('/api/portal/admin/customers/' + cid);
+        var c = d.customer; var ords = d.orders || [];
+        document.getElementById('admin-content').innerHTML =
+            '<h3>' + esc(c.display_name || c.email) + ' <span class="portal-badge status-' + (c.status||'active') + '">' + esc(c.status||'active') + '</span></h3>' +
+            '<p>Email: ' + esc(c.email) + ' | Sales: ' + esc(d.sales_name || 'Unassigned') + '</p>' +
+            '<h4>Orders (' + ords.length + ')</h4>' +
+            '<table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
+            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td><td>' + (o.updated_at||'').slice(0,10) + '</td></tr>'; }).join('') + '</tbody></table>';
+    };
+
+    async function renderAdminOrders() {
+        var d = await api('/api/portal/admin/orders');
+        var ords = d.orders || [];
+        document.getElementById('admin-content').innerHTML =
+            '<table class="portal-admin-table"><thead><tr><th>Order #</th><th>Title</th><th>Customer</th><th>Sales</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
+            ords.map(function(o) {
+                return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer">' +
+                    '<td>' + esc(o.order_no) + '</td><td>' + esc(o.title || '—') + '</td>' +
+                    '<td>' + esc(o.customer_name || '—') + '</td><td>' + esc(o.sales_name || '—') + '</td>' +
+                    '<td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td>' +
+                    '<td>' + (o.updated_at||'').slice(0,10) + '</td></tr>';
+            }).join('') + '</tbody></table>';
+    }
+
+    window.showAdminOrderDetail = async function(orderId) {
+        var d = await api('/api/portal/admin/orders/' + orderId + '/full');
+        var o = d.order;
+        var content = document.getElementById('admin-content');
+        content.innerHTML = '<h3>Order ' + esc(o.order_no) + ': ' + esc(o.title) + '</h3>' +
+            '<div class="portal-admin-detail-layout">' +
+            '<div><strong>Customer:</strong> ' + esc((o.customer||{}).display_name || (o.customer||{}).email || '—') + '<br>' +
+            '<strong>Sales:</strong> ' + esc((o.sales||{}).display_name || (o.sales||{}).email || '—') + '<br>' +
+            '<strong>Stage:</strong> ' + esc(o.current_stage||'N/A') + ' | <strong>Status:</strong> ' + esc(o.status) + '<br>' +
+            '<strong>Delivery:</strong> ' + esc(o.estimated_delivery_date||'TBD') + '<br>' +
+            '<strong>PO:</strong> ' + esc(o.po_number||'—') + '</div>' +
+            '<div><button class="portal-btn" style="width:auto;padding:.3rem .75rem" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
+            '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + (u.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
+            '<h4>Messages (' + (o.messages||[]).length + ')</h4>' + (o.messages||[]).map(function(m) {
+                return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + (m.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(m.message) + '</p></div>';
+            }).join('') +
+            '<h4>Photos (' + (o.media||[]).length + ')</h4>' +
+            '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media||[]).length ? '<div class="portal-empty">Loading photos...</div>' : '<div class="portal-empty">No photos yet.</div>') + '</div>';
+        if ((o.media||[]).length) loadAuthorizedImages(o.id, o.media, 'admin-media-grid');
+    };
+
+    window.showAdminAssignSales = function(orderId) {
+        var sid = prompt('Enter new sales user ID:');
+        if (!sid) return;
+        var parsed = parseInt(sid, 10);
+        if (isNaN(parsed)) { alert('Must be a number.'); return; }
+        api('/api/portal/admin/orders/' + orderId + '/assign-sales', { method: 'PATCH', body: JSON.stringify({ sales_user_id: parsed }) })
+            .then(function() { showAdminOrderDetail(orderId); }).catch(function() { alert('Transfer failed. Check the sales user ID is valid and active.'); });
+    };
+
+    async function renderAdminActivity() {
+        var d = await api('/api/portal/admin/audit-logs');
+        var logs = d.logs || [];
+        document.getElementById('admin-content').innerHTML = renderActivityTable(logs);
+    }
+
+    function renderActivityTable(logs) {
+        return '<table class="portal-admin-table"><thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Entity</th></tr></thead><tbody>' +
+            logs.map(function(l) {
+                return '<tr><td>' + (l.created_at||'').slice(0,16).replace('T',' ') + '</td>' +
+                    '<td>' + esc(l.actor_email || '—') + '</td>' +
+                    '<td>' + esc(l.actor_role || '—') + '</td>' +
+                    '<td>' + esc(l.action) + '</td>' +
+                    '<td>' + esc(l.entity_type || '') + ' ' + esc(l.entity_label || '') + '</td></tr>';
+            }).join('') + '</tbody></table>';
     }
 
     window.adminDisableUser = async function(userId) {
         if (!confirm('Disable this user?')) return;
-        try { await api('/api/portal/admin/users/' + userId, { method: 'PATCH', body: JSON.stringify({ status: 'disabled' }) }); showAdminDashboard(); }
+        try { await api('/api/portal/admin/users/' + userId, { method: 'PATCH', body: JSON.stringify({ status: 'disabled' }) }); showAdminTab('sales-reps'); }
         catch (e) { alert('Failed to disable user.'); }
     };
 
     function showAdminCreateUser() {
-        main.innerHTML = '<div class="portal-user-bar"><span>Admin: ' + esc(user().display_name || user().email) + '</span>' +
+        var me = user();
+        main.innerHTML = '<div class="portal-user-bar"><span>Order Portal Admin</span><b>' + esc(me.display_name || me.email) + '</b>' +
             '<button onclick="portalLogout()">Sign Out</button><button onclick="showAdminDashboard()">Back</button></div>' +
             '<div class="portal-admin-section" style="max-width:400px;margin:1rem auto">' +
             '<h3>Create User</h3>' +
@@ -155,8 +261,9 @@
             '<p><select id="new-user-role" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"><option value="sales">Sales</option><option value="admin">Admin</option><option value="customer">Customer</option></select></p>' +
             '<p id="sales-bind-row" style="display:none"><input id="new-customer-sales" placeholder="Sales user ID to bind" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
             '<p><button class="portal-btn" onclick="adminCreateUser()">Create User</button></p></div>';
-        var roleSel = document.getElementById('new-user-role');
-        roleSel.addEventListener('change', function () { document.getElementById('sales-bind-row').style.display = this.value === 'customer' ? '' : 'none'; });
+        document.getElementById('new-user-role').addEventListener('change', function () {
+            document.getElementById('sales-bind-row').style.display = this.value === 'customer' ? '' : 'none';
+        });
     }
 
     window.adminCreateUser = async function() {
@@ -169,10 +276,10 @@
             if (role === 'customer') {
                 var sid = document.getElementById('new-customer-sales').value.trim();
                 if (sid) {
-                var parsedSid = parseInt(sid, 10);
-                if (isNaN(parsedSid)) { alert('Sales user ID must be a number.'); return; }
-                body.assigned_sales_id = parsedSid;
-            }
+                    var parsedSid = parseInt(sid, 10);
+                    if (isNaN(parsedSid)) { alert('Sales user ID must be a number.'); return; }
+                    body.assigned_sales_id = parsedSid;
+                }
             }
             var resp = await api('/api/portal/admin/users', { method: 'POST', body: JSON.stringify(body) });
             alert('User created. Initial password: ' + resp.initial_password);
@@ -376,8 +483,8 @@
        Media loading
        ══════════════════════════════════════════════════ */
 
-    async function loadAuthorizedImages(orderId, media) {
-        var grid = document.getElementById('media-grid');
+    async function loadAuthorizedImages(orderId, media, gridId) {
+        var grid = document.getElementById(gridId || 'media-grid');
         if (!grid) return;
         var frag = document.createDocumentFragment();
         for (var i = 0; i < media.length; i++) {
@@ -388,7 +495,7 @@
                 mediaObjectUrls.push(url);
                 var item = document.createElement('div');
                 item.className = 'portal-media-item';
-                item.innerHTML = '<img src="' + url + '" alt="' + esc(m.caption || m.filename) + '"><small>' + esc(m.caption || '') + '</small>';
+                item.innerHTML = '<img src="' + url + '" alt="' + esc(m.caption || m.original_filename || m.filename || '') + '"><small>' + esc(m.caption || '') + '</small>';
                 frag.appendChild(item);
             } catch (e) {}
         }
