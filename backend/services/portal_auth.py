@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import SessionLocal
 from services.portal_audit import log_portal_action, list_portal_audit_logs
 from services.portal_events import emit_portal_event, query_visible_events
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent
+from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent, PortalSecurityLog
 
 from pathlib import Path
 
@@ -27,6 +27,15 @@ ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 portal_bp = Blueprint("portal", __name__, url_prefix="/api/portal")
+
+@portal_bp.after_request
+def _add_security_headers(resp):
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Cache-Control"] = "no-store"
+    resp.headers["Access-Control-Allow-Origin"] = "https://daiyujin.dpdns.org"
+    return resp
+
 
 SESSION_HOURS = 24
 _login_attempts: dict[str, list[float]] = defaultdict(list)
@@ -50,6 +59,16 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _client_ip() -> str:
+    cf = request.headers.get("CF-Connecting-IP", "")
+    if cf:
+        return cf.strip()
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or ""
+
+
 def _current_user():
     """Return (user_dict, None) or (None, error_response)."""
     auth = request.headers.get("Authorization", "")
@@ -68,12 +87,27 @@ def _current_user():
         if not s:
             return None, (jsonify({"error": True, "message": "Invalid or expired session"}), 401)
 
-        s.last_seen_at = datetime.utcnow()
+        now = datetime.utcnow()
+        last_seen = s.last_seen_at or s.created_at or now
+        idle_elapsed = (now - last_seen).total_seconds()
         u = session.query(PortalUser).filter_by(id=s.user_id).first()
         if not u or u.status != "active":
             return None, (jsonify({"error": True, "message": "Account is disabled or not found"}), 401)
+        if u.locked_until and u.locked_until > now:
+            return None, (jsonify({"error": True, "message": "Account is temporarily locked"}), 429)
+        if s.session_version != u.session_version:
+            return None, (jsonify({"error": True, "message": "Session expired due to security change"}), 401)
+        if idle_elapsed > 7200:
+            s.revoked_at = now
+            s.revoked_reason = "idle_timeout"
+            session.commit()
+            return None, (jsonify({"error": True, "message": "Session expired due to inactivity"}), 401)
+
+        s.last_seen_at = now
+        s.last_ip = _client_ip()
+        s.last_user_agent = (request.user_agent.string or "")[:255] if request and hasattr(request, "user_agent") else ""
         session.commit()
-        return {"id": u.id, "email": u.email, "role": u.role, "display_name": u.display_name, "must_change_password": u.must_change_password}, None
+        return {"id": u.id, "email": u.email, "role": u.role, "display_name": u.display_name, "must_change_password": u.must_change_password, "_token": token}, None
     finally:
         session.close()
 
@@ -136,29 +170,60 @@ def portal_login():
     if not email or not password:
         return jsonify({"error": True, "message": "Email and password are required"}), 400
 
-    ip = request.remote_addr or ""
-    now = time.time()
-    _login_attempts[ip] = [t for t in _login_attempts.get(ip, []) if now - t < 300]
-    if len(_login_attempts[ip]) >= 8:
-        return jsonify({"error": True, "message": "Too many attempts. Please try again later."}), 429
+    ip = _client_ip()
+    ua = (request.user_agent.string or "")[:255] if request and hasattr(request, "user_agent") else ""
 
     session = SessionLocal()
     try:
         u = session.query(PortalUser).filter_by(email=email).first()
+
+        # Check lock
+        if u and u.locked_until and u.locked_until > datetime.utcnow():
+            session.add(PortalSecurityLog(event_type="login_blocked", email=email, user_id=u.id, ip=ip, user_agent=ua, success=False, reason="account_locked"))
+            session.commit()
+            return jsonify({"error": True, "message": "Account is temporarily locked. Please try again later."}), 429
+
+        # Check rate limit: 5 failures in 10 min per email
+        cutoff = datetime.utcnow() - timedelta(minutes=10)
+        recent = session.query(PortalSecurityLog).filter(
+            PortalSecurityLog.email == email,
+            PortalSecurityLog.event_type == "login_failed",
+            PortalSecurityLog.created_at > cutoff
+        ).count()
+        if recent >= 5:
+            if u:
+                mins = 60 if recent >= 10 else 15
+                u.locked_until = datetime.utcnow() + timedelta(minutes=mins)
+                session.commit()
+                session.add(PortalSecurityLog(event_type="login_locked", email=email, user_id=u.id, ip=ip, user_agent=ua, success=False, reason=f"locked_{mins}min"))
+                session.commit()
+            return jsonify({"error": True, "message": "Too many attempts. Please try again later."}), 429
+
         if not u or not check_password_hash(u.password_hash, password):
-            _login_attempts[ip].append(now)
+            session.add(PortalSecurityLog(event_type="login_failed", email=email, user_id=u.id if u else None, ip=ip, user_agent=ua, success=False, reason="invalid_credentials"))
+            if u:
+                u.failed_login_count = (u.failed_login_count or 0) + 1
+                u.last_failed_login_at = datetime.utcnow()
+            session.commit()
             return jsonify({"error": True, "message": "Invalid credentials"}), 401
+
         if u.status != "active":
+            session.add(PortalSecurityLog(event_type="login_blocked", email=email, user_id=u.id, ip=ip, user_agent=ua, success=False, reason="account_disabled"))
+            session.commit()
             return jsonify({"error": True, "message": "Account is disabled"}), 401
 
-        _login_attempts.pop(ip, None)
+        u.failed_login_count = 0
+        u.last_login_at = datetime.utcnow()
+        u.locked_until = None
         token = secrets.token_hex(32)
         session.add(PortalSession(
             user_id=u.id, token_hash=_hash_token(token),
             expires_at=datetime.utcnow() + timedelta(hours=SESSION_HOURS),
+            session_version=u.session_version,
             client_ip=ip, user_agent=request.headers.get("User-Agent"),
         ))
         u.last_login_at = datetime.utcnow()
+        session.add(PortalSecurityLog(event_type="login_success", email=email, user_id=u.id, ip=ip, user_agent=ua, success=True))
         session.commit()
         return jsonify({"error": False, "token": token, "user": _user_json(u)})
     finally:
@@ -185,7 +250,8 @@ def portal_me():
     u, err = _current_user()
     if err:
         return err
-    return jsonify({"error": False, "user": u})
+    safe = {k: v for k, v in u.items() if k != "_token"}
+    return jsonify({"error": False, "user": safe})
 
 
 @portal_bp.post("/auth/change-password")
@@ -196,8 +262,8 @@ def portal_change_password():
     data = request.get_json(silent=True) or {}
     current = data.get("current", "")
     new_pw = data.get("new", "")
-    if len(new_pw) < 10:
-        return jsonify({"error": True, "message": "New password must be at least 10 characters"}), 400
+    if len(new_pw) < 12:
+        return jsonify({"error": True, "message": "New password must be at least 12 characters"}), 400
 
     session = SessionLocal()
     try:
@@ -206,6 +272,20 @@ def portal_change_password():
             return jsonify({"error": True, "message": "Current password is incorrect"}), 401
         ou.password_hash = generate_password_hash(new_pw)
         ou.must_change_password = False
+        ou.session_version += 1
+        ou.password_changed_at = datetime.utcnow()
+        # Bump current session version so it stays valid
+        current_hash = _hash_token(u.get("_token", ""))
+        current = session.query(PortalSession).filter_by(user_id=ou.id, token_hash=current_hash, revoked_at=None).first()
+        if current:
+            current.session_version = ou.session_version
+            current.last_seen_at = datetime.utcnow()
+        # Revoke all other sessions
+        session.query(PortalSession).filter(
+            PortalSession.user_id == ou.id,
+            PortalSession.revoked_at.is_(None),
+            PortalSession.token_hash != current_hash
+        ).update({"revoked_at": datetime.utcnow(), "revoked_reason": "password_changed"})
         session.commit()
         return jsonify({"error": False, "message": "Password changed"})
     finally:
@@ -809,6 +889,9 @@ def admin_update_user(user_id):
 
         if "status" in data and data["status"] in ("active", "disabled"):
             target.status = data["status"]
+            target.session_version += 1
+            if data["status"] == "disabled":
+                session.query(PortalSession).filter(PortalSession.user_id == user_id, PortalSession.revoked_at.is_(None)).update({"revoked_at": datetime.utcnow(), "revoked_reason": "admin_disabled_user"})
             audit_action = "portal_" + data["status"] + "_user"
         if "role" in data and data["role"] in ("admin", "sales", "customer"):
             target.role = data["role"]
@@ -820,6 +903,9 @@ def admin_update_user(user_id):
             pw = secrets.token_hex(8)
             target.password_hash = generate_password_hash(pw)
             target.must_change_password = True
+            target.session_version += 1
+            target.password_changed_at = datetime.utcnow()
+            session.query(PortalSession).filter(PortalSession.user_id == user_id, PortalSession.revoked_at.is_(None)).update({"revoked_at": datetime.utcnow(), "revoked_reason": "admin_reset_password"})
             target_id = target.id
             log_portal_action(session, u, "portal_reset_password", entity_type="portal_user", entity_id=user_id)
             session.commit()
@@ -1139,3 +1225,50 @@ def portal_events_stream():
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",
     })
+
+
+# ══════════════════════════════════════════════════
+# Snapshot — lightweight state for reconciliation
+# ══════════════════════════════════════════════════
+
+@portal_bp.get("/snapshot")
+def portal_snapshot():
+    u, err = _require_authenticated()
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        if u["role"] == "customer":
+            orders = session.query(PortalOrder).filter_by(customer_user_id=u["id"]).order_by(PortalOrder.updated_at.desc()).limit(50).all()
+            oids = [o.id for o in orders]
+            latest = session.query(PortalEvent).filter(PortalEvent.order_id.in_(oids), PortalEvent.visibility == "public").order_by(PortalEvent.id.desc()).first()
+        elif u["role"] == "sales":
+            orders = session.query(PortalOrder).filter_by(sales_user_id=u["id"]).order_by(PortalOrder.updated_at.desc()).limit(100).all()
+            oids = [o.id for o in orders]
+            latest = session.query(PortalEvent).filter(PortalEvent.order_id.in_(oids), PortalEvent.visibility.in_(["public", "internal"])).order_by(PortalEvent.id.desc()).first()
+        else:
+            orders = session.query(PortalOrder).order_by(PortalOrder.updated_at.desc()).limit(300).all()
+            latest = session.query(PortalEvent).order_by(PortalEvent.id.desc()).first()
+        latest_event_id = latest.id if latest else 0
+
+        result = []
+        for o in orders:
+            updates_q = session.query(PortalOrderUpdate).filter_by(order_id=o.id)
+            media_q = session.query(PortalOrderMedia).filter_by(order_id=o.id)
+            if u["role"] == "customer":
+                updates_q = updates_q.filter(PortalOrderUpdate.visible_to_customer == True)
+                media_q = media_q.filter(PortalOrderMedia.visible_to_customer == True)
+            result.append({
+                "id": o.id, "order_no": o.order_no, "title": o.title,
+                "status": o.status, "current_stage": o.current_stage,
+                "estimated_delivery_date": o.estimated_delivery_date,
+                "updated_at": o.updated_at.isoformat() if o.updated_at else None,
+                "counts": {
+                    "updates": updates_q.count(),
+                    "messages": session.query(PortalMessage).filter_by(order_id=o.id).count(),
+                    "media": media_q.count(),
+                }
+            })
+        return jsonify({"error": False, "server_time": datetime.utcnow().isoformat(), "latest_event_id": latest_event_id, "orders": result})
+    finally:
+        session.close()

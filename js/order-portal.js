@@ -11,11 +11,47 @@
     var mediaObjectUrls = [];
     var autoRefreshTimer = null;
 
+    var portalChannel = null;
+
+    function currentUserKey() {
+        var u = user();
+        return String(u.id || u.email || 'anonymous');
+    }
+
+    function initPortalBroadcast() {
+        try {
+            portalChannel = new BroadcastChannel('daiyujin-portal');
+            portalChannel.onmessage = function (msg) { handlePortalBroadcastMessage(msg); };
+        } catch (e) {}
+    }
+
+    function broadcastPortalMessage(type, payload) {
+        if (!portalChannel) return;
+        payload = payload || {};
+        payload.userKey = currentUserKey();
+        try { portalChannel.postMessage({ type: type, payload: payload }); } catch (e) {}
+    }
+
+    function handlePortalBroadcastMessage(msg) {
+        if (!msg.data || !msg.data.payload) return;
+        var d = msg.data;
+        if (d.payload.userKey !== currentUserKey()) return;
+        if (d.type === 'logout') { clearSession(); leaveAppMode(); location.reload(); }
+        else if (d.type === 'order_changed' && d.payload.orderId) {
+            markOrderChanged(d.payload.orderId, d.payload);
+            patchOrderCardBadge(d.payload.orderId);
+        }
+        else if (d.type === 'cursor_updated') {
+            portalState.lastEventId = Math.max(portalState.lastEventId, d.payload.lastEventId || 0);
+        }
+    }
+
     var portalState = {
         currentView: null,
         currentOrderId: null,
         currentIsSales: false,
-        lastEventId: Number(localStorage.getItem('portal_last_event_id') || 0),
+        listKind: null,
+        lastEventId: 0,
         eventAbort: null,
         eventReconnectTimer: null,
         ordersById: {},
@@ -28,14 +64,30 @@
         syncStatus: 'connecting',
         lastEventAt: null,
         dirtyLists: {},
-        sseFailCount: 0
+        sseFailCount: 0,
+        sseConnectedAt: null,
+        lastHeartbeatAt: null,
+        lastReconnectAt: null,
+        consecutiveFailures: 0,
+        needsReconcile: false,
+        processedEventIds: {},
+        processedEventQueue: []
     };
+
+    function eventCursorKey() {
+        var u = user();
+        return 'portal_last_event_id_' + (u.id || u.email || 'anonymous');
+    }
+
+    function getLastEventId() { return Number(localStorage.getItem(eventCursorKey()) || 0); }
+    function setLastEventId(id) { if (!id) return; portalState.lastEventId = id; localStorage.setItem(eventCursorKey(), String(id)); }
 
     function setCurrentView(view, opts) {
         opts = opts || {};
         portalState.currentView = view;
         portalState.currentOrderId = opts.orderId || null;
         portalState.currentIsSales = !!opts.isSales;
+        portalState.listKind = opts.listKind || null;
     }
 
     function markOrderChanged(orderId, evt) {
@@ -51,6 +103,18 @@
 
     function clearOrderChanged(orderId) {
         delete portalState.changedOrders[orderId];
+    }
+
+    function shouldProcessEvent(evt) {
+        if (!evt || !evt.id) return true;
+        if (portalState.processedEventIds[evt.id]) return false;
+        portalState.processedEventIds[evt.id] = true;
+        portalState.processedEventQueue.push(evt.id);
+        if (portalState.processedEventQueue.length > 300) {
+            var old = portalState.processedEventQueue.shift();
+            delete portalState.processedEventIds[old];
+        }
+        return true;
     }
 
     function startAutoRefresh(loader, intervalMs) {
@@ -93,6 +157,7 @@
     function saveSession(t, u) {
         localStorage.setItem('portal_token', t);
         localStorage.setItem('portal_user', JSON.stringify(u));
+        portalState.lastEventId = getLastEventId();
     }
 
     function clearSession() {
@@ -116,7 +181,7 @@
             '<div class="portal-panel portal-panel-compact">' +
             '<h3>' + (required ? 'Set New Password' : 'Change Password') + '</h3>' +
             '<p><input id="chpwd-current" type="password" placeholder="Current password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
-            '<p><input id="chpwd-new" type="password" placeholder="New password (min 10 characters)" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
+            '<p><input id="chpwd-new" type="password" placeholder="New password (min 12 characters)" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
             '<p><input id="chpwd-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
             '<p id="chpwd-error" style="color:var(--portal-danger, #dc2626);font-size:13px;display:none"></p>' +
             '<p><button class="portal-btn" onclick="doChangePassword(' + (required ? 'true' : 'false') + ')">' + (required ? 'Set Password & Continue' : 'Change Password') + '</button></p></div>';
@@ -128,7 +193,7 @@
         var np = document.getElementById('chpwd-new').value;
         var cf = document.getElementById('chpwd-confirm').value;
         var err = document.getElementById('chpwd-error');
-        if (np.length < 10) { err.textContent = 'New password must be at least 10 characters.'; err.style.display = ''; return; }
+        if (np.length < 12) { err.textContent = 'New password must be at least 12 characters.'; err.style.display = ''; return; }
         if (np !== cf) { err.textContent = 'Passwords do not match.'; err.style.display = ''; return; }
         err.style.display = 'none';
         try {
@@ -191,12 +256,16 @@
             var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token() }, signal: signal });
             if (resp.status === 401) { clearSession(); leaveAppMode(); return; }
             if (!resp.ok || !resp.body) throw new Error('Event stream failed');
+            var prevStatus = portalState.syncStatus;
             setSyncStatus('live');
+            if (prevStatus !== 'live' && prevStatus !== 'connecting') {
+                reconcilePortalSnapshot('stream_recovered_' + prevStatus);
+            }
             await readSseStream(resp.body, signal);
         } catch (e) {
             if (!signal.aborted) {
                 portalState.sseFailCount++;
-                var status = portalState.sseFailCount > 20 ? 'offline' : 'reconnecting';
+                var status = portalState.sseFailCount > 45 ? 'offline' : portalState.sseFailCount > 15 ? 'stale' : 'reconnecting';
                 setSyncStatus(status);
                 console.warn('Portal event stream disconnected:', e);
                 scheduleEventReconnect();
@@ -220,7 +289,13 @@
     }
 
     function handleSseChunk(chunk) {
-        if (!chunk || chunk.indexOf('data:') < 0) return;
+        if (!chunk) return;
+        if (chunk.indexOf(': heartbeat') >= 0) {
+            portalState.lastHeartbeatAt = Date.now();
+            setSyncStatus('live');
+            return;
+        }
+        if (chunk.indexOf('data:') < 0) return;
         var id = null, eventType = null, dataLines = [];
         chunk.split('\n').forEach(function (line) {
             if (line.indexOf('id:') === 0) id = Number(line.slice(3).trim());
@@ -232,7 +307,9 @@
             var evt = JSON.parse(dataLines.join('\n'));
         } catch (e) { return; }
         evt.event_type = evt.event_type || eventType;
-        if (id) { portalState.lastEventId = id; localStorage.setItem('portal_last_event_id', String(id)); }
+        evt.id = id;
+        if (id) setLastEventId(id);
+        if (!shouldProcessEvent(evt)) return;
         handlePortalEvent(evt);
     }
 
@@ -248,12 +325,15 @@
     }
 
     function handleCurrentOrderEvent(evt) {
+        var oid = evt.order_id || (evt.payload && evt.payload.order_id);
         switch (evt.event_type) {
-            case 'message_created': refreshCurrentOrderMessages(evt.order_id || evt.payload.order_id); break;
-            case 'order_update_created': refreshCurrentOrderUpdates(evt.order_id || evt.payload.order_id); break;
-            case 'media_created': refreshCurrentOrderMedia(evt.order_id || evt.payload.order_id); break;
-            case 'order_stage_changed': refreshCurrentOrderSummary(evt.order_id || evt.payload.order_id); refreshCurrentOrderUpdates(evt.order_id || evt.payload.order_id); break;
-            default: refreshCurrentOrderSummary(evt.order_id || evt.payload.order_id);
+            case 'message_created': refreshCurrentOrderMessages(oid); break;
+            case 'order_update_created': refreshCurrentOrderUpdates(oid); break;
+            case 'media_created': refreshCurrentOrderMedia(oid); break;
+            case 'order_stage_changed': refreshCurrentOrderSummary(oid); refreshCurrentOrderUpdates(oid); break;
+            case 'order_summary_changed': refreshCurrentOrderSummary(oid); break;
+            case 'order_internal_changed': if (user().role !== 'customer') refreshCurrentOrderSummary(oid); break;
+            default: reconcilePortalSnapshot('unknown_event_' + evt.event_type);
         }
     }
 
@@ -284,7 +364,36 @@
         markOrderChanged(orderId, evt);
         patchOrderCardBadge(orderId);
         enqueueEventToast(evt);
-        if (portalState.currentView === 'admin-dashboard') refreshAdminOrderBadge();
+    }
+
+    async function reconcilePortalSnapshot(reason) {
+        setSyncStatus('resyncing');
+        try {
+            var snap = await api('/api/portal/snapshot');
+            applySnapshot(snap);
+            setSyncStatus('live');
+            console.info('Portal reconciled via snapshot (' + reason + ')');
+        } catch (e) {
+            setSyncStatus('live');
+            console.warn('Portal snapshot reconciliation failed:', e);
+        }
+    }
+
+    function applySnapshot(snap) {
+        if (!snap || !snap.orders) return;
+        snap.orders.forEach(function (o) {
+            portalState.ordersById[o.id] = o;
+            if (portalState.changedOrders[o.id]) {
+                portalState.changedOrders[o.id].orderNo = o.order_no;
+                portalState.changedOrders[o.id].title = o.title;
+            }
+        });
+        // If user is on a detail page, check if current order still exists
+        if (portalState.currentView === 'order-detail' && portalState.currentOrderId) {
+            var cur = snap.orders.find(function (o) { return o.id === Number(portalState.currentOrderId); });
+            if (cur) refreshCurrentOrderSummary(cur.id);
+        }
+        if (snap.latest_event_id) setLastEventId(snap.latest_event_id);
     }
 
     /* ── Toast ── */
@@ -391,9 +500,19 @@
     function setSyncStatus(status) {
         portalState.syncStatus = status;
         var dot = document.getElementById('sync-dot');
-        if (!dot) return;
-        dot.className = 'portal-sync-dot portal-sync-' + status;
-        dot.title = status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting...' : status === 'offline' ? 'Offline' : 'Connecting...';
+        if (dot) {
+            dot.className = 'portal-sync-dot portal-sync-' + status;
+            dot.title = status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting...' : status === 'offline' ? 'Offline' : status === 'stale' ? 'Data may be stale' : status === 'resyncing' ? 'Syncing...' : 'Connecting...';
+        }
+        var strip = document.getElementById('sync-strip');
+        if (strip) {
+            strip.className = 'portal-sync-strip';
+            strip.hidden = true;
+            if (status === 'stale') { strip.className += ' portal-sync-stale visible'; strip.textContent = 'Connection unstable. Updates may be delayed.'; strip.hidden = false; }
+            else if (status === 'offline') { strip.className += ' portal-sync-offline visible'; strip.textContent = 'Offline. Reconnecting automatically...'; strip.hidden = false; }
+            else if (status === 'resyncing') { strip.className += ' portal-sync-resyncing visible'; strip.textContent = 'Syncing latest order data...'; strip.hidden = false; }
+            else if (status === 'reconnecting') { strip.className += ' portal-sync-reconnecting visible'; strip.textContent = 'Reconnecting...'; strip.hidden = false; }
+        }
         if (status === 'live') { portalState.lastEventAt = new Date().toISOString(); portalState.sseFailCount = 0; }
     }
 
@@ -408,6 +527,7 @@
 
     window.portalLogout = async function () {
         try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
+        broadcastPortalMessage('logout', {});
         disconnectPortalEvents();
         clearSession(); leaveAppMode(); location.reload();
     };
@@ -476,7 +596,7 @@
     async function showAdminDashboard() { showAdminTab("overview"); }
 
     async function showAdminTab(tab) {
-        setCurrentView('list');
+        setCurrentView('list', { listKind: 'admin-' + tab });
         var me = user();
         main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Manage reps, customers, orders, and portal activity.') +
             '<div class="portal-admin-tabs">' +
@@ -730,7 +850,7 @@
     function showSalesWorkspace() { clearMediaUrls(); showSalesOrders(); }
 
     async function showSalesOrders() {
-        setCurrentView('list');
+        setCurrentView('list', { listKind: 'sales-orders' });
         var u = user();
         try {
             var resp = await api('/api/portal/orders');
@@ -761,7 +881,7 @@
     }
 
     async function showSalesCustomers() {
-        setCurrentView('list');
+        setCurrentView('list', { listKind: 'sales-customers' });
         clearMediaUrls();
         stopAutoRefresh();
         try {
@@ -777,7 +897,7 @@
     }
 
     function showCreateCustomer() {
-        setCurrentView('list');
+        setCurrentView('list', { listKind: 'form' });
         stopAutoRefresh();
         main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Add a new customer account.') +
             '<div class="portal-panel portal-panel-narrow"><h3>Create Customer</h3>' +
@@ -803,7 +923,7 @@
     };
 
     function showCreateOrder() {
-        setCurrentView('list');
+        setCurrentView('list', { listKind: 'form' });
         stopAutoRefresh();
         selectedOrderCustomer = null;
         main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Create a new order.') +
@@ -1188,6 +1308,7 @@
             leaveAppMode();
             return;
         }
+        initPortalBroadcast();
         try {
             var me = await api('/api/portal/auth/me');
             saveSession(token(), me.user);

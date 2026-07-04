@@ -374,3 +374,10 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-sync-offline { background: var(--portal-danger); }
 @keyframes portal-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 @media (prefers-reduced-motion: reduce) { .portal-sync-reconnecting { animation: none; } }
+
+.portal-sync-strip { padding: .3rem 1rem; text-align: center; font-size: 12px; border-bottom: 1px solid var(--portal-line); display: none; }
+.portal-sync-strip.visible { display: block; }
+.portal-sync-stale { background: #fef9c3; color: #92400e; }
+.portal-sync-offline { background: #fef2f2; color: var(--portal-danger); }
+.portal-sync-resyncing { background: #eff6ff; color: var(--portal-accent); }
+.portal-sync-reconnecting { background: #fefce8; color: #a16207; }

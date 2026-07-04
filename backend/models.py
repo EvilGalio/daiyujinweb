@@ -302,6 +302,12 @@ class PortalUser(Base):
     company_name: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(60))
     status: Mapped[str] = mapped_column(String(20), default="active")
+    session_version: Mapped[int] = mapped_column(Integer, default=1)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime)
+    last_failed_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    failed_login_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
     assigned_sales_id: Mapped[int | None] = mapped_column(Integer)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -322,6 +328,10 @@ class PortalSession(Base):
     client_ip: Mapped[str | None] = mapped_column(String(80))
     user_agent: Mapped[str | None] = mapped_column(String(255))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    session_version: Mapped[int] = mapped_column(Integer, default=1)
+    revoked_reason: Mapped[str | None] = mapped_column(String(80))
+    last_ip: Mapped[str | None] = mapped_column(String(80))
+    last_user_agent: Mapped[str | None] = mapped_column(String(255))
 
 
 class PortalOrder(Base):
@@ -418,4 +428,18 @@ class PortalEvent(Base):
     entity_id: Mapped[int | None] = mapped_column(Integer)
     visibility: Mapped[str] = mapped_column(String(20), nullable=False, default='internal')
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default='{}')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PortalSecurityLog(Base):
+    __tablename__ = 'portal_security_logs'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    user_id: Mapped[int | None] = mapped_column(Integer)
+    ip: Mapped[str | None] = mapped_column(String(80))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+    success: Mapped[bool] = mapped_column(Boolean, default=False)
+    reason: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
