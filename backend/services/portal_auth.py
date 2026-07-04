@@ -28,12 +28,29 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 portal_bp = Blueprint("portal", __name__, url_prefix="/api/portal")
 
+PORTAL_ALLOWED_ORIGINS = {
+    "https://daiyujin.dpdns.org",
+}
+
+
+@portal_bp.before_request
+def _handle_portal_preflight():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+
 @portal_bp.after_request
 def _add_security_headers(resp):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Referrer-Policy"] = "no-referrer"
     resp.headers["Cache-Control"] = "no-store"
-    resp.headers["Access-Control-Allow-Origin"] = "https://daiyujin.dpdns.org"
+    origin = request.headers.get("Origin", "")
+    if origin in PORTAL_ALLOWED_ORIGINS:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Last-Event-ID"
+        resp.headers["Access-Control-Max-Age"] = "600"
     return resp
 
 
