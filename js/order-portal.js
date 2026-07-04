@@ -22,7 +22,7 @@
             sessionStorage.setItem('portal_token', resp.token);
             sessionStorage.setItem('portal_user', JSON.stringify(resp.user));
             var role = resp.user.role;
-            if (role === 'sales' || role === 'admin') { showSalesWorkspace(); }
+            if (role === 'admin') { showAdminWorkspace(); } else if (role === 'sales') { showSalesWorkspace(); }
             else { showCustomerDashboard(); }
         } catch (err) { showError(err.message || 'Login failed.'); }
         btn.disabled = false; btn.textContent = 'Sign In';
@@ -87,6 +87,98 @@
             '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
             '<span>Delivery: ' + esc(order.estimated_delivery_date || 'TBD') + '</span><span>' + esc(order.updated_at || '-') + '</span></div></div>';
     }
+
+    /* ══════════════════════════════════════════════════
+       Admin Workspace
+       ══════════════════════════════════════════════════ */
+
+    function showAdminWorkspace() { clearMediaUrls(); showAdminDashboard(); }
+    window.showAdminDashboard = showAdminDashboard;
+    window.showAdminCreateUser = showAdminCreateUser;
+
+    async function showAdminDashboard() {
+        var u = user();
+        try {
+            var usersData = await api('/api/portal/admin/users');
+            var ordersData = await api('/api/portal/admin/orders');
+            var logData = await api('/api/portal/admin/audit-logs');
+            var users = usersData.users || [];
+            var orders = ordersData.orders || [];
+            var logs = logData.logs || [];
+            main.innerHTML = '<div class="portal-user-bar"><span>Admin: ' + esc(u.display_name || u.email) + '</span>' +
+                '<button onclick="portalLogout()">Sign Out</button><button onclick="showAdminCreateUser()">+ New User</button></div>' +
+                '<div class="portal-admin-grid">' +
+                '<div class="portal-admin-section"><h3>Users (' + users.length + ')</h3>' +
+                '<div class="portal-admin-list">' + (users.length ? users.map(renderAdminUserRow).join('') : '<div class="portal-empty">No users.</div>') + '</div></div>' +
+                '<div class="portal-admin-section"><h3>Recent Orders (' + orders.length + ')</h3>' +
+                '<div class="portal-admin-list">' + (orders.length ? orders.slice(0,30).map(renderAdminOrderRow).join('') : '<div class="portal-empty">No orders.</div>') + '</div></div>' +
+                '<div class="portal-admin-section"><h3>Audit Logs (' + logs.length + ')</h3>' +
+                '<div class="portal-admin-list">' + (logs.length ? logs.slice(0,40).map(renderAuditLogRow).join('') : '<div class="portal-empty">No logs.</div>') + '</div></div></div>';
+        } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load admin dashboard.</div>'; }
+    }
+
+    function renderAdminUserRow(u) {
+        return '<div class="portal-admin-row"><span>' + esc(u.display_name || u.email) + '</span>' +
+            '<span>' + esc(u.role) + '</span>' +
+            '<span class="portal-badge status-' + u.status + '">' + esc(u.status) + '</span>' +
+            (u.status === 'active' ? '<button onclick="adminDisableUser(' + u.id + ')">Disable</button>' : '') + '</div>';
+    }
+
+    function renderAdminOrderRow(o) {
+        var stage = o.current_stage || 'N/A', status = o.status || 'open';
+        return '<div class="portal-admin-row"><span>' + esc(o.title || 'Order #' + o.order_no) + '</span>' +
+            '<span class="portal-badge active">' + esc(stage) + '</span>' +
+            '<span class="portal-badge status-' + status + '">' + esc(status) + '</span></div>';
+    }
+
+    function renderAuditLogRow(l) {
+        var ts = l.created_at ? l.created_at.slice(0,16).replace('T',' ') : '-';
+        return '<div class="portal-admin-row"><span>' + esc(ts) + '</span>' +
+            '<span>' + esc(l.admin_username || '-') + '</span>' +
+            '<span>' + esc(l.action) + '</span>' +
+            '<span>' + esc(l.target_key || '-') + '</span></div>';
+    }
+
+    window.adminDisableUser = async function(userId) {
+        if (!confirm('Disable this user?')) return;
+        try { await api('/api/portal/admin/users/' + userId, { method: 'PATCH', body: JSON.stringify({ status: 'disabled' }) }); showAdminDashboard(); }
+        catch (e) { alert('Failed to disable user.'); }
+    };
+
+    function showAdminCreateUser() {
+        main.innerHTML = '<div class="portal-user-bar"><span>Admin: ' + esc(user().display_name || user().email) + '</span>' +
+            '<button onclick="portalLogout()">Sign Out</button><button onclick="showAdminDashboard()">Back</button></div>' +
+            '<div class="portal-admin-section" style="max-width:400px;margin:1rem auto">' +
+            '<h3>Create User</h3>' +
+            '<p><input id="new-user-email" placeholder="Email" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
+            '<p><input id="new-user-name" placeholder="Display name (optional)" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
+            '<p><select id="new-user-role" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"><option value="sales">Sales</option><option value="admin">Admin</option><option value="customer">Customer</option></select></p>' +
+            '<p id="sales-bind-row" style="display:none"><input id="new-customer-sales" placeholder="Sales user ID to bind" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
+            '<p><button class="portal-btn" onclick="adminCreateUser()">Create User</button></p></div>';
+        var roleSel = document.getElementById('new-user-role');
+        roleSel.addEventListener('change', function () { document.getElementById('sales-bind-row').style.display = this.value === 'customer' ? '' : 'none'; });
+    }
+
+    window.adminCreateUser = async function() {
+        var email = document.getElementById('new-user-email').value.trim();
+        var name = document.getElementById('new-user-name').value.trim();
+        var role = document.getElementById('new-user-role').value;
+        if (!email) { alert('Email is required.'); return; }
+        try {
+            var body = { email: email, role: role, display_name: name };
+            if (role === 'customer') {
+                var sid = document.getElementById('new-customer-sales').value.trim();
+                if (sid) {
+                var parsedSid = parseInt(sid, 10);
+                if (isNaN(parsedSid)) { alert('Sales user ID must be a number.'); return; }
+                body.assigned_sales_id = parsedSid;
+            }
+            }
+            var resp = await api('/api/portal/admin/users', { method: 'POST', body: JSON.stringify(body) });
+            alert('User created. Initial password: ' + resp.initial_password);
+            showAdminDashboard();
+        } catch (e) { alert('Failed to create user.'); }
+    };
 
     /* ══════════════════════════════════════════════════
        Sales Workspace
