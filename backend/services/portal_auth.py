@@ -81,11 +81,29 @@ def _user_json(u) -> dict:
     return {"id": u.id, "email": u.email, "role": u.role, "display_name": u.display_name, "must_change_password": u.must_change_password}
 
 
+def _enforce_password_changed(u):
+    """Block endpoints if user must change password. Call after _current_user."""
+    if u.get("must_change_password"):
+        return jsonify({"error": True, "code": "password_change_required", "message": "Please change your password first."}), 403
+    return None
+
+
+def _require_authenticated():
+    """Like _current_user but also blocks password-change-required users."""
+    u, err = _current_user()
+    if err: return None, err
+    block = _enforce_password_changed(u)
+    if block: return None, block
+    return u, None
+
+
 def _require_role(allowed):
-    """Return error if current user not in allowed roles."""
+    """Return error if current user not in allowed roles or must change password."""
     user, err = _current_user()
     if err:
         return None, err
+    if user.get("must_change_password"):
+        return None, (jsonify({"error": True, "code": "password_change_required", "message": "Please change your password first."}), 403)
     if user["role"] not in allowed:
         return None, (jsonify({"error": True, "message": "Forbidden"}), 403)
     return user, None
@@ -177,8 +195,8 @@ def portal_change_password():
     data = request.get_json(silent=True) or {}
     current = data.get("current", "")
     new_pw = data.get("new", "")
-    if len(new_pw) < 6:
-        return jsonify({"error": True, "message": "New password must be at least 6 characters"}), 400
+    if len(new_pw) < 10:
+        return jsonify({"error": True, "message": "New password must be at least 10 characters"}), 400
 
     session = SessionLocal()
     try:
@@ -255,7 +273,7 @@ def sales_create_customer():
 
 @portal_bp.get("/orders")
 def portal_orders_list():
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -280,7 +298,7 @@ def portal_orders_list():
 
 @portal_bp.get("/orders/<int:order_id>")
 def portal_order_detail(order_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -350,7 +368,7 @@ def sales_create_order():
 
 @portal_bp.get("/orders/<int:order_id>/updates")
 def portal_order_updates(order_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -478,7 +496,7 @@ def _load_order_for_user(session, user, order_id):
 
 @portal_bp.get("/orders/<int:order_id>/media")
 def portal_order_media_list(order_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -501,7 +519,7 @@ def portal_order_media_list(order_id):
 
 @portal_bp.get("/orders/<int:order_id>/media/<int:media_id>")
 def portal_order_media_get(order_id, media_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -595,7 +613,7 @@ def sales_upload_media(order_id):
 
 @portal_bp.get("/orders/<int:order_id>/messages")
 def portal_order_messages(order_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     session = SessionLocal()
@@ -622,7 +640,7 @@ def portal_order_messages(order_id):
 
 @portal_bp.post("/orders/<int:order_id>/messages")
 def portal_order_create_message(order_id):
-    u, err = _current_user()
+    u, err = _require_authenticated()
     if err: return err
 
     data = request.get_json(silent=True) or {}

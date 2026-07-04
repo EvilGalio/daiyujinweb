@@ -9,6 +9,19 @@
     if (!form) return;
 
     var mediaObjectUrls = [];
+    var autoRefreshTimer = null;
+
+    function startAutoRefresh(loader, intervalMs) {
+        stopAutoRefresh();
+        autoRefreshTimer = setInterval(function () {
+            if (!document.hidden) loader({ silent: true });
+        }, intervalMs);
+    }
+
+    function stopAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -19,18 +32,69 @@
         try {
             var resp = await window.DaiyujinAPI.request('/api/portal/auth/login', { method: 'POST', body: JSON.stringify({ email: email, password: password }) });
             if (!resp.token) throw new Error('No token returned');
-            sessionStorage.setItem('portal_token', resp.token);
-            sessionStorage.setItem('portal_user', JSON.stringify(resp.user));
-            var role = resp.user.role;
-            if (role === 'admin') { showAdminWorkspace(); } else if (role === 'sales') { showSalesWorkspace(); }
-            else { showCustomerDashboard(); }
+            saveSession(resp.token, resp.user);
+            if (resp.user.must_change_password) {
+                showChangePassword(true);
+            } else {
+                routeByRole(resp.user.role);
+            }
         } catch (err) { showError(err.message || 'Login failed.'); }
         btn.disabled = false; btn.textContent = 'Sign In';
     });
 
     function showError(msg) { error.textContent = msg; error.hidden = false; }
-    var token = function () { return sessionStorage.getItem('portal_token'); };
+    var token = function () { return localStorage.getItem('portal_token') || sessionStorage.getItem('portal_token'); };
     function enterAppMode() { document.body.classList.add('portal-authenticated'); }
+
+    function saveSession(t, u) {
+        localStorage.setItem('portal_token', t);
+        localStorage.setItem('portal_user', JSON.stringify(u));
+    }
+
+    function clearSession() {
+        localStorage.removeItem('portal_token');
+        localStorage.removeItem('portal_user');
+        sessionStorage.clear();
+    }
+
+    function routeByRole(role) {
+        if (role === 'admin') showAdminWorkspace();
+        else if (role === 'sales') showSalesWorkspace();
+        else showCustomerDashboard();
+    }
+
+    function showChangePassword(required) {
+        stopAutoRefresh();
+        var me = user();
+        main.innerHTML = '<div class="portal-user-bar"><span>Change Password</span><b>' + esc(me.display_name || me.email) + '</b>' +
+            (required ? '<span style="color:var(--portal-danger, #dc2626);font-size:12px">You must change your password before continuing.</span>' : '') +
+            '<button onclick="portalLogout()">Sign Out</button></div>' +
+            '<div class="portal-admin-section" style="max-width:400px;margin:2rem auto">' +
+            '<h3>' + (required ? 'Set New Password' : 'Change Password') + '</h3>' +
+            '<p><input id="chpwd-current" type="password" placeholder="Current password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
+            '<p><input id="chpwd-new" type="password" placeholder="New password (min 10 characters)" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
+            '<p><input id="chpwd-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
+            '<p id="chpwd-error" style="color:var(--portal-danger, #dc2626);font-size:13px;display:none"></p>' +
+            '<p><button class="portal-btn" onclick="doChangePassword(' + (required ? 'true' : 'false') + ')">' + (required ? 'Set Password & Continue' : 'Change Password') + '</button></p></div>';
+        enterAppMode();
+    }
+
+    window.doChangePassword = async function (required) {
+        var cur = document.getElementById('chpwd-current').value;
+        var np = document.getElementById('chpwd-new').value;
+        var cf = document.getElementById('chpwd-confirm').value;
+        var err = document.getElementById('chpwd-error');
+        if (np.length < 10) { err.textContent = 'New password must be at least 10 characters.'; err.style.display = ''; return; }
+        if (np !== cf) { err.textContent = 'Passwords do not match.'; err.style.display = ''; return; }
+        err.style.display = 'none';
+        try {
+            await api('/api/portal/auth/change-password', { method: 'POST', body: JSON.stringify({ current: cur, new: np }) });
+            var currentUser = user();
+            currentUser.must_change_password = false;
+            saveSession(token(), currentUser);
+            routeByRole(currentUser.role);
+        } catch (e) { err.textContent = e.message; err.style.display = ''; }
+    };
     var api = function (path, opts) {
         opts = opts || {};
         opts.headers = opts.headers || {};
@@ -42,13 +106,16 @@
             .then(function (r) {
                 return r.json().catch(function () { return {}; }).then(function (payload) {
                     if (!r.ok || payload.error === true) {
+                        if (payload.code === 'password_change_required') {
+                            if (typeof showChangePassword === 'function') showChangePassword(true);
+                        }
                         throw new Error(payload.message || ('Request failed with ' + r.status));
                     }
                     return payload;
                 });
             });
     };
-    var user = function () { return JSON.parse(sessionStorage.getItem('portal_user') || '{}'); };
+    var user = function () { return JSON.parse(localStorage.getItem('portal_user') || sessionStorage.getItem('portal_user') || '{}'); };
 
     
     window.showCustomerDashboard = showCustomerDashboard;
@@ -57,12 +124,17 @@
     window.showSalesCustomers = showSalesCustomers;
     window.showCreateCustomer = showCreateCustomer;
     window.showCreateOrder = showCreateOrder;
+    window.showChangePassword = showChangePassword;
     window.clearMediaUrls = clearMediaUrls;
 
     window.portalLogout = async function () {
         try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
-        sessionStorage.clear(); document.body.classList.remove('portal-authenticated'); location.reload();
+        clearSession(); document.body.classList.remove('portal-authenticated'); location.reload();
     };
+
+    function showChangePasswordBtn() {
+        return '<button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm" style="width:auto">Change Password</button>';
+    }
 
     function esc(v) { return String(v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]; }); }
 
@@ -72,12 +144,13 @@
        Customer Dashboard
        ══════════════════════════════════════════════════ */
 
-    async function showCustomerDashboard() { clearMediaUrls();
+    async function showCustomerDashboard() { clearMediaUrls(); stopAutoRefresh();
         try {
             var resp = await api('/api/portal/orders');
             var u = user();
             main.innerHTML = '<div class="portal-user-bar"><span>' + esc(u.display_name || u.email) + '</span><button onclick="portalLogout()">Sign Out</button></div>' +
                 '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty">No orders yet.</div>') + '</div>';
+            startAutoRefresh(showCustomerDashboard, 30000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load orders.</div>'; }
     }
 
@@ -103,7 +176,7 @@
         var me = user();
         main.innerHTML = '<div class="portal-user-bar"><span>Order Portal Admin</span>' +
             '<b>' + esc(me.display_name || me.email) + '</b><span class="portal-muted">View all reps, customers, orders, and portal activity.</span>' +
-            '<button onclick="portalLogout()">Sign Out</button></div>' +
+            '<button onclick="portalLogout()">Sign Out</button><button onclick="showChangePassword(false)" style="background:none;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:12px;cursor:pointer;padding:.3rem .75rem">Change Password</button></div>' +
             '<div class="portal-admin-tabs">' +
             ['overview','sales-reps','customers','orders','activity'].map(function (t) {
                 return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard','Sales Reps','Customers','Orders','Activity Logs'][['overview','sales-reps','customers','orders','activity'].indexOf(t)] + '</button>';
@@ -115,6 +188,7 @@
             else if (tab === 'customers') await renderAdminCustomers();
             else if (tab === 'orders') await renderAdminOrders();
             else if (tab === 'activity') await renderAdminActivity();
+            startAutoRefresh(function () { showAdminTab(tab); }, tab === 'activity' ? 10000 : 30000);
         } catch (e) { document.getElementById('admin-content').innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
@@ -251,6 +325,7 @@
     };
 
     function showAdminCreateUser() {
+        stopAutoRefresh();
         var me = user();
         main.innerHTML = '<div class="portal-user-bar"><span>Order Portal Admin</span><b>' + esc(me.display_name || me.email) + '</b>' +
             '<button onclick="portalLogout()">Sign Out</button><button onclick="showAdminDashboard()">Back</button></div>' +
@@ -294,13 +369,14 @@
     function showSalesWorkspace() { clearMediaUrls(); showSalesOrders(); }
 
     async function showSalesOrders() {
-        var u = user();
+        var u = user(), add = showChangePasswordBtn();
         try {
             var resp = await api('/api/portal/orders');
             var orders = resp.orders || [];
-            main.innerHTML = '<div class="portal-user-bar"><span>Sales: ' + esc(u.display_name || u.email) + '</span><button onclick="portalLogout()">Sign Out</button></div>' +
+            main.innerHTML = '<div class="portal-user-bar"><span>Sales: ' + esc(u.display_name || u.email) + '</span><button onclick="portalLogout()">Sign Out</button>' + add + '</div>' +
                 '<div class="portal-sales-tabs"><button class="active" onclick="showSalesOrders()">My Orders</button><button onclick="showSalesCustomers()">Customers</button><button onclick="showCreateCustomer()">+ New Customer</button><button onclick="showCreateOrder()">+ New Order</button></div>' +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') : '<div class="portal-empty">No orders yet. Create a customer first, then create an order.</div>') + '</div>';
+            startAutoRefresh(showSalesOrders, 20000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
@@ -312,18 +388,23 @@
     }
 
     async function showSalesCustomers() {
+        clearMediaUrls();
+        stopAutoRefresh();
+        var add = showChangePasswordBtn();
         try {
             var resp = await api('/api/portal/sales/customers');
             var customers = resp.customers || [];
-            main.innerHTML = '<div class="portal-user-bar"><span>' + esc(user().display_name) + '</span><button onclick="portalLogout()">Sign Out</button></div>' +
+            main.innerHTML = '<div class="portal-user-bar"><span>' + esc(user().display_name) + '</span><button onclick="portalLogout()">Sign Out</button>' + add + '</div>' +
                 '<div class="portal-sales-tabs"><button onclick="showSalesOrders()">My Orders</button><button class="active" onclick="showSalesCustomers()">Customers</button><button onclick="showCreateCustomer()">+ New Customer</button><button onclick="showCreateOrder()">+ New Order</button></div>' +
                 '<div class="portal-dashboard">' + (customers.length ? customers.map(function (c) {
                     return '<div class="portal-order-card"><h3>' + esc(c.display_name || c.email) + '</h3><div class="portal-order-meta"><span>' + esc(c.email) + '</span><span>' + esc(c.company_name || '-') + '</span><span>' + esc(c.status) + '</span></div></div>';
                 }).join('') : '<div class="portal-empty">No customers yet.</div>') + '</div>';
+            startAutoRefresh(showSalesCustomers, 30000);
         } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
     }
 
     function showCreateCustomer() {
+        stopAutoRefresh();
         main.innerHTML = '<div class="portal-user-bar"><button onclick="showSalesCustomers()" style="border:none;background:none;color:var(--accent);cursor:pointer;font:inherit;font-size:13px">&larr; Back</button><span>' + esc(user().display_name) + '</span><button onclick="portalLogout()">Sign Out</button></div>' +
             '<div class="portal-form-card"><h2>Create Customer</h2>' +
             '<div class="portal-field"><label>Email</label><input id="new-cust-email" type="email" placeholder="customer@example.com"></div>' +
@@ -348,6 +429,7 @@
     };
 
     function showCreateOrder() {
+        stopAutoRefresh();
         main.innerHTML = '<div class="portal-user-bar"><button onclick="showSalesOrders()" style="border:none;background:none;color:var(--accent);cursor:pointer;font:inherit;font-size:13px">&larr; Back</button><span>' + esc(user().display_name) + '</span><button onclick="portalLogout()">Sign Out</button></div>' +
             '<div class="portal-form-card"><h2>Create Order</h2>' +
             '<div class="portal-field"><label>Customer Email</label><input id="new-order-email" type="email" placeholder="customer@example.com"></div>' +
@@ -387,6 +469,7 @@
             ]);
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, false);
+            startAutoRefresh(function () { showCustomerOrderDetail(orderId); }, 10000);
         } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
     }
 
@@ -398,6 +481,7 @@
             ]);
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, true);
+            startAutoRefresh(function () { showSalesOrderDetail(orderId); }, 8000);
         } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
     }
 
@@ -565,4 +649,21 @@
         var label = stageLabels[u.stage_key] || u.stage_key || 'Update';
         return '<div class="portal-timeline-item"><div class="portal-timeline-dot"></div><div class="portal-timeline-content"><strong>' + esc(u.title || label) + '</strong>' + (u.progress_percent ? ' (' + u.progress_percent + '%)' : '') + (u.message ? '<p style="margin-top:.25rem;color:var(--muted);font-size:13px">' + esc(u.message) + '</p>' : '') + '<small style="color:var(--muted)">' + (u.created_at ? u.created_at.slice(0, 16).replace('T', ' ') : '') + '</small></div></div>';
     }
+
+    async function bootstrapPortal() {
+        if (!token()) return;
+        try {
+            var me = await api('/api/portal/auth/me');
+            saveSession(token(), me.user);
+            if (me.user.must_change_password) {
+                showChangePassword(true);
+            } else {
+                routeByRole(me.user.role);
+            }
+        } catch (e) {
+            clearSession();
+        }
+    }
+
+    bootstrapPortal();
 })();
