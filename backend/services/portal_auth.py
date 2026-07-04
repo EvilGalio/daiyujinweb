@@ -12,9 +12,8 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import SessionLocal
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate
+from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia
 
-import sqlite3
 from pathlib import Path
 
 MEDIA_DIR = Path(__file__).resolve().parents[1] / "private" / "order_media"
@@ -457,56 +456,73 @@ def sales_update_order(order_id):
 
 
 # ══════════════════════════════════════════════════
-# Media — image upload & permission-checked access
 # ══════════════════════════════════════════════════
+# Media — ORM-based image upload & permission-checked access
+# ══════════════════════════════════════════════════
+
+def _load_order_for_user(session, user, order_id):
+    order = session.query(PortalOrder).filter_by(id=order_id).first()
+    if not order:
+        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
+    if user["role"] == "customer" and order.customer_user_id != user["id"]:
+        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
+    if user["role"] == "sales" and order.sales_user_id != user["id"]:
+        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
+    return order, None
+
 
 @portal_bp.get("/orders/<int:order_id>/media")
 def portal_order_media_list(order_id):
     u, err = _current_user()
     if err: return err
-    order, con = _load_order(u, order_id)
-    if order is None:
-        return con
 
-    show_all = u["role"] in ("sales", "admin")
-    rows = con.execute(
-        "SELECT id, caption, original_filename, file_size, visible_to_customer, created_at FROM portal_order_media WHERE order_id=? ORDER BY created_at DESC",
-        (order_id,)
-    ).fetchall()
-    con.close()
-    return jsonify({"error": False, "media": [
-        {"id": r[0], "caption": r[1], "filename": r[2], "file_size": r[3],
-         "visible_to_customer": bool(r[4]), "created_at": r[5]} for r in rows
-        if show_all or bool(r[4])
-    ]})
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
+
+        q = session.query(PortalOrderMedia).filter_by(order_id=order.id).order_by(PortalOrderMedia.created_at.desc())
+        if u["role"] == "customer":
+            q = q.filter(PortalOrderMedia.visible_to_customer == True)
+        rows = q.all()
+        return jsonify({"error": False, "media": [{
+            "id": m.id, "caption": m.caption, "filename": m.original_filename,
+            "file_size": m.file_size, "visible_to_customer": bool(m.visible_to_customer),
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in rows]})
+    finally:
+        session.close()
 
 
 @portal_bp.get("/orders/<int:order_id>/media/<int:media_id>")
 def portal_order_media_get(order_id, media_id):
     u, err = _current_user()
     if err: return err
-    order, con = _load_order(u, order_id)
-    if order is None:
-        return con
 
-    row = con.execute(
-        "SELECT stored_filename, mime_type, visible_to_customer FROM portal_order_media WHERE id=? AND order_id=?",
-        (media_id, order_id)
-    ).fetchone()
-    if not row:
-        con.close()
-        return jsonify({"error": True, "message": "Image not found"}), 404
-    if u["role"] == "customer" and not bool(row[2]):
-        con.close()
-        return jsonify({"error": True, "message": "Image not found"}), 404
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
 
-    path = MEDIA_DIR / row[0]
-    con.close()
+        q = session.query(PortalOrderMedia).filter_by(id=media_id, order_id=order.id)
+        if u["role"] == "customer":
+            q = q.filter(PortalOrderMedia.visible_to_customer == True)
+        media = q.first()
+        if not media:
+            return jsonify({"error": True, "message": "Image not found"}), 404
+        stored = media.stored_filename
+        if not stored:
+            return jsonify({'error': True, 'message': 'Image not found'}), 404
+        mime = media.mime_type or "image/jpeg"
+    finally:
+        session.close()
+
+    path = MEDIA_DIR / stored
     if not path.exists():
         return jsonify({"error": True, "message": "Image not found"}), 404
 
     from flask import send_file
-    return send_file(path, mimetype=row[1])
+    return send_file(path, mimetype=mime, conditional=True)
 
 
 @portal_bp.post("/sales/orders/<int:order_id>/media")
@@ -526,58 +542,42 @@ def sales_upload_media(order_id):
     if len(data) > MAX_FILE_SIZE:
         return jsonify({"error": True, "message": "File too large (max 10MB)"}), 400
 
-    order, con = _load_order(u, order_id, require_write=True)
-    if order is None:
-        return con
+    session = SessionLocal()
+    path = None
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err:
+            return err
 
-    # Check per-order limit
-    count = con.execute("SELECT COUNT(*) FROM portal_order_media WHERE order_id=?", (order_id,)).fetchone()[0]
-    if count >= 100:
-        con.close()
-        return jsonify({"error": True, "message": "Maximum 100 images per order"}), 400
+        count = session.query(PortalOrderMedia).filter_by(order_id=order.id).count()
+        if count >= 100:
+            return jsonify({"error": True, "message": "Maximum 100 images per order"}), 400
 
-    stored = f"{secrets.token_hex(16)}{ext}"
-    path = MEDIA_DIR / stored
-    path.write_bytes(data)
+        stored = f"{secrets.token_hex(16)}{ext}"
+        path = MEDIA_DIR / stored
+        path.write_bytes(data)
 
-    caption = (request.form.get("caption") or "").strip() or None
-    visible = request.form.get("visible_to_customer", "1") != "0"
-    update_id = request.form.get("update_id") or None
+        visible_raw = (request.form.get("visible_to_customer", "1") or "1").strip().lower()
+        visible = visible_raw not in {"0", "false", "no", "off"}
 
-    con.execute(
-        "INSERT INTO portal_order_media (order_id, update_id, uploaded_by_user_id, stored_filename, original_filename, mime_type, file_size, caption, visible_to_customer) VALUES (?,?,?,?,?,?,?,?,?)",
-        (order_id, update_id, u["id"], stored, file.filename, file.content_type or "image/jpeg", len(data), caption, int(visible))
-    )
-    con.commit()
-    media_id = con.execute("SELECT last_insert_rowid()").fetchone()[0]
-    con.close()
-    return jsonify({"error": False, "media_id": media_id, "filename": file.filename})
-
-
-def _load_order(user, order_id, require_write=False):
-    """Return (order_dict, None) or (None, error_response).
-    Unified permission check for all order access."""
-    con = sqlite3.connect(str(MEDIA_DIR.parent.parent / "data" / "daiyujin.db"))
-    row = con.execute(
-        "SELECT id, customer_user_id, sales_user_id, status FROM portal_orders WHERE id=?",
-        (order_id,)
-    ).fetchone()
-    if not row:
-        con.close()
-        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
-
-    order = {"id": row[0], "customer_user_id": row[1], "sales_user_id": row[2], "status": row[3]}
-
-    if user["role"] == "customer" and order["customer_user_id"] != user["id"]:
-        con.close()
-        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
-
-    if user["role"] == "sales" and order["sales_user_id"] != user["id"]:
-        if require_write:
-            con.close()
-            return None, (jsonify({"error": True, "message": "Forbidden"}), 403)
-        # For read access by wrong sales: also 404 to not leak existence
-        con.close()
-        return None, (jsonify({"error": True, "message": "Order not found"}), 404)
-
-    return order, con
+        media = PortalOrderMedia(
+            order_id=order.id,
+            update_id=request.form.get("update_id") or None,
+            uploaded_by_user_id=u["id"],
+            stored_filename=stored,
+            original_filename=Path(file.filename).name,
+            mime_type=file.content_type or "image/jpeg",
+            file_size=len(data),
+            caption=(request.form.get("caption") or "").strip() or None,
+            visible_to_customer=visible,
+        )
+        session.add(media)
+        session.commit()
+        return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
+    except Exception:
+        session.rollback()
+        if path:
+            path.unlink(missing_ok=True)
+        raise
+    finally:
+        session.close()
