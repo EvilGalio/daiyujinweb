@@ -71,7 +71,9 @@
         consecutiveFailures: 0,
         needsReconcile: false,
         processedEventIds: {},
-        processedEventQueue: []
+        processedEventQueue: [],
+        navStack: [],
+        isNavigatingBack: false
     };
 
     function eventCursorKey() {
@@ -88,6 +90,29 @@
         portalState.currentOrderId = opts.orderId || null;
         portalState.currentIsSales = !!opts.isSales;
         portalState.listKind = opts.listKind || null;
+    }
+
+    function pushPortalView(label, fn, args) {
+        if (portalState.isNavigatingBack) return;
+        portalState.navStack.push({ label: label, fn: fn, args: args });
+    }
+
+    function portalBack() {
+        if (!portalState.navStack.length) return;
+        var prev = portalState.navStack.pop();
+        portalState.isNavigatingBack = true;
+        try {
+            if (typeof prev.fn === 'function') prev.fn.apply(null, prev.args || []);
+        } finally {
+            setTimeout(function () { portalState.isNavigatingBack = false; }, 0);
+        }
+    }
+
+    function renderBreadcrumb(stack) {
+        if (!stack || !stack.length) return '';
+        return '<div class="portal-breadcrumb">' +
+            stack.map(function (s) { return '<span>' + esc(s.label) + '</span>'; }).join(' <span style="color:var(--muted)">/</span> ') +
+            '</div>';
     }
 
     function markOrderChanged(orderId, evt) {
@@ -483,7 +508,7 @@
         banner.id = 'list-refresh-banner';
         banner.className = 'portal-note-card';
         banner.style.cssText = 'cursor:pointer;margin:0 0 1rem;display:flex;justify-content:space-between;align-items:center';
-        banner.innerHTML = '<span>Updates available — refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary" style="width:auto">Refresh</button>';
+        banner.innerHTML = '<span>Updates available — refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary portal-btn-auto">Refresh</button>';
         banner.querySelector('button').onclick = function () {
             banner.remove();
             var role = user().role;
@@ -533,7 +558,7 @@
     };
 
     function showChangePasswordBtn() {
-        return '<button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm" style="width:auto">Change Password</button>';
+        return '<button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm portal-btn-auto">Change Password</button>';
     }
 
 
@@ -544,10 +569,38 @@
     }
 
     function renderRoleHeader(title, name, subtitle) {
-        return '<div class="portal-role-header"><h2>' + esc(title) + '</h2>' +
+        var back = portalState.navStack.length
+            ? '<button onclick="portalBack()" class="portal-btn portal-btn-ghost portal-btn-sm">&larr; Back</button>'
+            : '';
+        return '<div class="portal-role-header">' + back + '<h2>' + esc(title) + '</h2>' +
             '<b>' + esc(name) + '</b><span>' + esc(subtitle) + '</span>' +
             '<div class="portal-header-actions"><button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm">Change Password</button>' +
             '<button onclick="portalLogout()" class="portal-btn portal-btn-ghost portal-btn-sm">Sign Out</button></div></div>';
+    }
+
+    /* ── Skeleton loaders ── */
+    function renderSkeleton(className, h) {
+        return '<div class="portal-skeleton ' + (className || '') + '" style="height:' + (h || '20') + 'px"></div>';
+    }
+
+    function renderTableSkeleton(cols, rows) {
+        cols = cols || 4; rows = rows || 5;
+        var html = '<div class="portal-panel" style="padding:.5rem">';
+        for (var r = 0; r < rows; r++) {
+            html += '<div class="portal-skeleton portal-skeleton-row" style="margin-bottom:4px"></div>';
+        }
+        return html + '</div>';
+    }
+
+    function renderOrderDetailSkeleton() {
+        return '<div class="portal-panel" style="margin-bottom:1rem">' +
+            renderSkeleton('portal-skeleton-title', 20) +
+            renderSkeleton('portal-skeleton-text', 14) +
+            '</div>' +
+            '<div class="portal-detail-grid">' +
+            '<div>' + renderSkeleton('portal-skeleton-row', 36) + renderSkeleton('portal-skeleton-row', 36) + renderSkeleton('portal-skeleton-row', 36) + '</div>' +
+            '<div>' + renderSkeleton('portal-skeleton-img', 140) + '</div>' +
+            '</div>';
     }
 
     function esc(v) { return String(v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]; }); }
@@ -573,7 +626,7 @@
     function renderOrderCard(order) {
         var stageLabel = stageLabels[order.current_stage] || 'N/A';
         var progress = stageProgress[order.current_stage] || stageDefaultProgress;
-        return '<article class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" style="cursor:pointer" onclick="showOrderDetail(' + order.id + ')">' +
+        return '<article class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" class="portal-clickable" onclick="showOrderDetail(' + order.id + ')">' +
             '<div class="portal-card-head"><div>' +
             '<p class="portal-eyebrow">Order #' + esc(order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></p>' +
             '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
@@ -603,7 +656,7 @@
             ['overview','sales-reps','customers','orders','activity'].map(function (t) {
                 return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard','Sales Reps','Customers','Orders','Activity Logs'][['overview','sales-reps','customers','orders','activity'].indexOf(t)] + '</button>';
             }).join('') + '</div>' +
-            '<div id="admin-content" class="portal-admin-content">Loading...</div>';
+            '<div id="admin-content" class="portal-admin-content">' + renderTableSkeleton(4, 5) + '</div>';
         try {
             if (tab === 'overview') await renderAdminOverview();
             else if (tab === 'sales-reps') await renderAdminSalesReps();
@@ -622,7 +675,7 @@
                 var help = ['People responsible for customers','Assigned customer accounts','Orders currently in production','Progress entries today'][i];
                 return '<div class="portal-admin-kpi"><strong>' + val + '</strong><span>' + label + '</span><small>' + help + '</small></div>';
             }).join('') + '</div>' +
-            '<div style="margin-top:1rem"><button class="portal-btn portal-btn-primary" style="width:auto" onclick="showAdminCreateUser()">+ Create User</button></div>';
+            '<div style="margin-top:1rem"><button class="portal-btn portal-btn-primary portal-btn-auto" onclick="showAdminCreateUser()">+ Create User</button></div>';
     }
 
     async function renderAdminSalesReps() {
@@ -636,22 +689,23 @@
                     '<td><span class="portal-badge status-' + r.status + '">' + esc(r.status) + '</span></td>' +
                     '<td>' + r.customer_count + '</td><td>' + r.order_count + '</td>' +
                     '<td>' + (r.last_action || '—') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '') + '</td>' +
-                    '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminSalesRepDetail(' + r.id + ')">View</button></td></tr>';
+                    '<td><button class="portal-btn portal-btn-auto" style="padding:.2rem .5rem;font-size:12px" onclick="showAdminSalesRepDetail(' + r.id + ')">View</button></td></tr>';
             }).join('') + '</tbody></table></div>';
     }
 
     window.showAdminSalesRepDetail = async function(sid) {
+        pushPortalView('Sales Reps', showAdminTab, ['sales-reps']);
         var d = await api('/api/portal/admin/sales-reps/' + sid);
         var r = d.rep; var cxs = d.customers || []; var ords = d.orders || []; var logs = d.recent_logs || [];
         document.getElementById('admin-content').innerHTML =
             '<h3>' + esc(r.display_name || r.email) + ' <span class="portal-badge status-' + (r.status||'active') + '">' + esc(r.status||'active') + '</span></h3>' +
             '<p>Email: ' + esc(r.email) + '</p>' +
             '<h4>Customers (' + cxs.length + ')</h4>' +
-            '<table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody>' +
-            cxs.map(function(c) { return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.status) + '</td></tr>'; }).join('') + '</tbody></table>' +
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody>' +
+            cxs.map(function(c) { return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<h4>Orders (' + ords.length + ')</h4>' +
-            '<table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th></tr></thead><tbody>' +
-            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td></tr>'; }).join('') + '</tbody></table>' +
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th></tr></thead><tbody>' +
+            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Sales Rep\', showAdminSalesRepDetail, [' + sid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<h4>Recent Activity</h4>' +
             renderActivityTable(logs);
     };
@@ -666,19 +720,20 @@
                 return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td>' +
                     '<td>' + esc(c.sales_name || '—') + '</td><td>' + c.order_count + '</td>' +
                     '<td>' + esc(c.latest_order_status || '—') + '</td>' +
-                    '<td><button class="portal-btn" style="width:auto;padding:.2rem .5rem;font-size:12px" onclick="showAdminCustomerDetail(' + c.id + ')">View</button></td></tr>';
+                    '<td><button class="portal-btn portal-btn-auto" style="padding:.2rem .5rem;font-size:12px" onclick="showAdminCustomerDetail(' + c.id + ')">View</button></td></tr>';
             }).join('') + '</tbody></table></div>';
     }
 
     window.showAdminCustomerDetail = async function(cid) {
+        pushPortalView('Customers', showAdminTab, ['customers']);
         var d = await api('/api/portal/admin/customers/' + cid);
         var c = d.customer; var ords = d.orders || [];
         document.getElementById('admin-content').innerHTML =
             '<h3>' + esc(c.display_name || c.email) + ' <span class="portal-badge status-' + (c.status||'active') + '">' + esc(c.status||'active') + '</span></h3>' +
             '<p>Email: ' + esc(c.email) + ' | Sales: ' + esc(d.sales_name || 'Unassigned') + '</p>' +
             '<h4>Orders (' + ords.length + ')</h4>' +
-            '<table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
-            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td><td>' + (o.updated_at||'').slice(0,10) + '</td></tr>'; }).join('') + '</tbody></table>';
+            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
+            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Customer\', showAdminCustomerDetail, [' + cid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td><td>' + (o.updated_at||'').slice(0,10) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     };
 
     async function renderAdminOrders() {
@@ -688,7 +743,7 @@
             '<div class="portal-command-bar"><h3>Orders</h3><span>All orders across all sales reps and customers. ' + ords.length + ' total.</span></div>' +
             '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order #</th><th>Title</th><th>Customer</th><th>Sales</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
             ords.map(function(o) {
-                return '<tr onclick="showAdminOrderDetail(' + o.id + ')" style="cursor:pointer">' +
+                return '<tr onclick="showAdminOrderDetail(' + o.id + ')" class="portal-clickable">' +
                     '<td>' + esc(o.order_no) + '</td><td>' + esc(o.title || '—') + '</td>' +
                     '<td>' + esc(o.customer_name || '—') + '</td><td>' + esc(o.sales_name || '—') + '</td>' +
                     '<td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td>' +
@@ -696,7 +751,9 @@
             }).join('') + '</tbody></table></div>';
     }
 
-    window.showAdminOrderDetail = async function(orderId) {
+    window.showAdminOrderDetail = async function(orderId, backLabel, backFn, backArgs, opts) {
+        opts = opts || {};
+        if (!opts.skipPush) pushPortalView(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
         var d = await api('/api/portal/admin/orders/' + orderId + '/full');
         var o = d.order;
         var content = document.getElementById('admin-content');
@@ -707,7 +764,7 @@
             '<strong>Stage:</strong> ' + esc(o.current_stage||'N/A') + ' | <strong>Status:</strong> ' + esc(o.status) + '<br>' +
             '<strong>Delivery:</strong> ' + esc(o.estimated_delivery_date||'TBD') + '<br>' +
             '<strong>PO:</strong> ' + esc(o.po_number||'—') + '</div>' +
-            '<div><button class="portal-btn" style="width:auto;padding:.3rem .75rem" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
+            '<div><button class="portal-btn portal-btn-auto" style="padding:.3rem .75rem" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
             '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + (u.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
             '<h4>Messages (' + (o.messages||[]).length + ')</h4>' + (o.messages||[]).map(function(m) {
                 return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + (m.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(m.message) + '</p></div>';
@@ -723,7 +780,7 @@
         var parsed = parseInt(sid, 10);
         if (isNaN(parsed)) { alert('Must be a number.'); return; }
         api('/api/portal/admin/orders/' + orderId + '/assign-sales', { method: 'PATCH', body: JSON.stringify({ sales_user_id: parsed }) })
-            .then(function() { showAdminOrderDetail(orderId); }).catch(function() { alert('Transfer failed. Check the sales user ID is valid and active.'); });
+            .then(function() { showAdminOrderDetail(orderId, null, null, null, { skipPush: true }); }).catch(function() { alert('Transfer failed. Check the sales user ID is valid and active.'); });
     };
 
     async function renderAdminActivity() {
@@ -734,14 +791,14 @@
     }
 
     function renderActivityTable(logs) {
-        return '<table class="portal-admin-table"><thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Entity</th></tr></thead><tbody>' +
+        return '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Entity</th></tr></thead><tbody>' +
             logs.map(function(l) {
                 return '<tr><td>' + (l.created_at||'').slice(0,16).replace('T',' ') + '</td>' +
                     '<td>' + esc(l.actor_email || '—') + '</td>' +
                     '<td>' + esc(l.actor_role || '—') + '</td>' +
                     '<td>' + esc(l.action) + '</td>' +
                     '<td>' + esc(l.entity_type || '') + ' ' + esc(l.entity_label || '') + '</td></tr>';
-            }).join('') + '</tbody></table>';
+            }).join('') + '</tbody></table></div>';
     }
 
     window.adminDisableUser = async function(userId) {
@@ -754,6 +811,7 @@
     var adminSalesRepsCache = [];
 
     function showAdminCreateUser() {
+        pushPortalView('Dashboard', showAdminDashboard, []);
         stopAutoRefresh();
         var me = user();
         selectedAdminSalesRep = null;
@@ -874,7 +932,7 @@
     }
 
     function renderSalesOrderCard(order) {
-        return '<div class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" style="cursor:pointer" onclick="showSalesOrderDetail(' + order.id + ')">' +
+        return '<div class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" class="portal-clickable" onclick="showSalesOrderDetail(' + order.id + ')">' +
             '<h3>' + esc(order.title || 'Order #' + order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></h3>' +
             '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
             '<span>Delivery: ' + esc(order.estimated_delivery_date || 'TBD') + '</span><span>' + esc(order.updated_at || '-') + '</span></div></div>';
@@ -1011,7 +1069,8 @@
     window.showSalesOrderDetail = showSalesOrderDetail;
 
     async function showCustomerOrderDetail(orderId) {
-        main.innerHTML = '<p>Loading...</p>';
+        pushPortalView('My Orders', showCustomerDashboard, []);
+        main.innerHTML = renderRoleHeader('Order Detail', user().display_name || user().email, '') + renderOrderDetailSkeleton();
         try {
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
@@ -1022,7 +1081,8 @@
     }
 
     async function showSalesOrderDetail(orderId) {
-        main.innerHTML = '<p>Loading...</p>';
+        pushPortalView('Orders', showSalesOrders, []);
+        main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, '') + renderOrderDetailSkeleton();
         try {
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
@@ -1043,7 +1103,7 @@
         main.innerHTML =
             renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', user().display_name || user().email, '') +
             '<div id="order-header" class="portal-panel" style="margin-bottom:1rem"></div>' +
-            (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id) + '</div>' : '') +
+            (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id) + '<input type="hidden" id="update-stage" value="' + (o.current_stage || '') + '"></div>' : '') +
             '<div id="order-stepper"></div>' +
             '<div class="portal-detail-grid">' +
             '<div>' +
@@ -1134,22 +1194,44 @@
 
     function renderSalesActions(orderId) {
         return '<div class="portal-sales-actions" id="sales-actions">' +
-            '<h4 style="margin:.5rem 0">Update Stage</h4>' +
-            '<select id="update-stage" style="margin-right:.5rem;padding:.3rem">' + Object.keys(stageLabels).map(function (k) { return '<option value="' + k + '">' + stageLabels[k] + '</option>'; }).join('') + '</select>' +
-            '<button class="portal-btn" style="width:auto;padding:.3rem .75rem" onclick="updateOrderStage(' + orderId + ')">Update</button>' +
-            '<h4 style="margin:1rem 0 .25rem">Add Progress Update</h4>' +
-            '<input id="update-title" type="text" placeholder="Title" style="width:100%;margin-bottom:.25rem;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
-            '<input id="update-msg" type="text" placeholder="Message (optional)" style="width:100%;margin-bottom:.25rem;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
-            '<input id="update-pct" type="number" min="0" max="100" placeholder="Progress %" style="width:80px;margin-bottom:.25rem;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
-            '<label style="font-size:12px;margin-left:.5rem"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
-            '<button class="portal-btn" style="width:auto;padding:.3rem .75rem;margin-left:.5rem" onclick="addProgressUpdate(' + orderId + ')">Add Update</button>' +
-            '<h4 style="margin:1rem 0 .25rem">Upload Photo</h4>' +
-            '<input type="file" id="upload-file" accept="image/*" style="margin-bottom:.25rem">' +
-            '<input id="upload-caption" type="text" placeholder="Caption (optional)" style="width:100%;margin-bottom:.25rem;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
-            '<label style="font-size:12px"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
-            '<button class="portal-btn" style="width:auto;padding:.3rem .75rem;margin-left:.5rem" onclick="uploadPhoto(' + orderId + ')">Upload</button>' +
+            '<h4>Update Stage</h4>' +
+            '<div class="portal-stage-control" id="stage-control">' +
+            Object.keys(stageLabels).map(function (k) {
+                return '<button type="button" class="portal-stage-option" data-stage="' + k + '" onclick="selectStageOption(\'' + k + '\', \'' + stageLabels[k] + '\')">' + stageLabels[k] + '</button>';
+            }).join('') + '</div>' +
+            '<div id="stage-confirm" class="portal-stage-confirm" style="display:none">' +
+                '<p>Change stage to <strong id="stage-confirm-label"></strong>?</p>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm" onclick="updateOrderStage(' + orderId + ')">Update Stage</button>' +
+                '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button></div>' +
+            '<h4>Add Progress Update</h4>' +
+            '<div class="portal-field"><input id="update-title" type="text" placeholder="Title" class="portal-input-full"></div>' +
+            '<div class="portal-field"><input id="update-msg" type="text" placeholder="Message (optional)" class="portal-input-full"></div>' +
+            '<div class="portal-form-inline">' +
+                '<input id="update-pct" type="number" min="0" max="100" placeholder="Progress %" style="width:80px;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
+                '<label style="font-size:12px"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div>' +
+            '<h4>Upload Photo</h4>' +
+            '<div class="portal-field"><input type="file" id="upload-file" accept="image/*"></div>' +
+            '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
+            '<div class="portal-form-inline">' +
+                '<label style="font-size:12px"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="uploadPhoto(' + orderId + ')">Upload</button></div>' +
             '</div>';
     }
+
+    window.selectStageOption = function (stage, label) {
+        document.getElementById('update-stage').value = stage;
+        document.getElementById('stage-confirm-label').textContent = label;
+        document.getElementById('stage-confirm').style.display = '';
+        var opts = document.querySelectorAll('.portal-stage-option');
+        opts.forEach(function (el) { el.classList.remove('active'); });
+        document.querySelector('.portal-stage-option[data-stage="' + stage + '"]').classList.add('active');
+    };
+
+    window.cancelStageSelect = function () {
+        document.getElementById('stage-confirm').style.display = 'none';
+        document.querySelectorAll('.portal-stage-option').forEach(function (el) { el.classList.remove('active'); });
+    };
 
     window.updateOrderStage = async function (orderId) {
         var stage = document.getElementById('update-stage').value;
