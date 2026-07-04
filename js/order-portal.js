@@ -184,7 +184,7 @@
         main.innerHTML = '<p>Loading...</p>';
         try {
             var results = await Promise.all([
-                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/media')
+                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
             ]);
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, false);
@@ -195,7 +195,7 @@
         main.innerHTML = '<p>Loading...</p>';
         try {
             var results = await Promise.all([
-                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/media')
+                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
             ]);
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, true);
@@ -217,7 +217,7 @@
             (isSales ? renderSalesActions(o.id) : '') +
             '<h3 style="margin:1rem 0 .5rem">Progress Timeline</h3>' +
             '<div class="portal-timeline">' + (updates.length ? updates.map(renderTimelineItem).join('') : '<div class="portal-empty">No updates yet.</div>') + '</div>' +
-            '<h3 style="margin:1rem 0 .5rem">Messages</h3>' + renderMessages(messages, isSales, o.id) + '<h3 style="margin:1rem 0 .5rem">Photos</h3>' +
+            renderMessages(messages, isSales, o.id) + '<h3 style="margin:1rem 0 .5rem">Photos</h3>' +
             '<div class="portal-media-grid" id="media-grid">' + (media.length ? '<div class="portal-empty">Loading photos...</div>' : '<div class="portal-empty">No photos yet.</div>') + '</div></div>';
 
         if (media.length) loadAuthorizedImages(o.id, media);
