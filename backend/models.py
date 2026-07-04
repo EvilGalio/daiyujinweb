@@ -405,3 +405,17 @@ class PortalAuditLog(Base):
     client_ip: Mapped[str | None] = mapped_column(String(80))
     user_agent: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PortalEvent(Base):
+    __tablename__ = 'portal_events'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int | None] = mapped_column(Integer)
+    actor_user_id: Mapped[int | None] = mapped_column(Integer)
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_id: Mapped[int | None] = mapped_column(Integer)
+    visibility: Mapped[str] = mapped_column(String(20), nullable=False, default='internal')
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default='{}')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

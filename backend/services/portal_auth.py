@@ -13,7 +13,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import SessionLocal
 from services.portal_audit import log_portal_action, list_portal_audit_logs
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog
+from services.portal_events import emit_portal_event, query_visible_events
+from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent
 
 from pathlib import Path
 
@@ -367,7 +368,9 @@ def sales_create_order():
             created_by_user_id=u["id"],
         )
         session.add(o)
+        session.flush()
         log_portal_action(session, u, "sales_create_order", entity_type="portal_order", entity_label=f"#{o.order_no} {title}")
+        emit_portal_event(session, "order_created", "order", entity_id=o.id, order_id=o.id, actor_user_id=u["id"], visibility="internal", payload={"order_id": o.id, "order_no": o.order_no, "title": title, "current_stage": stage})
         session.commit()
         return jsonify({"error": False, "order": {"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage}})
     finally:
@@ -432,7 +435,10 @@ def sales_add_update(order_id):
             created_by_user_id=u["id"],
         )
         session.add(upd)
+        session.flush()
         log_portal_action(session, u, "sales_add_order_update", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={sk or 'note'}")
+        v = "public" if data.get("visible_to_customer", True) else "internal"
+        emit_portal_event(session, "order_update_created", "order_update", entity_id=upd.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "title": data.get("title", "Progress update"), "stage_key": sk, "progress_percent": data.get("progress_percent")})
         session.commit()
         return jsonify({"error": False, "update_id": upd.id})
     finally:
@@ -480,6 +486,8 @@ def sales_update_order(order_id):
             ))
 
         log_portal_action(session, u, "sales_update_order_stage", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={data.get('current_stage','')} status={data.get('status','')}".strip())
+        if "current_stage" in data:
+            emit_portal_event(session, "order_stage_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "current_stage": data["current_stage"]})
         session.commit()  # single commit for order + timeline
         return jsonify({"error": False, "message": "Order updated", "order_id": o.id})
     finally:
@@ -603,7 +611,10 @@ def sales_upload_media(order_id):
             visible_to_customer=visible,
         )
         session.add(media)
+        session.flush()
         log_portal_action(session, u, "sales_upload_media", entity_type="portal_order_media", entity_id=order_id, entity_label=f"{stored}")
+        v = "public" if visible else "internal"
+        emit_portal_event(session, "media_created", "media", entity_id=media.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "media_id": media.id, "caption": media.caption, "visible_to_customer": visible})
         session.commit()
         return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
     except Exception:
@@ -663,6 +674,8 @@ def portal_order_create_message(order_id):
 
         msg = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="open")
         session.add(msg)
+        session.flush()
+        emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": msg.id, "message": text, "sender_name": u.get("display_name") or u.get("email")})
         session.commit()
         return jsonify({"error": False, "message_id": msg.id})
     finally:
@@ -691,7 +704,9 @@ def sales_reply_message(order_id, message_id):
         reply = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="replied", parent_message_id=parent.id)
         parent.status = "replied"
         session.add(reply)
+        session.flush()
         log_portal_action(session, u, "sales_reply_message", entity_type="portal_message", entity_id=message_id, entity_label=f"order={order_id}")
+        emit_portal_event(session, "message_created", "message", entity_id=reply.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": reply.id, "message": text, "sender_name": u.get("display_name") or u.get("email")})
         session.commit()
         return jsonify({"error": False, "message_id": reply.id})
     finally:
@@ -1081,3 +1096,42 @@ def admin_audit_logs():
         return jsonify({"error": False, "logs": logs})
     finally:
         session.close()
+
+
+# ══════════════════════════════════════════════════
+# Event stream (SSE)
+# ══════════════════════════════════════════════════
+
+@portal_bp.get("/events")
+def portal_events_stream():
+    from flask import Response
+
+    u, err = _current_user()
+    if err:
+        return Response("Unauthorized", status=401)
+
+    last_id = request.headers.get("Last-Event-ID") or request.args.get("after_id") or 0
+
+    def stream():
+        current_id = int(last_id or 0)
+        while True:
+            session = SessionLocal()
+            try:
+                rows = query_visible_events(session, u, after_id=current_id, limit=50)
+                for evt in rows:
+                    current_id = evt["id"]
+                    data = json.dumps(evt, ensure_ascii=False)
+                    yield f"id: {current_id}\nevent: {evt['event_type']}\ndata: {data}\n\n"
+            except Exception:
+                pass
+            finally:
+                try: session.close()
+                except: pass
+            yield ": heartbeat\n\n"
+            import time; time.sleep(3)
+
+    return Response(stream(), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    })
