@@ -72,3 +72,14 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Sego
 .portal-form-card h2 { font-size: 16px; margin-bottom: .75rem; }
 .portal-sales-actions { padding: 1rem; background: #f8fafc; border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: .75rem; }
 .portal-sales-actions h4 { font-size: 13px; color: var(--ink); }
+
+
+/* Messages */
+.portal-messages { display: flex; flex-direction: column; gap: .5rem; }
+.portal-msg { padding: .75rem; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+.portal-msg-reply { margin-left: 2rem; background: #f8fafc; }
+.portal-msg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .25rem; }
+.portal-msg-head strong { font-size: 13px; }
+.portal-msg-head small { font-size: 12px; color: var(--muted); }
+.portal-msg p { font-size: 13px; margin: .25rem 0 0; }
+.portal-msg-form { margin-top: .5rem; }

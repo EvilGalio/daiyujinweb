@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import SessionLocal
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia
+from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage
 
 from pathlib import Path
 
@@ -579,5 +579,87 @@ def sales_upload_media(order_id):
         if path:
             path.unlink(missing_ok=True)
         raise
+    finally:
+        session.close()
+
+
+# ══════════════════════════════════════════════════
+# Messages — customer feedback & sales replies
+# ══════════════════════════════════════════════════
+
+@portal_bp.get("/orders/<int:order_id>/messages")
+def portal_order_messages(order_id):
+    u, err = _current_user()
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
+
+        msgs = session.query(PortalMessage).filter_by(order_id=order.id).order_by(PortalMessage.created_at.asc()).all()
+        senders = {}
+        for m in msgs:
+            if m.sender_user_id not in senders:
+                su = session.query(PortalUser).filter_by(id=m.sender_user_id).first()
+                senders[m.sender_user_id] = su.display_name or su.email if su else "Unknown"
+
+        return jsonify({"error": False, "messages": [{
+            "id": m.id, "sender_name": senders.get(m.sender_user_id, "Unknown"),
+            "message": m.message, "status": m.status,
+            "parent_message_id": m.parent_message_id,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in msgs]})
+    finally:
+        session.close()
+
+
+@portal_bp.post("/orders/<int:order_id>/messages")
+def portal_order_create_message(order_id):
+    u, err = _current_user()
+    if err: return err
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("message") or "").strip()
+    if not text:
+        return jsonify({"error": True, "message": "Message cannot be empty"}), 400
+
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
+
+        msg = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="open")
+        session.add(msg)
+        session.commit()
+        return jsonify({"error": False, "message_id": msg.id})
+    finally:
+        session.close()
+
+
+@portal_bp.post("/sales/orders/<int:order_id>/messages/<int:message_id>/reply")
+def sales_reply_message(order_id, message_id):
+    u, err = _require_role(("sales", "admin"))
+    if err: return err
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("message") or "").strip()
+    if not text:
+        return jsonify({"error": True, "message": "Reply cannot be empty"}), 400
+
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
+
+        parent = session.query(PortalMessage).filter_by(id=message_id, order_id=order.id).first()
+        if not parent:
+            return jsonify({"error": True, "message": "Message not found"}), 404
+
+        reply = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="replied", parent_message_id=parent.id)
+        parent.status = "replied"
+        session.add(reply)
+        session.commit()
+        return jsonify({"error": False, "message_id": reply.id})
     finally:
         session.close()

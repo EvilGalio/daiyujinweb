@@ -186,8 +186,8 @@
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/media')
             ]);
-            var o = results[0].order, updates = results[1].updates || [], media = results[2].media || [];
-            renderOrderDetail(o, updates, media, false);
+            var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
+            renderOrderDetail(o, updates, messages, media, false);
         } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
     }
 
@@ -197,12 +197,12 @@
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/media')
             ]);
-            var o = results[0].order, updates = results[1].updates || [], media = results[2].media || [];
-            renderOrderDetail(o, updates, media, true);
+            var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
+            renderOrderDetail(o, updates, messages, media, true);
         } catch (e) { main.innerHTML = '<p>Unable to load order details.</p>'; }
     }
 
-    function renderOrderDetail(o, updates, media, isSales) { enterAppMode();
+    function renderOrderDetail(o, updates, messages, media, isSales) { enterAppMode();
         var backFn = isSales ? 'showSalesOrders()' : 'showCustomerDashboard()';
         var base = window.DaiyujinAPI.config.baseUrl;
         main.innerHTML =
@@ -217,7 +217,7 @@
             (isSales ? renderSalesActions(o.id) : '') +
             '<h3 style="margin:1rem 0 .5rem">Progress Timeline</h3>' +
             '<div class="portal-timeline">' + (updates.length ? updates.map(renderTimelineItem).join('') : '<div class="portal-empty">No updates yet.</div>') + '</div>' +
-            '<h3 style="margin:1rem 0 .5rem">Photos</h3>' +
+            '<h3 style="margin:1rem 0 .5rem">Messages</h3>' + renderMessages(messages, isSales, o.id) + '<h3 style="margin:1rem 0 .5rem">Photos</h3>' +
             '<div class="portal-media-grid" id="media-grid">' + (media.length ? '<div class="portal-empty">Loading photos...</div>' : '<div class="portal-empty">No photos yet.</div>') + '</div></div>';
 
         if (media.length) loadAuthorizedImages(o.id, media);
@@ -308,6 +308,56 @@
     window.addEventListener('beforeunload', function () { mediaObjectUrls.forEach(function (u) { URL.revokeObjectURL(u); }); });
 
     function clearMediaUrls() { mediaObjectUrls.forEach(function (u) { URL.revokeObjectURL(u); }); mediaObjectUrls = []; }
+
+        /* ── Messages UI ── */
+    function renderMessages(messages, isSales, orderId) {
+        var h = "<h3 style=\"margin:1rem 0 .5rem\">Messages</h3>";
+        if (messages && messages.length) {
+            h += "<div class=\"portal-messages\">" + messages.map(function (m) {
+                var rep = !!m.parent_message_id;
+                return "<div class=\"portal-msg" + (rep ? " portal-msg-reply" : "") + "\">" +
+                    "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (m.created_at ? m.created_at.slice(0,16).replace("T"," ") : "") + "</small></div>" +
+                    "<p>" + esc(m.message) + "</p>" +
+                    (isSales && !rep ? "<button class=\"portal-btn\" style=\"width:auto;padding:.2rem .6rem;font-size:12px\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
+                    "</div>";
+            }).join("") + "</div>";
+        } else {
+            h += "<div class=\"portal-empty\">No messages yet.</div>";
+        }
+        h += "<div class=\"portal-msg-form\"><textarea id=\"msg-text\" placeholder=\"Write a message...\" rows=\"2\" style=\"width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px\"></textarea>" +
+            "<button class=\"portal-btn\" style=\"width:auto;padding:.3rem .75rem;margin-top:.25rem\" onclick=\"window.sendMessage(" + orderId + ")\">Send</button></div>";
+        return h;
+    }
+
+    window.sendMessage = async function (orderId) {
+        var text = document.getElementById("msg-text").value.trim();
+        if (!text) { alert("Message cannot be empty."); return; }
+        try {
+            await api("/api/portal/orders/" + orderId + "/messages", { method: "POST", body: JSON.stringify({ message: text }) });
+            if (user().role === "sales" || user().role === "admin") showSalesOrderDetail(orderId);
+            else showCustomerOrderDetail(orderId);
+        } catch (e) { alert("Failed to send message."); }
+    };
+
+    window.showReplyForm = function (orderId, msgId, evt) {
+        var old = document.getElementById("reply-form");
+        if (old) old.remove();
+        var row = evt.target.closest(".portal-msg");
+        var div = document.createElement("div");
+        div.id = "reply-form"; div.className = "portal-msg-form portal-msg-reply"; div.style.marginLeft = "2rem";
+        div.innerHTML = "<textarea id=\"reply-text\" placeholder=\"Reply...\" rows=\"2\" style=\"width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px\"></textarea>" +
+            "<button class=\"portal-btn\" style=\"width:auto;padding:.3rem .75rem;margin-top:.25rem\" onclick=\"window.sendReply(" + orderId + "," + msgId + ")\">Reply</button>";
+        row.parentNode.insertBefore(div, row.nextSibling);
+    };
+
+    window.sendReply = async function (orderId, msgId) {
+        var text = document.getElementById("reply-text").value.trim();
+        if (!text) { alert("Reply cannot be empty."); return; }
+        try {
+            await api("/api/portal/sales/orders/" + orderId + "/messages/" + msgId + "/reply", { method: "POST", body: JSON.stringify({ message: text }) });
+            showSalesOrderDetail(orderId);
+        } catch (e) { alert("Failed to send reply."); }
+    };
 
     /* ═══ Helpers ═══ */
     var stageLabels = { order_confirmed: 'Order Confirmed', material_purchasing: 'Material Purchasing', material_ready: 'Material Ready', machining: 'CNC Machining', in_process_qc: 'In-process QC', surface_treatment: 'Surface Treatment', final_inspection: 'Final Inspection', packing: 'Packing', shipped: 'Shipped', delivered: 'Delivered', on_hold: 'On Hold' };
