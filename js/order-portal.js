@@ -117,6 +117,7 @@
             setTimeout(function () { portalState.isNavigatingBack = false; }, 0);
         }
     }
+    window.portalBack = portalBack;
 
 
     function renderBreadcrumb(stack) {
@@ -612,6 +613,17 @@
             '<button onclick="portalLogout()" class="portal-btn portal-btn-ghost portal-btn-sm">Sign Out</button></div></div>';
     }
 
+    function refreshRoleHeader(title, name, subtitle) {
+        var header = main.querySelector('.portal-role-header');
+        if (!header) return;
+        header.outerHTML = renderRoleHeader(title, name, subtitle);
+    }
+
+    function refreshAdminHeader(subtitle) {
+        var me = user();
+        refreshRoleHeader('Operations Console', me.display_name || me.email, subtitle || 'Manage reps, customers, orders, and portal activity.');
+    }
+
     /* ── Skeleton loaders ── */
     function renderSkeleton(className) {
         return '<div class="portal-skeleton ' + (className || '') + '"></div>';
@@ -819,6 +831,7 @@
 
     window.showAdminSalesRepDetail = async function(sid) {
         pushPortalView('Sales Reps', showAdminTab, ['sales-reps']);
+        refreshAdminHeader('Sales representative detail.');
         var d = await api('/api/portal/admin/sales-reps/' + sid);
         var r = d.rep; var cxs = d.customers || []; var ords = d.orders || []; var logs = d.recent_logs || [];
         document.getElementById('admin-content').innerHTML =
@@ -853,6 +866,7 @@
 
     window.showAdminCustomerDetail = async function(cid) {
         pushPortalView('Customers', showAdminTab, ['customers']);
+        refreshAdminHeader('Customer detail.');
         var d = await api('/api/portal/admin/customers/' + cid);
         var c = d.customer; var ords = d.orders || [];
         document.getElementById('admin-content').innerHTML =
@@ -883,6 +897,7 @@
     window.showAdminOrderDetail = async function(orderId, backLabel, backFn, backArgs, opts) {
         opts = opts || {};
         if (!opts.skipPush) pushPortalView(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
+        refreshAdminHeader('Order detail.');
         var d = await api('/api/portal/admin/orders/' + orderId + '/full');
         var o = d.order;
         var content = document.getElementById('admin-content');
