@@ -387,7 +387,6 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-hidden, [hidden] { display: none !important; }
 .portal-stack-sm { display: flex; flex-direction: column; gap: .5rem; }
 .portal-stack-md { display: flex; flex-direction: column; gap: 1rem; }
-.portal-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .portal-inline-note { margin: 0 0 1rem; color: var(--muted); font-size: 13px; }
 .portal-inline-note-danger { color: var(--danger); }
 .portal-panel-spaced { margin-bottom: 1rem; }
@@ -454,3 +453,5 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-form-inline { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
 .portal-table-row-clickable { cursor: pointer; }
 .portal-table-row-clickable:hover { background: #f9fafb; }
+.portal-dashboard-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+@media (max-width: 800px) { .portal-dashboard-row { grid-template-columns: 1fr; } }

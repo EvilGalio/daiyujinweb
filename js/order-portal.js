@@ -75,6 +75,8 @@
         navStack: [],
         isNavigatingBack: false,
         pendingStage: null,
+        pendingStageLabel: null,
+        pendingStage: null,
         pendingStageLabel: null
     };
 
@@ -104,6 +106,7 @@
         portalState.navStack.push({ label: label, fn: fn, args: args });
     }
 
+
     function portalBack() {
         if (!portalState.navStack.length) return;
         var prev = portalState.navStack.pop();
@@ -114,6 +117,7 @@
             setTimeout(function () { portalState.isNavigatingBack = false; }, 0);
         }
     }
+
 
     function renderBreadcrumb(stack) {
         if (!stack || !stack.length) return '';
@@ -592,6 +596,8 @@
     function syncStatusTitle(status) {
         return status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting' : status === 'offline' ? 'Offline' : status === 'stale' ? 'Stale' : status === 'resyncing' ? 'Syncing' : 'Connecting';
     }
+
+
 
     function renderSyncLabel() {
         var status = portalState.syncStatus || 'connecting';
@@ -1216,7 +1222,7 @@
             ]);
             var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
             renderOrderDetail(o, updates, messages, media, false);
-        } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showCustomerDashboard()'); }
+        } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to My Orders', 'showCustomerDashboard()'); }
     }
 
     async function showSalesOrderDetail(orderId) {
