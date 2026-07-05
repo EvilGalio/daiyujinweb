@@ -632,6 +632,38 @@
     window.showChangePassword = showChangePassword;
     window.clearMediaUrls = clearMediaUrls;
 
+    window.openPortalLightbox = function (url, caption) {
+        closePortalLightbox();
+        var overlay = document.createElement('div');
+        overlay.id = 'portal-lightbox';
+        overlay.className = 'portal-lightbox';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-label', 'Image preview');
+        overlay.innerHTML =
+            '<button class="portal-lightbox-close" type="button" aria-label="Close">&times;</button>' +
+            '<figure><img src="' + url + '" alt="' + esc(caption || 'Production photo') + '">' +
+            (caption ? '<figcaption>' + esc(caption) + '</figcaption>' : '') +
+            '</figure>';
+        overlay.querySelector('.portal-lightbox-close').onclick = closePortalLightbox;
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closePortalLightbox();
+        });
+        document.body.appendChild(overlay);
+        document.body.classList.add('portal-lightbox-open');
+    };
+
+    window.closePortalLightbox = function () {
+        var old = document.getElementById('portal-lightbox');
+        if (old) old.remove();
+        document.body.classList.remove('portal-lightbox-open');
+    };
+
+    var closePortalLightbox = window.closePortalLightbox;
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closePortalLightbox();
+    });
+
     window.portalLogout = async function () {
         try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
         broadcastPortalMessage('logout', {});
@@ -740,6 +772,31 @@
 
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
+    function parsePortalDate(value) {
+        if (!value) return null;
+        var normalized = /Z$|[+-]\d\d:\d\d$/.test(value) ? value : value + 'Z';
+        var d = new Date(normalized);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    function portalTimeZone() {
+        var role = user().role;
+        if (role === 'customer') return Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return 'Asia/Shanghai';
+    }
+
+    function formatPortalDateTime(value) {
+        var d = parsePortalDate(value);
+        if (!d) return '-';
+        return new Intl.DateTimeFormat('en-GB', { timeZone: portalTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(d).replace(',', '');
+    }
+
+    function formatPortalDate(value) {
+        var d = parsePortalDate(value);
+        if (!d) return '-';
+        return new Intl.DateTimeFormat('en-GB', { timeZone: portalTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    }
+
     var stageLabels = { order_confirmed: 'Order Confirmed', material_purchasing: 'Material Purchasing', material_ready: 'Material Ready', machining: 'CNC Machining', in_process_qc: 'In-process QC', surface_treatment: 'Surface Treatment', final_inspection: 'Final Inspection', packing: 'Packing', shipped: 'Shipped', delivered: 'Delivered', on_hold: 'On Hold' };
 
     /* ══════════════════════════════════════════════════
@@ -769,8 +826,8 @@
             '</div><span class="portal-badge status-' + esc(order.status) + '">' + esc(order.status) + '</span></div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
             '<div class="portal-progress-track"><span class="portal-progress-fill" style="--progress:' + progress + '%"></span></div>' +
-            '<div class="portal-card-meta"><span>ETA: ' + esc(order.estimated_delivery_date || 'TBD') + '</span>' +
-            '<span>Updated: ' + esc((order.updated_at || '').slice(0,10)) + '</span></div></article>';
+            '<div class="portal-card-meta"><span>ETA: ' + esc(order.estimated_delivery_date || 'DHL') + '</span>' +
+            '<span>Updated: ' + esc(formatPortalDate(order.updated_at)) + '</span></div></article>';
     }
 
     /* ══════════════════════════════════════════════════
@@ -883,7 +940,7 @@
                             { html: renderStatusBadge(r.status), title: r.status },
                             r.customer_count,
                             r.order_count,
-                            (r.last_action || '-') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '')
+                            (r.last_action || '-') + ' ' + (formatPortalDateTime(r.last_activity))
                         ]
                     };
                 }),
@@ -936,7 +993,7 @@
             '<p>Email: ' + esc(c.email) + ' | Sales: ' + esc(d.sales_name || 'Unassigned') + '</p>' +
             '<h4>Orders (' + ords.length + ')</h4>' +
             '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
-            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Customer\', showAdminCustomerDetail, [' + cid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td><td>' + (o.updated_at||'').slice(0,10) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Customer\', showAdminCustomerDetail, [' + cid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td><td>' + formatPortalDate(o.updated_at) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     };
 
     async function renderAdminOrders() {
@@ -949,7 +1006,7 @@
                 rows: ords.map(function (o) {
                     return {
                         onClick: 'showAdminOrderDetail(' + o.id + ')',
-                        cells: [o.order_no, o.title || '-', o.customer_name || '-', o.sales_name || '-', o.current_stage || 'N/A', { html: renderStatusBadge(o.status), title: o.status }, (o.updated_at || '').slice(0,10)]
+                        cells: [o.order_no, o.title || '-', o.customer_name || '-', o.sales_name || '-', o.current_stage || 'N/A', { html: renderStatusBadge(o.status), title: o.status }, formatPortalDate(o.updated_at)]
                     };
                 }),
                 emptyText: 'No orders yet.'
@@ -968,12 +1025,12 @@
             '<div><strong>Customer:</strong> ' + esc((o.customer||{}).display_name || (o.customer||{}).email || '—') + '<br>' +
             '<strong>Sales:</strong> ' + esc((o.sales||{}).display_name || (o.sales||{}).email || '—') + '<br>' +
             '<strong>Stage:</strong> ' + esc(o.current_stage||'N/A') + ' | <strong>Status:</strong> ' + esc(o.status) + '<br>' +
-            '<strong>Delivery:</strong> ' + esc(o.estimated_delivery_date||'TBD') + '<br>' +
+            '<strong>Delivery:</strong> ' + esc(o.estimated_delivery_date||'DHL') + '<br>' +
             '<strong>PO:</strong> ' + esc(o.po_number||'—') + '</div>' +
             '<div><button class="portal-btn portal-btn-secondary portal-btn-auto" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
-            '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + (u.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
+            '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + formatPortalDateTime(u.created_at) + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
             '<h4>Messages (' + (o.messages||[]).length + ')</h4>' + (o.messages||[]).map(function(m) {
-                return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + (m.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(m.message) + '</p></div>';
+                return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + formatPortalDateTime(m.created_at) + '</small><p>' + esc(m.message) + '</p></div>';
             }).join('') +
             '<h4>Photos (' + (o.media||[]).length + ')</h4>' +
             '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media||[]).length ? renderMediaSkeleton(Math.min((o.media||[]).length, 6)) : '<div class="portal-empty">No photos yet.</div>') + '</div>';
@@ -1002,7 +1059,7 @@
             rows: (logs || []).map(function (l) {
                 return {
                     cells: [
-                        (l.created_at || '').slice(0,16).replace('T',' '),
+                        formatPortalDateTime(l.created_at),
                         l.actor_email || '-',
                         { html: renderStatusBadge(l.actor_role || '-'), title: l.actor_role || '-' },
                         l.action || '-',
@@ -1154,7 +1211,7 @@
         return '<div class="portal-order-card portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="showSalesOrderDetail(' + order.id + ')">' +
             '<h3>' + esc(order.title || 'Order #' + order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></h3>' +
             '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
-            '<span>Delivery: ' + esc(order.estimated_delivery_date || 'TBD') + '</span><span>' + esc(order.updated_at || '-') + '</span></div></div>';
+            '<span>Delivery: ' + esc(order.estimated_delivery_date || 'DHL') + '</span><span>' + esc(formatPortalDate(order.updated_at)) + '</span></div></div>';
     }
 
     async function showSalesCustomers() {
@@ -1357,7 +1414,7 @@
             '<h3 class="portal-order-title">' + esc(o.title) + ' <small>#' + esc(o.order_no) + '</small></h3>' +
             '<div class="portal-order-meta portal-order-meta-spaced">' +
             '<span>Status: <span class="portal-badge ' + (o.status === 'active' ? 'active' : 'shipped') + '">' + esc(o.status) + '</span></span>' +
-            '<span>Delivery: ' + esc(o.estimated_delivery_date || 'TBD') + '</span></div>' +
+            '<span>Delivery: ' + esc(o.estimated_delivery_date || 'DHL') + '</span></div>' +
             (o.customer_visible_note ? '<div class="portal-note-card">' + esc(o.customer_visible_note) + '</div>' : '');
     }
 
@@ -1544,7 +1601,20 @@
                 });
                 var url = URL.createObjectURL(blob);
                 mediaObjectUrls.push(url);
-                item.innerHTML = '<img src="' + url + '" alt="' + esc(m.caption || m.original_filename || m.filename || '') + '"><small>' + esc(m.caption || '') + '</small>';
+                var rawLabel = m.caption || m.original_filename || m.filename || 'Production photo';
+                var safeLabel = esc(rawLabel);
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'portal-media-open';
+                button.setAttribute('aria-label', 'View full size: ' + rawLabel);
+                button.innerHTML = '<img src="' + url + '" alt="' + safeLabel + '">';
+                button.addEventListener('click', (function (photoUrl, caption) {
+                    return function () { openPortalLightbox(photoUrl, caption); };
+                })(url, rawLabel));
+                item.appendChild(button);
+                var captionEl = document.createElement('small');
+                captionEl.textContent = m.caption || '';
+                item.appendChild(captionEl);
             } catch (e) {
                 item.innerHTML = '<div class="portal-media-error">Photo unavailable</div><small>' + esc(m.caption || m.original_filename || m.filename || '') + '</small>';
             }
@@ -1566,7 +1636,7 @@
             h += "<div class=\"portal-messages\">" + messages.map(function (m) {
                 var rep = !!m.parent_message_id;
                 return "<div class=\"portal-msg" + (rep ? " portal-msg-reply" : "") + "\">" +
-                    "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (m.created_at ? m.created_at.slice(0,16).replace("T"," ") : "") + "</small></div>" +
+                    "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (formatPortalDateTime(m.created_at)) + "</small></div>" +
                     "<p>" + esc(m.message) + "</p>" +
                     (isSales && !rep ? "<button class=\"portal-btn portal-btn-secondary portal-btn-sm portal-btn-auto\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
                     "</div>";
@@ -1620,7 +1690,7 @@
 
     function renderTimelineItem(u) {
         var label = stageLabels[u.stage_key] || u.stage_key || 'Update';
-        return '<div class="portal-timeline-item"><div class="portal-timeline-dot"></div><div class="portal-timeline-content"><strong>' + esc(u.title || label) + '</strong>' + (u.progress_percent ? ' (' + u.progress_percent + '%)' : '') + (u.message ? '<p class="portal-timeline-message">' + esc(u.message) + '</p>' : '') + '<small>' + (u.created_at ? u.created_at.slice(0, 16).replace('T', ' ') : '') + '</small></div></div>';
+        return '<div class="portal-timeline-item"><div class="portal-timeline-dot"></div><div class="portal-timeline-content"><strong>' + esc(u.title || label) + '</strong>' + (u.progress_percent ? ' (' + u.progress_percent + '%)' : '') + (u.message ? '<p class="portal-timeline-message">' + esc(u.message) + '</p>' : '') + '<small>' + formatPortalDateTime(u.created_at) + '</small></div></div>';
     }
 
     async function bootstrapPortal() {
