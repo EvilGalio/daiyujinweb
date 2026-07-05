@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import random
 import secrets
 import time
@@ -14,6 +15,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import SessionLocal
 from services.portal_audit import log_portal_action, list_portal_audit_logs
 from services.portal_events import emit_portal_event, query_visible_events
+
+logger = logging.getLogger(__name__)
 from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent, PortalSecurityLog
 
 from pathlib import Path
@@ -43,7 +46,8 @@ def _handle_portal_preflight():
 def _add_security_headers(resp):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Referrer-Policy"] = "no-referrer"
-    resp.headers["Cache-Control"] = "no-store"
+    if request and request.endpoint != "portal.portal_events_stream":
+        resp.headers["Cache-Control"] = "no-store"
     origin = request.headers.get("Origin", "")
     if origin in PORTAL_ALLOWED_ORIGINS:
         resp.headers["Access-Control-Allow-Origin"] = origin
@@ -716,7 +720,7 @@ def sales_upload_media(order_id):
         session.flush()
         log_portal_action(session, u, "sales_upload_media", entity_type="portal_order_media", entity_id=order_id, entity_label=f"{stored}")
         v = "public" if visible else "internal"
-        emit_portal_event(session, "media_created", "media", entity_id=media.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "media_id": media.id, "caption": media.caption, "visible_to_customer": visible})
+        emit_portal_event(session, "media_created", "media", entity_id=media.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "media_id": media.id, "visible_to_customer": visible})
         session.commit()
         return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
     except Exception:
@@ -777,7 +781,7 @@ def portal_order_create_message(order_id):
         msg = PortalMessage(order_id=order.id, sender_user_id=u["id"], message=text, status="open")
         session.add(msg)
         session.flush()
-        emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": msg.id, "message": text, "sender_name": u.get("display_name") or u.get("email")})
+        emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": msg.id})
         session.commit()
         return jsonify({"error": False, "message_id": msg.id})
     finally:
@@ -808,7 +812,7 @@ def sales_reply_message(order_id, message_id):
         session.add(reply)
         session.flush()
         log_portal_action(session, u, "sales_reply_message", entity_type="portal_message", entity_id=message_id, entity_label=f"order={order_id}")
-        emit_portal_event(session, "message_created", "message", entity_id=reply.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": reply.id, "message": text, "sender_name": u.get("display_name") or u.get("email")})
+        emit_portal_event(session, "message_created", "message", entity_id=reply.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": reply.id})
         session.commit()
         return jsonify({"error": False, "message_id": reply.id})
     finally:
@@ -1219,6 +1223,7 @@ def portal_events_stream():
         return Response("Unauthorized", status=401)
 
     last_id = request.headers.get("Last-Event-ID") or request.args.get("after_id") or 0
+    logger.info("portal_sse_open user_id=%s role=%s after_id=%s", u.get("id"), u.get("role"), last_id)
 
     def stream():
         current_id = int(last_id or 0)
@@ -1231,11 +1236,12 @@ def portal_events_stream():
                     data = json.dumps(evt, ensure_ascii=False)
                     yield f"id: {current_id}\nevent: {evt['event_type']}\ndata: {data}\n\n"
             except Exception:
-                pass
+                logger.exception("portal_sse_loop_failed user_id=%s role=%s after_id=%s", u.get("id"), u.get("role"), current_id)
             finally:
                 try: session.close()
                 except: pass
-            yield ": heartbeat\n\n"
+            hb = json.dumps({"ts": datetime.utcnow().isoformat()})
+            yield f"event: heartbeat\ndata: {hb}\n\n"
             import time; time.sleep(3)
 
     return Response(stream(), mimetype="text/event-stream", headers={

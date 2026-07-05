@@ -75,8 +75,6 @@
         navStack: [],
         isNavigatingBack: false,
         pendingStage: null,
-        pendingStageLabel: null,
-        pendingStage: null,
         pendingStageLabel: null
     };
 
@@ -177,8 +175,10 @@
             if (!resp.token) throw new Error('No token returned');
             saveSession(resp.token, resp.user);
             if (resp.user.must_change_password) {
+                stopPortalRealtime();
                 showChangePassword(true);
             } else {
+                startPortalRealtime();
                 routeByRole(resp.user.role);
             }
         } catch (err) { showError(err.message || 'Login failed.'); }
@@ -240,6 +240,7 @@
             var currentUser = user();
             currentUser.must_change_password = false;
             saveSession(token(), currentUser);
+            startPortalRealtime();
             routeByRole(currentUser.role);
         } catch (e) { err.textContent = e.message; err.hidden = false; }
     };
@@ -274,6 +275,17 @@
         var controller = new AbortController();
         portalState.eventAbort = controller;
         streamPortalEvents(controller.signal);
+    }
+
+    function startPortalRealtime() {
+        if (!token()) return;
+        initPortalBroadcast();
+        portalState.lastEventId = getLastEventId();
+        connectPortalEvents();
+    }
+
+    function stopPortalRealtime() {
+        disconnectPortalEvents();
     }
 
     function disconnectPortalEvents() {
@@ -341,6 +353,11 @@
             else if (line.indexOf('event:') === 0) eventType = line.slice(6).trim();
             else if (line.indexOf('data:') === 0) dataLines.push(line.slice(5).trim());
         });
+        if (eventType === 'heartbeat') {
+            portalState.lastHeartbeatAt = Date.now();
+            setSyncStatus('live');
+            return;
+        }
         if (!dataLines.length) return;
         try {
             var evt = JSON.parse(dataLines.join('\n'));
@@ -349,6 +366,7 @@
         evt.id = id;
         if (id) setLastEventId(id);
         if (!shouldProcessEvent(evt)) return;
+        console.info('[portal:sse:event]', evt.event_type, evt.id, evt.order_id || (evt.payload && evt.payload.order_id));
         handlePortalEvent(evt);
     }
 
@@ -365,6 +383,7 @@
 
     function handleCurrentOrderEvent(evt) {
         var oid = evt.order_id || (evt.payload && evt.payload.order_id);
+        console.info('[portal:sse:patch]', evt.event_type, oid);
         switch (evt.event_type) {
             case 'message_created': refreshCurrentOrderMessages(oid); break;
             case 'order_update_created': refreshCurrentOrderUpdates(oid); break;
@@ -376,29 +395,52 @@
         }
     }
 
+    function showInlineSyncNotice(msg, retryFn) {
+        var el = document.getElementById('order-messages');
+        if (!el) return;
+        var note = document.createElement('div');
+        note.className = 'portal-note-card';
+        note.style.cursor = 'pointer';
+        note.textContent = msg + ' Click to retry.';
+        note.onclick = function () { note.remove(); if (typeof retryFn === 'function') retryFn(); };
+        el.insertBefore(note, el.firstChild);
+        setTimeout(function () { if (note.parentNode) note.remove(); }, 15000);
+    }
+
     async function refreshCurrentOrderMessages(orderId) {
-        var resp = await api('/api/portal/orders/' + orderId + '/messages');
-        patchMessages(orderId, resp.messages || [], portalState.currentIsSales);
+        try {
+            var resp = await api('/api/portal/orders/' + orderId + '/messages');
+            patchMessages(orderId, resp.messages || [], portalState.currentIsSales);
+        } catch (e) {
+            console.warn('[portal:patch:messages:failed]', e);
+            showInlineSyncNotice('Messages could not refresh automatically.', function () { refreshCurrentOrderMessages(orderId); });
+        }
     }
 
     async function refreshCurrentOrderUpdates(orderId) {
-        var resp = await api('/api/portal/orders/' + orderId + '/updates');
-        patchTimeline(orderId, resp.updates || []);
+        try {
+            var resp = await api('/api/portal/orders/' + orderId + '/updates');
+            patchTimeline(orderId, resp.updates || []);
+        } catch (e) { console.warn('[portal:patch:updates:failed]', e); }
     }
 
     async function refreshCurrentOrderMedia(orderId) {
-        var resp = await api('/api/portal/orders/' + orderId + '/media');
-        patchMedia(orderId, resp.media || []);
+        try {
+            var resp = await api('/api/portal/orders/' + orderId + '/media');
+            patchMedia(orderId, resp.media || []);
+        } catch (e) { console.warn('[portal:patch:media:failed]', e); }
     }
 
     async function refreshCurrentOrderSummary(orderId) {
-        var resp = await api('/api/portal/orders/' + orderId);
-        var o = resp.order;
-        portalState.ordersById[orderId] = o;
-        patchOrderHeader(o);
-        patchStageStepper(o.current_stage);
-        var actions = document.getElementById('order-sales-actions');
-        if (actions && portalState.currentIsSales) actions.innerHTML = renderSalesActions(orderId, o.current_stage);
+        try {
+            var resp = await api('/api/portal/orders/' + orderId);
+            var o = resp.order;
+            portalState.ordersById[orderId] = o;
+            patchOrderHeader(o);
+            patchStageStepper(o.current_stage);
+            var actions = document.getElementById('order-sales-actions');
+            if (actions && portalState.currentIsSales) actions.innerHTML = renderSalesActions(orderId, o.current_stage);
+        } catch (e) { console.warn('[portal:patch:summary:failed]', e); }
     }
 
     function markBackgroundOrderChanged(orderId, evt) {
@@ -432,7 +474,12 @@
         // If user is on a detail page, check if current order still exists
         if (portalState.currentView === 'order-detail' && portalState.currentOrderId) {
             var cur = snap.orders.find(function (o) { return o.id === Number(portalState.currentOrderId); });
-            if (cur) refreshCurrentOrderSummary(cur.id);
+            if (cur) {
+                refreshCurrentOrderSummary(cur.id);
+                refreshCurrentOrderUpdates(cur.id);
+                refreshCurrentOrderMessages(cur.id);
+                refreshCurrentOrderMedia(cur.id);
+            }
         }
         if (snap.latest_event_id) setLastEventId(snap.latest_event_id);
     }
@@ -560,6 +607,21 @@
         }
         if (status === 'live') { portalState.lastEventAt = new Date().toISOString(); portalState.sseFailCount = 0; }
     }
+
+    window.portalDebugSync = function () {
+        return {
+            role: user().role,
+            email: user().email,
+            currentView: portalState.currentView,
+            currentOrderId: portalState.currentOrderId,
+            currentIsSales: portalState.currentIsSales,
+            syncStatus: portalState.syncStatus,
+            lastEventId: portalState.lastEventId,
+            lastHeartbeatAt: portalState.lastHeartbeatAt,
+            hasEventStream: !!portalState.eventAbort,
+            reconnectScheduled: !!portalState.eventReconnectTimer
+        };
+    };
 
     window.showCustomerDashboard = showCustomerDashboard;
     window.showSalesWorkspace = showSalesWorkspace;
@@ -1571,10 +1633,11 @@
         try {
             var me = await api('/api/portal/auth/me');
             saveSession(token(), me.user);
-            connectPortalEvents();
             if (me.user.must_change_password) {
+                stopPortalRealtime();
                 showChangePassword(true);
             } else {
+                startPortalRealtime();
                 routeByRole(me.user.role);
             }
         } catch (e) {
