@@ -73,7 +73,9 @@
         processedEventIds: {},
         processedEventQueue: [],
         navStack: [],
-        isNavigatingBack: false
+        isNavigatingBack: false,
+        pendingStage: null,
+        pendingStageLabel: null
     };
 
     function eventCursorKey() {
@@ -90,6 +92,11 @@
         portalState.currentOrderId = opts.orderId || null;
         portalState.currentIsSales = !!opts.isSales;
         portalState.listKind = opts.listKind || null;
+    }
+
+    function resetPortalNav() {
+        if (portalState.isNavigatingBack) return;
+        portalState.navStack = [];
     }
 
     function pushPortalView(label, fn, args) {
@@ -111,7 +118,7 @@
     function renderBreadcrumb(stack) {
         if (!stack || !stack.length) return '';
         return '<div class="portal-breadcrumb">' +
-            stack.map(function (s) { return '<span>' + esc(s.label) + '</span>'; }).join(' <span style="color:var(--muted)">/</span> ') +
+            stack.map(function (s) { return '<span>' + esc(s.label) + '</span>'; }).join(' <span class="portal-breadcrumb-separator">/</span> ') +
             '</div>';
     }
 
@@ -202,14 +209,16 @@
         stopAutoRefresh();
         var me = user();
         main.innerHTML = renderRoleHeader('Account Settings', me.display_name || me.email, required ? 'Password change required.' : 'Update your password.') +
-            (required ? '<p style="color:var(--portal-danger);font-size:13px;margin:0 0 1rem">You must change your password before continuing.</p>' : '') +
-            '<div class="portal-panel portal-panel-compact">' +
+            (required ? '<p class="portal-inline-note portal-inline-note-danger">You must change your password before continuing.</p>' : '') +
+            '<div class="portal-panel portal-panel-compact portal-panel-spaced">' +
             '<h3>' + (required ? 'Set New Password' : 'Change Password') + '</h3>' +
-            '<p><input id="chpwd-current" type="password" placeholder="Current password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
-            '<p><input id="chpwd-new" type="password" placeholder="New password (min 12 characters)" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
-            '<p><input id="chpwd-confirm" type="password" placeholder="Confirm new password" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px"></p>' +
-            '<p id="chpwd-error" style="color:var(--portal-danger, #dc2626);font-size:13px;display:none"></p>' +
-            '<p><button class="portal-btn" onclick="doChangePassword(' + (required ? 'true' : 'false') + ')">' + (required ? 'Set Password & Continue' : 'Change Password') + '</button></p></div>';
+            '<div class="portal-stack-sm">' +
+            '<input id="chpwd-current" class="portal-input-full" type="password" placeholder="Current password">' +
+            '<input id="chpwd-new" class="portal-input-full" type="password" placeholder="New password (min 12 characters)">' +
+            '<input id="chpwd-confirm" class="portal-input-full" type="password" placeholder="Confirm new password">' +
+            '<p id="chpwd-error" class="portal-error" hidden></p>' +
+            '<button class="portal-btn portal-btn-primary portal-action-button" onclick="doChangePassword(' + (required ? 'true' : 'false') + ')">' + (required ? 'Set Password & Continue' : 'Change Password') + '</button>' +
+            '</div></div>';
         enterAppMode();
     }
 
@@ -218,16 +227,16 @@
         var np = document.getElementById('chpwd-new').value;
         var cf = document.getElementById('chpwd-confirm').value;
         var err = document.getElementById('chpwd-error');
-        if (np.length < 12) { err.textContent = 'New password must be at least 12 characters.'; err.style.display = ''; return; }
-        if (np !== cf) { err.textContent = 'Passwords do not match.'; err.style.display = ''; return; }
-        err.style.display = 'none';
+        if (np.length < 12) { err.textContent = 'New password must be at least 12 characters.'; err.hidden = false; return; }
+        if (np !== cf) { err.textContent = 'Passwords do not match.'; err.hidden = false; return; }
+        err.hidden = true;
         try {
             await api('/api/portal/auth/change-password', { method: 'POST', body: JSON.stringify({ current: cur, new: np }) });
             var currentUser = user();
             currentUser.must_change_password = false;
             saveSession(token(), currentUser);
             routeByRole(currentUser.role);
-        } catch (e) { err.textContent = e.message; err.style.display = ''; }
+        } catch (e) { err.textContent = e.message; err.hidden = false; }
     };
     var api = function (path, opts) {
         opts = opts || {};
@@ -383,6 +392,8 @@
         portalState.ordersById[orderId] = o;
         patchOrderHeader(o);
         patchStageStepper(o.current_stage);
+        var actions = document.getElementById('order-sales-actions');
+        if (actions && portalState.currentIsSales) actions.innerHTML = renderSalesActions(orderId, o.current_stage);
     }
 
     function markBackgroundOrderChanged(orderId, evt) {
@@ -462,9 +473,11 @@
         el.innerHTML = '<div class="portal-toast-title">' + esc(opts.title) + '</div>' +
             '<span class="portal-toast-count">1 update</span>';
         if (opts.orderId) {
-            el.style.cursor = 'pointer';
+            el.classList.add('is-clickable');
             el.addEventListener('click', function () {
-                if (user().role === 'customer') showCustomerOrderDetail(opts.orderId);
+                var role = user().role;
+                if (role === 'customer') showCustomerOrderDetail(opts.orderId);
+                else if (role === 'admin' && window.showAdminOrderDetail) window.showAdminOrderDetail(opts.orderId, 'Dashboard', showAdminDashboard, []);
                 else showSalesOrderDetail(opts.orderId);
             });
         }
@@ -479,8 +492,7 @@
 
     function dismissPortalToast(entry) {
         if (!entry || !entry.el) return;
-        entry.el.style.opacity = '0';
-        entry.el.style.transform = 'translateY(8px)';
+        entry.el.classList.add('is-leaving');
         setTimeout(function () { if (entry.el) entry.el.remove(); }, 200);
         portalState.activeToasts = portalState.activeToasts.filter(function (t) { return t !== entry; });
     }
@@ -506,8 +518,7 @@
         if (!bar) return;
         var banner = document.createElement('div');
         banner.id = 'list-refresh-banner';
-        banner.className = 'portal-note-card';
-        banner.style.cssText = 'cursor:pointer;margin:0 0 1rem;display:flex;justify-content:space-between;align-items:center';
+        banner.className = 'portal-note-card portal-list-refresh-banner';
         banner.innerHTML = '<span>Updates available — refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary portal-btn-auto">Refresh</button>';
         banner.querySelector('button').onclick = function () {
             banner.remove();
@@ -529,6 +540,10 @@
             dot.className = 'portal-sync-dot portal-sync-' + status;
             dot.title = status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting...' : status === 'offline' ? 'Offline' : status === 'stale' ? 'Data may be stale' : status === 'resyncing' ? 'Syncing...' : 'Connecting...';
         }
+        var labels = document.querySelectorAll('[data-sync-label]');
+        labels.forEach(function (label) {
+            label.innerHTML = '<span class="portal-sync-dot portal-sync-' + status + '"></span>' + syncStatusTitle(status);
+        });
         var strip = document.getElementById('sync-strip');
         if (strip) {
             strip.className = 'portal-sync-strip';
@@ -568,42 +583,82 @@
             '<div class="portal-cta-row"><button class="portal-btn portal-btn-secondary portal-btn-sm" onclick="' + backAction + '">' + esc(backLabel || 'Back') + '</button></div></div>';
     }
 
+    function renderBackButton() {
+        if (!portalState.navStack.length) return '';
+        var target = portalState.navStack[portalState.navStack.length - 1];
+        return '<button onclick="portalBack()" class="portal-btn portal-btn-ghost portal-btn-sm portal-back-button">&larr; Back to ' + esc(target.label || 'Previous') + '</button>';
+    }
+
+    function syncStatusTitle(status) {
+        return status === 'live' ? 'Live' : status === 'reconnecting' ? 'Reconnecting' : status === 'offline' ? 'Offline' : status === 'stale' ? 'Stale' : status === 'resyncing' ? 'Syncing' : 'Connecting';
+    }
+
+    function renderSyncLabel() {
+        var status = portalState.syncStatus || 'connecting';
+        return '<span class="portal-sync-label" data-sync-label><span class="portal-sync-dot portal-sync-' + status + '"></span>' + syncStatusTitle(status) + '</span>';
+    }
+
     function renderRoleHeader(title, name, subtitle) {
-        var back = portalState.navStack.length
-            ? '<button onclick="portalBack()" class="portal-btn portal-btn-ghost portal-btn-sm">&larr; Back</button>'
-            : '';
-        return '<div class="portal-role-header">' + back + '<h2>' + esc(title) + '</h2>' +
-            '<b>' + esc(name) + '</b><span>' + esc(subtitle) + '</span>' +
-            '<div class="portal-header-actions"><button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm">Change Password</button>' +
+        return '<div class="portal-role-header">' +
+            '<div class="portal-header-main">' + renderBackButton() +
+            '<div><h2>' + esc(title) + '</h2><b>' + esc(name) + '</b>' + (subtitle ? '<span>' + esc(subtitle) + '</span>' : '') + '</div></div>' +
+            '<div class="portal-header-actions">' + renderSyncLabel() + '<button onclick="showChangePassword(false)" class="portal-btn portal-btn-ghost portal-btn-sm">Change Password</button>' +
             '<button onclick="portalLogout()" class="portal-btn portal-btn-ghost portal-btn-sm">Sign Out</button></div></div>';
     }
 
     /* ── Skeleton loaders ── */
-    function renderSkeleton(className, h) {
-        return '<div class="portal-skeleton ' + (className || '') + '" style="height:' + (h || '20') + 'px"></div>';
+    function renderSkeleton(className) {
+        return '<div class="portal-skeleton ' + (className || '') + '"></div>';
     }
 
     function renderTableSkeleton(cols, rows) {
         cols = cols || 4; rows = rows || 5;
-        var html = '<div class="portal-panel" style="padding:.5rem">';
+        var html = '<div class="portal-panel portal-skeleton-table">';
         for (var r = 0; r < rows; r++) {
-            html += '<div class="portal-skeleton portal-skeleton-row" style="margin-bottom:4px"></div>';
+            html += '<div class="portal-skeleton portal-skeleton-row"></div>';
         }
         return html + '</div>';
     }
 
+    function renderCardGridSkeleton(count) {
+        count = count || 4;
+        var cards = [];
+        for (var i = 0; i < count; i++) {
+            cards.push('<article class="portal-order-card portal-skeleton-card">' +
+                renderSkeleton('portal-skeleton-title') +
+                renderSkeleton('portal-skeleton-text') +
+                renderSkeleton('portal-skeleton-row') +
+                '</article>');
+        }
+        return '<div class="portal-dashboard">' + cards.join('') + '</div>';
+    }
+
+    function renderMediaSkeleton(count) {
+        count = count || 3;
+        var html = '';
+        for (var i = 0; i < count; i++) {
+            html += '<div class="portal-media-item portal-media-skeleton">' + renderSkeleton('portal-skeleton-img') + renderSkeleton('portal-skeleton-text') + '</div>';
+        }
+        return html;
+    }
+
+    function renderPageShellSkeleton(role) {
+        return renderRoleHeader(role || 'Workspace', user().display_name || user().email, 'Loading workspace data.') +
+            renderCardGridSkeleton(3);
+    }
+
     function renderOrderDetailSkeleton() {
-        return '<div class="portal-panel" style="margin-bottom:1rem">' +
-            renderSkeleton('portal-skeleton-title', 20) +
-            renderSkeleton('portal-skeleton-text', 14) +
+        return '<div class="portal-panel portal-panel-spaced">' +
+            renderSkeleton('portal-skeleton-title') +
+            renderSkeleton('portal-skeleton-text') +
             '</div>' +
             '<div class="portal-detail-grid">' +
-            '<div>' + renderSkeleton('portal-skeleton-row', 36) + renderSkeleton('portal-skeleton-row', 36) + renderSkeleton('portal-skeleton-row', 36) + '</div>' +
-            '<div>' + renderSkeleton('portal-skeleton-img', 140) + '</div>' +
+            '<div class="portal-stack-sm">' + renderSkeleton('portal-skeleton-row') + renderSkeleton('portal-skeleton-row') + renderSkeleton('portal-skeleton-row') + '</div>' +
+            '<div class="portal-media-grid">' + renderMediaSkeleton(2) + '</div>' +
             '</div>';
     }
 
-    function esc(v) { return String(v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]; }); }
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
     var stageLabels = { order_confirmed: 'Order Confirmed', material_purchasing: 'Material Purchasing', material_ready: 'Material Ready', machining: 'CNC Machining', in_process_qc: 'In-process QC', surface_treatment: 'Surface Treatment', final_inspection: 'Final Inspection', packing: 'Packing', shipped: 'Shipped', delivered: 'Delivered', on_hold: 'On Hold' };
 
@@ -611,13 +666,14 @@
        Customer Dashboard
        ══════════════════════════════════════════════════ */
 
-    async function showCustomerDashboard() { setCurrentView('list'); clearMediaUrls(); stopAutoRefresh();
+    async function showCustomerDashboard() { setCurrentView('list'); resetPortalNav(); clearMediaUrls(); stopAutoRefresh();
+        var u = user();
+        main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') + renderCardGridSkeleton(3);
         try {
             var resp = await api('/api/portal/orders');
-            var u = user();
             main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') +
-                '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p style="font-size:12px;color:var(--portal-muted)">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
-        } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load orders.</div>'; }
+                '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p class="portal-muted">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
+        } catch (e) { main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showCustomerDashboard()'); }
     }
 
     var stageProgress = { order_confirmed: 8, material_purchasing: 18, material_ready: 28, machining: 48, in_process_qc: 58, surface_treatment: 70, final_inspection: 82, packing: 90, shipped: 96, delivered: 100, on_hold: 40 };
@@ -626,13 +682,13 @@
     function renderOrderCard(order) {
         var stageLabel = stageLabels[order.current_stage] || 'N/A';
         var progress = stageProgress[order.current_stage] || stageDefaultProgress;
-        return '<article class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" class="portal-clickable" onclick="showOrderDetail(' + order.id + ')">' +
+        return '<article class="portal-order-card portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="showOrderDetail(' + order.id + ')">' +
             '<div class="portal-card-head"><div>' +
             '<p class="portal-eyebrow">Order #' + esc(order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></p>' +
             '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
             '</div><span class="portal-badge status-' + esc(order.status) + '">' + esc(order.status) + '</span></div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
-            '<div class="portal-progress-track"><span style="width:' + progress + '%"></span></div>' +
+            '<div class="portal-progress-track"><span class="portal-progress-fill" style="--progress:' + progress + '%"></span></div>' +
             '<div class="portal-card-meta"><span>ETA: ' + esc(order.estimated_delivery_date || 'TBD') + '</span>' +
             '<span>Updated: ' + esc((order.updated_at || '').slice(0,10)) + '</span></div></article>';
     }
@@ -650,6 +706,7 @@
 
     async function showAdminTab(tab) {
         setCurrentView('list', { listKind: 'admin-' + tab });
+        resetPortalNav();
         var me = user();
         main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Manage reps, customers, orders, and portal activity.') +
             '<div class="portal-admin-tabs">' +
@@ -663,11 +720,52 @@
             else if (tab === 'customers') await renderAdminCustomers();
             else if (tab === 'orders') await renderAdminOrders();
             else if (tab === 'activity') await renderAdminActivity();
-        } catch (e) { document.getElementById('admin-content').innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
+        } catch (e) { document.getElementById('admin-content').innerHTML = renderErrorState('Unable to load admin data.', e.message, 'Retry', 'showAdminTab(\'' + tab + '\')'); }
+    }
+
+    function renderStatusBadge(status) {
+        status = status || 'unknown';
+        return '<span class="portal-badge status-' + esc(status) + '">' + esc(status) + '</span>';
+    }
+
+    function renderCell(cell) {
+        if (cell && typeof cell === 'object' && cell.html != null) return cell.html;
+        return esc(cell == null || cell === '' ? '-' : cell);
+    }
+
+    function cellTitle(cell) {
+        if (cell && typeof cell === 'object') return esc(cell.title || String(cell.html || '').replace(/<[^>]*>/g, ''));
+        return esc(cell == null || cell === '' ? '-' : cell);
+    }
+
+    function renderAdminTable(config) {
+        var columns = config.columns || [];
+        var rows = config.rows || [];
+        var clickable = rows.some(function (row) { return !!row.onClick; });
+        var headers = columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + (clickable ? '<th class="portal-disclosure-col"></th>' : '');
+        if (!rows.length) {
+            return '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr>' + headers + '</tr></thead><tbody><tr><td class="portal-table-empty" colspan="' + (columns.length + (clickable ? 1 : 0)) + '">' + esc(config.emptyText || 'No records yet.') + '</td></tr></tbody></table></div>';
+        }
+        return '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr>' + headers + '</tr></thead><tbody>' +
+            rows.map(function (row) {
+                var cls = row.onClick ? ' class="portal-table-row-clickable"' : '';
+                var click = row.onClick ? ' onclick="' + row.onClick + '"' : '';
+                var cells = (row.cells || []).map(function (cell) {
+                    return '<td title="' + cellTitle(cell) + '">' + renderCell(cell) + '</td>';
+                }).join('');
+                return '<tr' + cls + click + '>' + cells + (clickable ? '<td class="portal-disclosure">' + (row.onClick ? '&rsaquo;' : '') + '</td>' : '') + '</tr>';
+            }).join('') + '</tbody></table></div>';
     }
 
     async function renderAdminOverview() {
-        var ov = (await api('/api/portal/admin/overview')).overview;
+        var results = await Promise.all([
+            api('/api/portal/admin/overview'),
+            api('/api/portal/admin/orders'),
+            api('/api/portal/admin/audit-logs')
+        ]);
+        var ov = results[0].overview || {};
+        var recentOrders = (results[1].orders || []).slice(0, 6);
+        var recentLogs = (results[2].logs || []).slice(0, 6);
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-admin-kpi-grid">' +
             ['Active Sales Reps','Active Customers','Orders in Production','Updates Today'].map(function (label, i) {
@@ -675,7 +773,18 @@
                 var help = ['People responsible for customers','Assigned customer accounts','Orders currently in production','Progress entries today'][i];
                 return '<div class="portal-admin-kpi"><strong>' + val + '</strong><span>' + label + '</span><small>' + help + '</small></div>';
             }).join('') + '</div>' +
-            '<div style="margin-top:1rem"><button class="portal-btn portal-btn-primary portal-btn-auto" onclick="showAdminCreateUser()">+ Create User</button></div>';
+            '<div class="portal-admin-overview-grid">' +
+            '<section class="portal-panel portal-admin-overview-main"><div class="portal-command-bar"><h3>Recent Orders</h3><span>Latest active production records</span></div>' +
+            renderAdminTable({
+                columns: ['Order', 'Customer', 'Sales', 'Stage', 'Status'],
+                rows: recentOrders.map(function (o) {
+                    return { onClick: 'showAdminOrderDetail(' + o.id + ', \'Dashboard\', showAdminDashboard, [])', cells: [o.order_no + ' ' + (o.title || ''), o.customer_name || '-', o.sales_name || '-', o.current_stage || 'N/A', { html: renderStatusBadge(o.status), title: o.status }] };
+                }),
+                emptyText: 'No recent orders.'
+            }) + '</section>' +
+            '<section class="portal-panel portal-admin-overview-side"><div class="portal-command-bar"><h3>Recent Activity</h3><span>Portal operations</span></div>' +
+            renderActivityTable(recentLogs) +
+            '<div class="portal-cta-row portal-cta-row-left"><button class="portal-btn portal-btn-primary portal-btn-auto" onclick="showAdminCreateUser()">+ Create User</button><button class="portal-btn portal-btn-secondary portal-btn-auto" onclick="showAdminTab(\'orders\')">View Orders</button></div></section></div>';
     }
 
     async function renderAdminSalesReps() {
@@ -683,14 +792,23 @@
         var reps = d.sales_reps || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Sales Reps</h3><span>Monitor workload and customer ownership. ' + reps.length + ' reps found.</span><button class="portal-btn portal-btn-primary portal-btn-sm" onclick="showAdminCreateUser()">+ Create User</button></div>' +
-            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Customers</th><th>Orders</th><th>Last Activity</th><th></th></tr></thead><tbody>' +
-            reps.map(function (r) {
-                return '<tr><td>' + esc(r.display_name || '-') + '</td><td>' + esc(r.email) + '</td>' +
-                    '<td><span class="portal-badge status-' + r.status + '">' + esc(r.status) + '</span></td>' +
-                    '<td>' + r.customer_count + '</td><td>' + r.order_count + '</td>' +
-                    '<td>' + (r.last_action || '—') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '') + '</td>' +
-                    '<td><button class="portal-btn portal-btn-auto" style="padding:.2rem .5rem;font-size:12px" onclick="showAdminSalesRepDetail(' + r.id + ')">View</button></td></tr>';
-            }).join('') + '</tbody></table></div>';
+            renderAdminTable({
+                columns: ['Name', 'Email', 'Status', 'Customers', 'Orders', 'Last Activity'],
+                rows: reps.map(function (r) {
+                    return {
+                        onClick: 'showAdminSalesRepDetail(' + r.id + ')',
+                        cells: [
+                            r.display_name || '-',
+                            r.email,
+                            { html: renderStatusBadge(r.status), title: r.status },
+                            r.customer_count,
+                            r.order_count,
+                            (r.last_action || '-') + ' ' + (r.last_activity ? r.last_activity.slice(0,16).replace('T',' ') : '')
+                        ]
+                    };
+                }),
+                emptyText: 'No sales reps yet.'
+            });
     }
 
     window.showAdminSalesRepDetail = async function(sid) {
@@ -715,13 +833,16 @@
         var cxs = d.customers || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Customers</h3><span>Search by name, company, email, or sales rep. ' + cxs.length + ' records.</span></div>' +
-            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Sales Rep</th><th>Orders</th><th>Latest Status</th><th></th></tr></thead><tbody>' +
-            cxs.map(function(c) {
-                return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td>' +
-                    '<td>' + esc(c.sales_name || '—') + '</td><td>' + c.order_count + '</td>' +
-                    '<td>' + esc(c.latest_order_status || '—') + '</td>' +
-                    '<td><button class="portal-btn portal-btn-auto" style="padding:.2rem .5rem;font-size:12px" onclick="showAdminCustomerDetail(' + c.id + ')">View</button></td></tr>';
-            }).join('') + '</tbody></table></div>';
+            renderAdminTable({
+                columns: ['Name', 'Email', 'Sales Rep', 'Orders', 'Latest Status'],
+                rows: cxs.map(function (c) {
+                    return {
+                        onClick: 'showAdminCustomerDetail(' + c.id + ')',
+                        cells: [c.display_name || '-', c.email, c.sales_name || '-', c.order_count, c.latest_order_status || '-']
+                    };
+                }),
+                emptyText: 'No customers yet.'
+            });
     }
 
     window.showAdminCustomerDetail = async function(cid) {
@@ -741,14 +862,16 @@
         var ords = d.orders || [];
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-command-bar"><h3>Orders</h3><span>All orders across all sales reps and customers. ' + ords.length + ' total.</span></div>' +
-            '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order #</th><th>Title</th><th>Customer</th><th>Sales</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
-            ords.map(function(o) {
-                return '<tr onclick="showAdminOrderDetail(' + o.id + ')" class="portal-clickable">' +
-                    '<td>' + esc(o.order_no) + '</td><td>' + esc(o.title || '—') + '</td>' +
-                    '<td>' + esc(o.customer_name || '—') + '</td><td>' + esc(o.sales_name || '—') + '</td>' +
-                    '<td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.status) + '</td>' +
-                    '<td>' + (o.updated_at||'').slice(0,10) + '</td></tr>';
-            }).join('') + '</tbody></table></div>';
+            renderAdminTable({
+                columns: ['Order #', 'Title', 'Customer', 'Sales', 'Stage', 'Status', 'Updated'],
+                rows: ords.map(function (o) {
+                    return {
+                        onClick: 'showAdminOrderDetail(' + o.id + ')',
+                        cells: [o.order_no, o.title || '-', o.customer_name || '-', o.sales_name || '-', o.current_stage || 'N/A', { html: renderStatusBadge(o.status), title: o.status }, (o.updated_at || '').slice(0,10)]
+                    };
+                }),
+                emptyText: 'No orders yet.'
+            });
     }
 
     window.showAdminOrderDetail = async function(orderId, backLabel, backFn, backArgs, opts) {
@@ -764,13 +887,13 @@
             '<strong>Stage:</strong> ' + esc(o.current_stage||'N/A') + ' | <strong>Status:</strong> ' + esc(o.status) + '<br>' +
             '<strong>Delivery:</strong> ' + esc(o.estimated_delivery_date||'TBD') + '<br>' +
             '<strong>PO:</strong> ' + esc(o.po_number||'—') + '</div>' +
-            '<div><button class="portal-btn portal-btn-auto" style="padding:.3rem .75rem" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
+            '<div><button class="portal-btn portal-btn-secondary portal-btn-auto" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
             '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + (u.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
             '<h4>Messages (' + (o.messages||[]).length + ')</h4>' + (o.messages||[]).map(function(m) {
                 return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + (m.created_at||'').slice(0,16).replace('T',' ') + '</small><p>' + esc(m.message) + '</p></div>';
             }).join('') +
             '<h4>Photos (' + (o.media||[]).length + ')</h4>' +
-            '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media||[]).length ? '<div class="portal-empty">Loading photos...</div>' : '<div class="portal-empty">No photos yet.</div>') + '</div>';
+            '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media||[]).length ? renderMediaSkeleton(Math.min((o.media||[]).length, 6)) : '<div class="portal-empty">No photos yet.</div>') + '</div>';
         if ((o.media||[]).length) loadAuthorizedImages(o.id, o.media, 'admin-media-grid');
     };
 
@@ -791,14 +914,21 @@
     }
 
     function renderActivityTable(logs) {
-        return '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Entity</th></tr></thead><tbody>' +
-            logs.map(function(l) {
-                return '<tr><td>' + (l.created_at||'').slice(0,16).replace('T',' ') + '</td>' +
-                    '<td>' + esc(l.actor_email || '—') + '</td>' +
-                    '<td>' + esc(l.actor_role || '—') + '</td>' +
-                    '<td>' + esc(l.action) + '</td>' +
-                    '<td>' + esc(l.entity_type || '') + ' ' + esc(l.entity_label || '') + '</td></tr>';
-            }).join('') + '</tbody></table></div>';
+        return renderAdminTable({
+            columns: ['Time', 'User', 'Role', 'Action', 'Entity'],
+            rows: (logs || []).map(function (l) {
+                return {
+                    cells: [
+                        (l.created_at || '').slice(0,16).replace('T',' '),
+                        l.actor_email || '-',
+                        { html: renderStatusBadge(l.actor_role || '-'), title: l.actor_role || '-' },
+                        l.action || '-',
+                        (l.entity_type || '') + ' ' + (l.entity_label || '')
+                    ]
+                };
+            }),
+            emptyText: 'No activity logs yet.'
+        });
     }
 
     window.adminDisableUser = async function(userId) {
@@ -818,19 +948,20 @@
         main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Create a new user account.') +
             '<div class="portal-panel portal-panel-compact">' +
             '<h3>Create User</h3>' +
-            '<p><input id="new-user-email" placeholder="Email" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
-            '<p><input id="new-user-name" placeholder="Display name (optional)" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"></p>' +
-            '<p><select id="new-user-role" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px"><option value="sales">Sales</option><option value="admin">Admin</option><option value="customer">Customer</option></select></p>' +
-            '<div id="admin-sales-picker" style="display:none">' +
-                '<p style="margin-bottom:.25rem;font-size:12px;color:var(--muted)">Bind Sales Rep</p>' +
+            '<div class="portal-stack-sm">' +
+            '<div class="portal-field"><label>Email</label><input id="new-user-email" type="email" placeholder="Email"></div>' +
+            '<div class="portal-field"><label>Display name</label><input id="new-user-name" placeholder="Optional"></div>' +
+            '<div class="portal-field"><label>Role</label><select id="new-user-role"><option value="sales">Sales</option><option value="admin">Admin</option><option value="customer">Customer</option></select></div>' +
+            '<div id="admin-sales-picker" class="portal-field" hidden>' +
+                '<label>Bind Sales Rep</label>' +
                 '<input id="admin-sales-search" placeholder="Search sales name or email">' +
                 '<div id="admin-sales-selected"></div>' +
                 '<div id="admin-sales-results"></div>' +
             '</div>' +
-            '<p><button class="portal-btn" onclick="adminCreateUser()">Create User</button></p></div>';
+            '<button class="portal-btn portal-btn-primary portal-action-button" onclick="adminCreateUser()">Create User</button></div></div>';
         document.getElementById('new-user-role').addEventListener('change', function () {
             var isCust = this.value === 'customer';
-            document.getElementById('admin-sales-picker').style.display = isCust ? '' : 'none';
+            document.getElementById('admin-sales-picker').hidden = !isCust;
             if (isCust) {
                 if (!adminSalesRepsCache.length) { loadAdminSalesReps(); }
                 else { bindAdminSalesSearch(); }
@@ -910,6 +1041,11 @@
     async function showSalesOrders() {
         setCurrentView('list', { listKind: 'sales-orders' });
         var u = user();
+        resetPortalNav();
+        clearMediaUrls();
+        stopAutoRefresh();
+        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+            renderSalesCommandBar('orders') + renderCardGridSkeleton(4);
         try {
             var resp = await api('/api/portal/orders');
             var orders = resp.orders || [];
@@ -917,7 +1053,7 @@
                 renderSalesCommandBar('orders') +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                 '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
+        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
     }
 
 
@@ -925,14 +1061,14 @@
         return '<div class="portal-sales-tabs">' +
             '<button' + (activeTab === 'orders' ? ' class="active"' : '') + ' onclick="showSalesOrders()">Orders</button>' +
             '<button' + (activeTab === 'customers' ? ' class="active"' : '') + ' onclick="showSalesCustomers()">Customers</button>' +
-            '<div style="flex:1"></div>' +
-            '<a href="javascript:void(0)" onclick="showCreateCustomer()" class="portal-btn portal-btn-secondary portal-btn-sm" style="text-decoration:none;margin-right:.25rem">+ Customer</a>' +
-            '<a href="javascript:void(0)" onclick="showCreateOrder()" class="portal-btn portal-btn-sm" style="text-decoration:none">+ Order</a>' +
+            '<div class="portal-nav-spacer"></div>' +
+            '<button type="button" onclick="showCreateCustomer()" class="portal-btn portal-btn-secondary portal-btn-sm">+ Customer</button>' +
+            '<button type="button" onclick="showCreateOrder()" class="portal-btn portal-btn-primary portal-btn-sm">+ Order</button>' +
             '</div>';
     }
 
     function renderSalesOrderCard(order) {
-        return '<div class="portal-order-card" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" class="portal-clickable" onclick="showSalesOrderDetail(' + order.id + ')">' +
+        return '<div class="portal-order-card portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="showSalesOrderDetail(' + order.id + ')">' +
             '<h3>' + esc(order.title || 'Order #' + order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></h3>' +
             '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
             '<span>Delivery: ' + esc(order.estimated_delivery_date || 'TBD') + '</span><span>' + esc(order.updated_at || '-') + '</span></div></div>';
@@ -940,18 +1076,21 @@
 
     async function showSalesCustomers() {
         setCurrentView('list', { listKind: 'sales-customers' });
+        resetPortalNav();
         clearMediaUrls();
         stopAutoRefresh();
+        var u = user();
+        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+            renderSalesCommandBar('customers') + renderCardGridSkeleton(4);
         try {
             var resp = await api('/api/portal/sales/customers');
             var customers = resp.customers || [];
-            var u = user();
             main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
                 renderSalesCommandBar('customers') +
                 '<div class="portal-dashboard">' + (customers.length ? customers.map(function (c) {
                     return '<div class="portal-order-card"><h3>' + esc(c.display_name || c.email) + '</h3><div class="portal-order-meta"><span>' + esc(c.email) + '</span><span>' + esc(c.company_name || '-') + '</span><span>' + esc(c.status) + '</span></div></div>';
                 }).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">👥</div><h3>No customers yet</h3><p>Add a customer account before creating orders.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = '<div class="portal-empty">Unable to load.</div>'; }
+        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') + renderErrorState('Unable to load customers.', e.message, 'Retry', 'showSalesCustomers()'); }
     }
 
     function showCreateCustomer() {
@@ -1099,11 +1238,13 @@
         portalState.updatesByOrderId[o.id] = updates;
         portalState.messagesByOrderId[o.id] = messages;
         portalState.mediaByOrderId[o.id] = media;
+        portalState.pendingStage = null;
+        portalState.pendingStageLabel = null;
 
         main.innerHTML =
             renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', user().display_name || user().email, '') +
-            '<div id="order-header" class="portal-panel" style="margin-bottom:1rem"></div>' +
-            (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id) + '<input type="hidden" id="update-stage" value="' + (o.current_stage || '') + '"></div>' : '') +
+            '<div id="order-header" class="portal-panel portal-panel-spaced"></div>' +
+            (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id, o.current_stage) + '</div>' : '') +
             '<div id="order-stepper"></div>' +
             '<div class="portal-detail-grid">' +
             '<div>' +
@@ -1131,7 +1272,7 @@
         if (!el) return;
         el.innerHTML =
             '<h3 class="portal-order-title">' + esc(o.title) + ' <small>#' + esc(o.order_no) + '</small></h3>' +
-            '<div class="portal-order-meta" style="margin-top:.5rem">' +
+            '<div class="portal-order-meta portal-order-meta-spaced">' +
             '<span>Status: <span class="portal-badge ' + (o.status === 'active' ? 'active' : 'shipped') + '">' + esc(o.status) + '</span></span>' +
             '<span>Delivery: ' + esc(o.estimated_delivery_date || 'TBD') + '</span></div>' +
             (o.customer_visible_note ? '<div class="portal-note-card">' + esc(o.customer_visible_note) + '</div>' : '');
@@ -1163,8 +1304,7 @@
             if (!banner) {
                 banner = document.createElement('div');
                 banner.id = 'order-messages-banner';
-                banner.className = 'portal-note-card';
-                banner.style.cursor = 'pointer';
+                banner.className = 'portal-note-card portal-message-refresh-banner';
                 banner.textContent = 'New messages available — click to refresh';
                 banner.onclick = function () { banner.remove(); patchMessages(orderId, portalState.messagesByOrderId[orderId], isSales); };
                 el.insertBefore(banner, el.firstChild);
@@ -1187,56 +1327,67 @@
         clearMediaUrls();
         portalState.mediaByOrderId[orderId] = media || [];
         el.innerHTML = media && media.length
-            ? '<div class="portal-empty">Loading photos...</div>'
+            ? renderMediaSkeleton(Math.min(media.length, 6))
             : '<div class="portal-empty">No photos yet.</div>';
         if (media && media.length) loadAuthorizedImages(orderId, media, 'order-media');
     }
 
-    function renderSalesActions(orderId) {
+    function renderSalesActions(orderId, currentStage) {
+        var currentIdx = stageOrder.indexOf(currentStage);
+        var actionStages = stageOrder.concat(['on_hold']);
         return '<div class="portal-sales-actions" id="sales-actions">' +
-            '<h4>Update Stage</h4>' +
+            '<section class="portal-action-card"><h4>Stage Control</h4>' +
+            '<div class="portal-stage-meta"><span>Current</span><strong id="stage-current-label">' + esc(stageLabels[currentStage] || currentStage || 'N/A') + '</strong></div>' +
             '<div class="portal-stage-control" id="stage-control">' +
-            Object.keys(stageLabels).map(function (k) {
-                return '<button type="button" class="portal-stage-option" data-stage="' + k + '" onclick="selectStageOption(\'' + k + '\', \'' + stageLabels[k] + '\')">' + stageLabels[k] + '</button>';
+            actionStages.map(function (k, i) {
+                var cls = k === currentStage ? ' portal-stage-current' : (currentIdx >= 0 && i < currentIdx ? ' portal-stage-done' : ' portal-stage-future');
+                return '<button type="button" class="portal-stage-option' + cls + '" data-stage="' + k + '" onclick="selectStageOption(\'' + k + '\', \'' + stageLabels[k] + '\')">' + stageLabels[k] + '</button>';
             }).join('') + '</div>' +
-            '<div id="stage-confirm" class="portal-stage-confirm" style="display:none">' +
-                '<p>Change stage to <strong id="stage-confirm-label"></strong>?</p>' +
+            '<div id="stage-confirm" class="portal-stage-confirm" hidden>' +
+                '<p><span>Current</span><strong id="stage-confirm-current">' + esc(stageLabels[currentStage] || currentStage || 'N/A') + '</strong></p>' +
+                '<p><span>Switch to</span><strong id="stage-confirm-label"></strong></p>' +
                 '<button class="portal-btn portal-btn-primary portal-btn-sm" onclick="updateOrderStage(' + orderId + ')">Update Stage</button>' +
-                '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button></div>' +
-            '<h4>Add Progress Update</h4>' +
+                '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button></div></section>' +
+            '<section class="portal-action-card"><h4>Add Progress Update</h4>' +
             '<div class="portal-field"><input id="update-title" type="text" placeholder="Title" class="portal-input-full"></div>' +
             '<div class="portal-field"><input id="update-msg" type="text" placeholder="Message (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
-                '<input id="update-pct" type="number" min="0" max="100" placeholder="Progress %" style="width:80px;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' +
-                '<label style="font-size:12px"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div>' +
-            '<h4>Upload Photo</h4>' +
+                '<input id="update-pct" class="portal-input-mini" type="number" min="0" max="100" placeholder="Progress %">' +
+                '<label class="portal-check"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div></section>' +
+            '<section class="portal-action-card"><h4>Upload Photo</h4>' +
             '<div class="portal-field"><input type="file" id="upload-file" accept="image/*"></div>' +
             '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
-                '<label style="font-size:12px"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="uploadPhoto(' + orderId + ')">Upload</button></div>' +
+                '<label class="portal-check"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="uploadPhoto(' + orderId + ')">Upload</button></div></section>' +
             '</div>';
     }
 
     window.selectStageOption = function (stage, label) {
-        document.getElementById('update-stage').value = stage;
+        portalState.pendingStage = stage;
+        portalState.pendingStageLabel = label;
         document.getElementById('stage-confirm-label').textContent = label;
-        document.getElementById('stage-confirm').style.display = '';
+        document.getElementById('stage-confirm').hidden = false;
         var opts = document.querySelectorAll('.portal-stage-option');
         opts.forEach(function (el) { el.classList.remove('active'); });
         document.querySelector('.portal-stage-option[data-stage="' + stage + '"]').classList.add('active');
     };
 
     window.cancelStageSelect = function () {
-        document.getElementById('stage-confirm').style.display = 'none';
+        portalState.pendingStage = null;
+        portalState.pendingStageLabel = null;
+        document.getElementById('stage-confirm').hidden = true;
         document.querySelectorAll('.portal-stage-option').forEach(function (el) { el.classList.remove('active'); });
     };
 
     window.updateOrderStage = async function (orderId) {
-        var stage = document.getElementById('update-stage').value;
+        var stage = portalState.pendingStage;
+        if (!stage) { alert('Please select a new stage first.'); return; }
         try {
             await api('/api/portal/sales/orders/' + orderId, { method: 'PATCH', body: JSON.stringify({ current_stage: stage }) });
+            portalState.pendingStage = null;
+            portalState.pendingStageLabel = null;
             await refreshCurrentOrderSummary(orderId);
             await refreshCurrentOrderUpdates(orderId);
         } catch (e) { alert('Failed to update stage.'); }
@@ -1301,15 +1452,20 @@
         var frag = document.createDocumentFragment();
         for (var i = 0; i < media.length; i++) {
             var m = media[i];
+            var item = document.createElement('div');
+            item.className = 'portal-media-item';
             try {
-                var blob = await fetch(window.DaiyujinAPI.config.baseUrl + '/api/portal/orders/' + orderId + '/media/' + m.id, { headers: { 'Authorization': 'Bearer ' + token() } }).then(function (r) { return r.blob(); });
+                var blob = await fetch(window.DaiyujinAPI.config.baseUrl + '/api/portal/orders/' + orderId + '/media/' + m.id, { headers: { 'Authorization': 'Bearer ' + token() } }).then(function (r) {
+                    if (!r.ok) throw new Error('Image request failed');
+                    return r.blob();
+                });
                 var url = URL.createObjectURL(blob);
                 mediaObjectUrls.push(url);
-                var item = document.createElement('div');
-                item.className = 'portal-media-item';
                 item.innerHTML = '<img src="' + url + '" alt="' + esc(m.caption || m.original_filename || m.filename || '') + '"><small>' + esc(m.caption || '') + '</small>';
-                frag.appendChild(item);
-            } catch (e) {}
+            } catch (e) {
+                item.innerHTML = '<div class="portal-media-error">Photo unavailable</div><small>' + esc(m.caption || m.original_filename || m.filename || '') + '</small>';
+            }
+            frag.appendChild(item);
         }
         grid.innerHTML = '';
         grid.appendChild(frag);
@@ -1322,21 +1478,21 @@
 
         /* ── Messages UI ── */
     function renderMessages(messages, isSales, orderId) {
-        var h = "<h3 style=\"margin:1rem 0 .5rem\">Messages</h3>";
+        var h = "<h3 class=\"portal-section-title portal-section-title-spaced\">Messages</h3>";
         if (messages && messages.length) {
             h += "<div class=\"portal-messages\">" + messages.map(function (m) {
                 var rep = !!m.parent_message_id;
                 return "<div class=\"portal-msg" + (rep ? " portal-msg-reply" : "") + "\">" +
                     "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (m.created_at ? m.created_at.slice(0,16).replace("T"," ") : "") + "</small></div>" +
                     "<p>" + esc(m.message) + "</p>" +
-                    (isSales && !rep ? "<button class=\"portal-btn\" style=\"width:auto;padding:.2rem .6rem;font-size:12px\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
+                    (isSales && !rep ? "<button class=\"portal-btn portal-btn-secondary portal-btn-sm portal-btn-auto\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
                     "</div>";
             }).join("") + "</div>";
         } else {
             h += "<div class=\"portal-empty\">No messages yet.</div>";
         }
-        h += "<div class=\"portal-msg-form\"><textarea id=\"msg-text\" placeholder=\"Write a message...\" rows=\"2\" style=\"width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px\"></textarea>" +
-            "<button class=\"portal-btn\" style=\"width:auto;padding:.3rem .75rem;margin-top:.25rem\" onclick=\"window.sendMessage(" + orderId + ")\">Send</button></div>";
+        h += "<div class=\"portal-msg-form\"><textarea id=\"msg-text\" class=\"portal-input-full\" placeholder=\"Write a message...\" rows=\"2\"></textarea>" +
+            "<button class=\"portal-btn portal-btn-primary portal-btn-sm portal-btn-auto portal-msg-send\" onclick=\"window.sendMessage(" + orderId + ")\">Send</button></div>";
         return h;
     }
 
@@ -1358,9 +1514,9 @@
         if (old) old.remove();
         var row = evt.target.closest(".portal-msg");
         var div = document.createElement("div");
-        div.id = "reply-form"; div.className = "portal-msg-form portal-msg-reply"; div.style.marginLeft = "2rem";
-        div.innerHTML = "<textarea id=\"reply-text\" placeholder=\"Reply...\" rows=\"2\" style=\"width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px\"></textarea>" +
-            "<button class=\"portal-btn\" style=\"width:auto;padding:.3rem .75rem;margin-top:.25rem\" onclick=\"window.sendReply(" + orderId + "," + msgId + ")\">Reply</button>";
+        div.id = "reply-form"; div.className = "portal-msg-form portal-msg-reply";
+        div.innerHTML = "<textarea id=\"reply-text\" class=\"portal-input-full\" placeholder=\"Reply...\" rows=\"2\"></textarea>" +
+            "<button class=\"portal-btn portal-btn-primary portal-btn-sm portal-btn-auto portal-msg-send\" onclick=\"window.sendReply(" + orderId + "," + msgId + ")\">Reply</button>";
         row.parentNode.insertBefore(div, row.nextSibling);
     };
 
@@ -1381,7 +1537,7 @@
 
     function renderTimelineItem(u) {
         var label = stageLabels[u.stage_key] || u.stage_key || 'Update';
-        return '<div class="portal-timeline-item"><div class="portal-timeline-dot"></div><div class="portal-timeline-content"><strong>' + esc(u.title || label) + '</strong>' + (u.progress_percent ? ' (' + u.progress_percent + '%)' : '') + (u.message ? '<p style="margin-top:.25rem;color:var(--muted);font-size:13px">' + esc(u.message) + '</p>' : '') + '<small style="color:var(--muted)">' + (u.created_at ? u.created_at.slice(0, 16).replace('T', ' ') : '') + '</small></div></div>';
+        return '<div class="portal-timeline-item"><div class="portal-timeline-dot"></div><div class="portal-timeline-content"><strong>' + esc(u.title || label) + '</strong>' + (u.progress_percent ? ' (' + u.progress_percent + '%)' : '') + (u.message ? '<p class="portal-timeline-message">' + esc(u.message) + '</p>' : '') + '<small>' + (u.created_at ? u.created_at.slice(0, 16).replace('T', ' ') : '') + '</small></div></div>';
     }
 
     async function bootstrapPortal() {
