@@ -198,9 +198,9 @@
 
     function showError(msg) { error.textContent = msg; error.hidden = false; }
     var token = function () { return localStorage.getItem('portal_token') || sessionStorage.getItem('portal_token'); };
-    function enterAppMode() { document.body.classList.add('portal-authenticated'); }
+    function enterAppMode() { portalRoot.classList.add('portal-authenticated'); }
 
-    function leaveAppMode() { document.body.classList.remove('portal-authenticated'); }
+    function leaveAppMode() { portalRoot.classList.remove('portal-authenticated'); }
 
     function saveSession(t, u) {
         localStorage.setItem('portal_token', t);

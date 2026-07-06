@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.3.4
+ * Version: 1.4.0
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.3.4');
+define('DYJ_TOOLS_VERSION', '1.4.0');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -78,6 +78,17 @@ function dyj_tools_brand_label($theme = null) {
     return isset($labels[$theme]) ? $labels[$theme] : $labels['default'];
 }
 
+function dyj_tools_order_prefix($theme = null) {
+    $theme = dyj_tools_normalize_theme($theme);
+    $prefixes = array(
+        'mfg'     => 'MFG',
+        'gcindus' => 'GCINDUS',
+        'gcnov'   => 'GCNOV',
+        'default' => 'DYJ',
+    );
+    return isset($prefixes[$theme]) ? $prefixes[$theme] : $prefixes['default'];
+}
+
 /* ── Asset loading ─────────────────────────── */
 
 function dyj_tools_enqueue_common($theme_override = null) {
@@ -118,6 +129,8 @@ function dyj_tools_enqueue_common($theme_override = null) {
         'dyj-tools-config',
         'window.DAIYUJIN_TOOLS_CONFIG = ' . wp_json_encode(array(
             'theme' => $theme,
+            'site' => $theme,
+            'orderPrefix' => dyj_tools_order_prefix($theme),
             'brandLabel' => dyj_tools_brand_label($theme),
             'formalQuoteUrl' => dyj_tools_formal_quote_url($theme),
             'formalQuoteLabel' => dyj_tools_formal_quote_label($theme),
@@ -233,3 +246,26 @@ function dyj_weight_calculator_shortcode($atts = array()) {
     return dyj_tools_render_template('material-weight', array('theme' => $atts['theme']));
 }
 add_shortcode('dyj_weight_calculator', 'dyj_weight_calculator_shortcode');
+
+function dyj_order_portal_shortcode($atts = array()) {
+    $atts = shortcode_atts(array('theme' => ''), $atts);
+    dyj_tools_enqueue_common($atts['theme']);
+
+    wp_enqueue_style(
+        'dyj-tools-order-portal',
+        DYJ_TOOLS_URL . 'assets/css/order-portal.css',
+        array('dyj-tools-style'),
+        DYJ_TOOLS_VERSION
+    );
+
+    wp_enqueue_script(
+        'dyj-tools-order-portal',
+        DYJ_TOOLS_URL . 'assets/js/order-portal.js',
+        array('dyj-tools-api'),
+        DYJ_TOOLS_VERSION,
+        true
+    );
+
+    return dyj_tools_render_template('order-portal', array('theme' => $atts['theme']));
+}
+add_shortcode('dyj_order_portal', 'dyj_order_portal_shortcode');

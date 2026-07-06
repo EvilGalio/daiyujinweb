@@ -34,6 +34,9 @@ portal_bp = Blueprint("portal", __name__, url_prefix="/api/portal")
 
 PORTAL_ALLOWED_ORIGINS = {
     "https://daiyujin.dpdns.org",
+    "https://mfg-solution.com",
+    "https://gcindus.com",
+    "https://gcnov.com",
 }
 
 
@@ -166,17 +169,44 @@ def _require_role(allowed):
     return user, None
 
 
-def _order_no():
-    """Generate unique order number with retry."""
+PORTAL_SITE_PREFIXES = {
+    "mfg": "MFG",
+    "gcindus": "GCINDUS",
+    "gcnov": "GCNOV",
+    "default": "DYJ",
+}
+
+
+def _portal_site_from_request(data=None):
+    data = data or {}
+
+    origin = (request.headers.get("Origin") or request.headers.get("Referer") or "").lower()
+    if "mfg-solution.com" in origin:
+        return "mfg"
+    if "gcindus.com" in origin:
+        return "gcindus"
+    if "gcnov" in origin:
+        return "gcnov"
+
+    raw = (data.get("site") or data.get("theme") or "").strip().lower()
+    if raw in PORTAL_SITE_PREFIXES:
+        return raw
+
+    return "default"
+
+
+def _order_no(site="default"):
+    site = site if site in PORTAL_SITE_PREFIXES else "default"
+    prefix = PORTAL_SITE_PREFIXES[site]
     for _ in range(5):
-        no = f"DYJ-{datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000,9999)}"
+        no = f"{prefix}-{datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000,9999)}"
         session = SessionLocal()
         try:
             if not session.query(PortalOrder).filter_by(order_no=no).first():
                 return no
         finally:
             session.close()
-    return f"DYJ-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{random.randint(0,99):02d}"
+    return f"{prefix}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{random.randint(0,99):02d}"
 
 
 # ══════════════════════════════════════════════════
@@ -463,7 +493,7 @@ def sales_create_order():
             return jsonify({"error": True, "message": "Customer is assigned to another sales representative"}), 403
 
         o = PortalOrder(
-            order_no=_order_no(), customer_user_id=customer.id, sales_user_id=u["id"],
+            order_no=_order_no(_portal_site_from_request(data)), customer_user_id=customer.id, sales_user_id=u["id"],
             title=title, po_number=data.get("po_number") or None, current_stage=stage,
             estimated_delivery_date=data.get("estimated_delivery_date") or None,
             customer_visible_note=data.get("customer_visible_note") or None,
