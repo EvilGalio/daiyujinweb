@@ -9,8 +9,7 @@
     <div class="portal-shell" data-portal-shell>
         <header class="portal-header">
             <div>
-                <p class="portal-eyebrow">Manufacturing Order Portal</p>
-                <h1>Order Portal</h1>
+                <h1 data-portal-title>Order Portal</h1>
             </div>
             <div class="portal-header-status">
                 <span class="portal-sync-dot" id="sync-dot" title="Connecting..."></span>
@@ -22,7 +21,7 @@
             <div class="portal-sync-strip" id="sync-strip" hidden></div>
             <div class="portal-login-layout" data-login-layout>
             <div class="portal-login-intro">
-                <h2>Order Portal</h2>
+                <h2>Sign in</h2>
                 <p class="portal-hint">Secure production progress access for Daiyujin Precision customers, sales representatives, and administrators.</p>
                 <ul class="portal-login-features">
                     <li>Track production progress</li>

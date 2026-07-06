@@ -13,6 +13,35 @@
         return ['mfg', 'gcindus', 'gcnov', 'default'].indexOf(raw) >= 0 ? raw : 'default';
     }
 
+    function portalBrandName() {
+        var site = currentPortalSite();
+        if (site === 'mfg') return 'MFG Solution';
+        if (site === 'gcindus') return 'GCINDUS';
+        if (site === 'gcnov') return 'GCNOV';
+        return '';
+    }
+
+    function portalFullTitle() {
+        var brand = portalBrandName();
+        return brand ? brand + ' Order Portal' : 'Order Portal';
+    }
+
+    function firstName(name) {
+        if (!name) return '';
+        return String(name).split(' ')[0];
+    }
+
+    function salesGreeting(u) {
+        var name = firstName(u.display_name || u.email);
+        return 'Welcome, ' + esc(name || '');
+    }
+
+    function applyPortalBranding() {
+        var titleEl = document.querySelector('[data-portal-title]');
+        if (titleEl) titleEl.textContent = portalFullTitle();
+        if (document.title) document.title = portalFullTitle() || 'Order Portal';
+    }
+
     var form = document.querySelector('[data-login-form]');
     var btn = document.querySelector('[data-login-btn]');
     var error = document.querySelector('[data-login-error]');
@@ -882,10 +911,21 @@
 
     function renderSearchBar(opts) {
         opts = opts || {};
-        return '<div class="portal-search-bar"><input id="search-q" type="text" placeholder="Search order #, title...">' +
-            (opts.stages ? '<select id="search-stage"><option value="">All stages</option>' + opts.stages.map(function(s) { return '<option value="' + s + '">' + (stageLabels[s] || s) + '</option>'; }).join('') + '</select>' : '') +
-            '<select id="search-status"><option value="">All statuses</option><option value="normal">Normal</option><option value="delayed">Delayed</option><option value="complaint">Complaint</option><option value="on_hold">On Hold</option><option value="cancelled">Cancelled</option></select>' +
-            '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="applySearch(\'' + (opts.refreshFn || '') + '\')">Search</button></div>';
+        var q = _searchState.q || '';
+        var stage = _searchState.stage || '';
+        var status = _searchState.status || '';
+        var refreshFn = opts.refreshFn || '';
+        return '<div class="portal-search-bar"><input id="search-q" type="text" placeholder="Search order #, PO, title..." value="' + esc(q) + '">' +
+            (opts.stages ? '<select id="search-stage"><option value="">All stages</option>' + opts.stages.map(function(s) { return '<option value="' + s + '"' + selectedAttr(stage, s) + '>' + (stageLabels[s] || s) + '</option>'; }).join('') + '</select>' : '') +
+            '<select id="search-status"><option value="">All statuses</option>' +
+                '<option value="normal"' + selectedAttr(status, 'normal') + '>Normal</option>' +
+                '<option value="delayed"' + selectedAttr(status, 'delayed') + '>Delayed</option>' +
+                '<option value="complaint"' + selectedAttr(status, 'complaint') + '>Complaint</option>' +
+                '<option value="on_hold"' + selectedAttr(status, 'on_hold') + '>On Hold</option>' +
+                '<option value="cancelled"' + selectedAttr(status, 'cancelled') + '>Cancelled</option>' +
+            '</select>' +
+            '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="applySearch(\'' + refreshFn + '\')">Search</button>' +
+        '</div>';
     }
 
     function renderStatusBadge(status) {
@@ -1213,16 +1253,16 @@
         resetPortalNav();
         clearMediaUrls();
         stopAutoRefresh();
-        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
             renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) + renderCardGridSkeleton(4);
         try {
             var resp = await api('/api/portal/orders' + _searchQuery);
             var orders = resp.orders || [];
-            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
                 renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                 '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
+        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
     }
 
 
@@ -1249,17 +1289,17 @@
         clearMediaUrls();
         stopAutoRefresh();
         var u = user();
-        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
             renderSalesCommandBar('customers') + renderCardGridSkeleton(4);
         try {
             var resp = await api('/api/portal/sales/customers');
             var customers = resp.customers || [];
-            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') +
+            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
                 renderSalesCommandBar('customers') +
                 '<div class="portal-dashboard">' + (customers.length ? customers.map(function (c) {
                     return '<div class="portal-order-card"><h3>' + esc(c.display_name || c.email) + '</h3><div class="portal-order-meta"><span>' + esc(c.email) + '</span><span>' + esc(c.company_name || '-') + '</span><span>' + esc(c.status) + '</span></div></div>';
                 }).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">👥</div><h3>No customers yet</h3><p>Add a customer account before creating orders.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, 'Manage customers, orders, updates, and production photos.') + renderErrorState('Unable to load customers.', e.message, 'Retry', 'showSalesCustomers()'); }
+        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) + renderErrorState('Unable to load customers.', e.message, 'Retry', 'showSalesCustomers()'); }
     }
 
     function showCreateCustomer() {
@@ -1429,14 +1469,15 @@
                     '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpload()">Go to Attachment Upload</button></div>' : '') +
             '</div></div>';
 
-        patchOrderHeader(o);
+        patchOrderHeader(o, isSales);
         patchStageStepper(o.current_stage);
         patchTimeline(o.id, updates);
         patchMessages(o.id, messages, isSales);
         patchMedia(o.id, media);
     }
 
-    function patchOrderHeader(o) {
+    function patchOrderHeader(o, isSalesView) {
+        if (typeof isSalesView === 'undefined') isSalesView = !!portalState.currentIsSales;
         var el = document.getElementById('order-header');
         if (!el) return;
         el.innerHTML =
@@ -1444,7 +1485,7 @@
             '<div class="portal-order-meta portal-order-meta-spaced">' +
             '<span>Status: <span class="portal-badge portal-status-' + esc(o.display_status || o.status) + '">' + esc(o.display_status || o.status) + '</span></span>' +
             '<span>Delivery: ' + renderDeliveryInfo(o) + '</span></div>' +
-            (o.customer_visible_note ? '<div class="portal-note-card">' + esc(o.customer_visible_note) + '</div>' : '') + (!isSales && o.current_stage === 'received' && o.manual_status !== 'complaint' ? '<button class="portal-btn portal-btn-danger portal-btn-sm portal-btn-auto portal-complaint-btn" onclick="submitComplaint(' + o.id + ')">Report an issue with this order</button>' : '');
+            (o.customer_visible_note ? '<div class="portal-note-card">' + esc(o.customer_visible_note) + '</div>' : '') + (!isSalesView && o.current_stage === 'received' && o.manual_status !== 'complaint' ? '<button class="portal-btn portal-btn-danger portal-btn-sm portal-btn-auto portal-complaint-btn" onclick="submitComplaint(' + o.id + ')">Report an issue with this order</button>' : '');
     }
 
     function patchStageStepper(stage) {
@@ -1790,9 +1831,15 @@
 
     var stageOrder = ["order_confirmed","machining","surface_treatment","quality_inspection","shipped","received"];
 
+    var _searchQuery = '';
+    var _searchState = { q: '', stage: '', status: '' };
+
+    applyPortalBranding();
     bootstrapPortal();
 
-    var _searchQuery = '';
+    function selectedAttr(value, expected) {
+        return String(value || '') === String(expected || '') ? ' selected' : '';
+    }
 
     window.applySearch = function (fnName) {
         var qEl = document.getElementById('search-q');
@@ -1801,11 +1848,22 @@
         var q = qEl ? qEl.value.trim() : '';
         var stage = stageEl ? stageEl.value : '';
         var status = statusEl ? statusEl.value : '';
+        _searchState.q = q;
+        _searchState.stage = stage;
+        _searchState.status = status;
         var params = [];
         if (q) params.push('q=' + encodeURIComponent(q));
         if (stage) params.push('stage=' + encodeURIComponent(stage));
         if (status) params.push('display_status=' + encodeURIComponent(status));
         _searchQuery = params.length ? '?' + params.join('&') : '';
+        if (fnName === 'showCustomerDashboard') showCustomerDashboard();
+        else if (fnName === 'showSalesOrders') showSalesOrders();
+        else if (fnName === 'showAdminTab') showAdminTab('orders');
+    };
+
+    window.clearSearch = function (fnName) {
+        _searchState = { q: '', stage: '', status: '' };
+        _searchQuery = '';
         if (fnName === 'showCustomerDashboard') showCustomerDashboard();
         else if (fnName === 'showSalesOrders') showSalesOrders();
         else if (fnName === 'showAdminTab') showAdminTab('orders');
