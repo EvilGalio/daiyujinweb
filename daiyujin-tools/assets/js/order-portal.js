@@ -27,13 +27,22 @@
     }
 
     function firstName(name) {
-        if (!name) return '';
-        return String(name).split(' ')[0];
+        var raw = (name || '').trim();
+        if (!raw) return 'there';
+        var base = raw.indexOf('@') >= 0 ? raw.split('@')[0] : raw;
+        return base.split(/\s+/)[0] || base;
+    }
+
+    function customerGreeting(u) {
+        return 'Welcome back, ' + firstName((u && (u.display_name || u.email)) || '');
     }
 
     function salesGreeting(u) {
-        var name = firstName(u.display_name || u.email);
-        return 'Welcome, ' + esc(name || '');
+        return 'Welcome, ' + firstName((u && (u.display_name || u.email)) || '');
+    }
+
+    function adminGreeting(u) {
+        return 'Welcome, ' + firstName((u && (u.display_name || u.email)) || '');
     }
 
     function applyPortalBranding() {
@@ -253,7 +262,7 @@
         setCurrentView('list');
         stopAutoRefresh();
         var me = user();
-        main.innerHTML = renderRoleHeader('Account Settings', me.display_name || me.email, required ? 'Password change required.' : 'Update your password.') +
+        main.innerHTML = renderRoleHeader('Account Settings', 'Account', required ? 'Password change required.' : 'Update your password.') +
             (required ? '<p class="portal-inline-note portal-inline-note-danger">You must change your password before continuing.</p>' : '') +
             '<div class="portal-panel portal-panel-compact portal-panel-spaced">' +
             '<h3>' + (required ? 'Set New Password' : 'Change Password') + '</h3>' +
@@ -839,7 +848,7 @@
         return new Intl.DateTimeFormat('en-GB', { timeZone: portalTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
     }
 
-    var stageLabels = { order_confirmed: 'Order Confirmed', machining: 'Machining', surface_treatment: 'Surface Treatment', quality_inspection: 'Quality Inspection', shipped: 'Shipped', received: 'Received', on_hold: 'On Hold' };
+    var stageLabels = { order_confirmed: 'Order Confirmed', material_ready: 'Material Ready', machining: 'Machining', surface_treatment: 'Surface Treatment', quality_inspection: 'Quality Inspection', packing: 'Packing', shipped: 'Shipped', received: 'Received', on_hold: 'On Hold' };
 
     /* ══════════════════════════════════════════════════
        Customer Dashboard
@@ -847,29 +856,46 @@
 
     async function showCustomerDashboard() { setCurrentView('list'); resetPortalNav(); clearMediaUrls(); stopAutoRefresh();
         var u = user();
-        main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') + renderCardGridSkeleton(3);
+        main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') + renderCardGridSkeleton(3);
         try {
             var resp = await api('/api/portal/orders' + _searchQuery);
-            main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') +
+            main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') +
                 renderSearchBar({ refreshFn: 'showCustomerDashboard' }) + '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p class="portal-muted">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
-        } catch (e) { main.innerHTML = renderRoleHeader('My Orders', u.display_name || u.email, 'Track your production progress and updates.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showCustomerDashboard()'); }
+        } catch (e) { main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showCustomerDashboard()'); }
     }
 
-    var stageProgress = { order_confirmed: 15, machining: 35, surface_treatment: 55, quality_inspection: 75, shipped: 90, received: 100, on_hold: 40 };
+    var stageProgress = { order_confirmed: 10, material_ready: 22, machining: 38, surface_treatment: 55, quality_inspection: 70, packing: 82, shipped: 92, received: 100, on_hold: 40 };
     var stageDefaultProgress = 10;
 
-    function renderOrderCard(order) {
+    function renderOrderCard(order, detailFn) {
+        detailFn = detailFn || 'showOrderDetail';
         var stageLabel = stageLabels[order.current_stage] || 'N/A';
         var progress = stageProgress[order.current_stage] || stageDefaultProgress;
-        return '<article class="portal-order-card portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="showOrderDetail(' + order.id + ')">' +
-            '<div class="portal-card-head"><div>' +
-            '<p class="portal-eyebrow">Order #' + esc(order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></p>' +
-            '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
-            '</div><span class="portal-badge status-' + esc(order.display_status || order.status) + '">' + esc(order.display_status || order.status) + '</span></div>' +
+        var status = order.display_status || order.status || 'normal';
+        var customerLabel = order.customer_name || (order.customer && (order.customer.display_name || order.customer.email)) || 'Customer';
+
+        return '<article class="portal-order-card portal-order-card-large portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="' + detailFn + '(' + order.id + ')">' +
+            '<div class="portal-card-topline">' +
+                '<span class="portal-order-no">' + esc(order.order_no) + '</span>' +
+                '<span class="portal-badge portal-status-' + esc(status) + '">' + esc(status) + '</span>' +
+                '<span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span>' +
+            '</div>' +
+            '<div class="portal-card-main">' +
+                '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
+                '<span class="portal-card-customer">' + esc(customerLabel) + '</span>' +
+            '</div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
             '<div class="portal-progress-track"><span class="portal-progress-fill" style="--progress:' + progress + '%"></span></div>' +
-            '<div class="portal-card-meta"><span>ETA: ' + renderDeliveryInfo(order) + '</span>' +
-            '<span>Updated: ' + esc(formatPortalDate(order.updated_at)) + '</span></div></article>';
+            '<div class="portal-card-meta-grid">' +
+                '<span>Due: ' + esc(formatPortalDate(order.estimated_delivery_date)) + '</span>' +
+                '<span>Created: ' + esc(formatPortalDate(order.created_at)) + '</span>' +
+                '<span>Shipping: ' + renderDeliveryInfo(order) + '</span>' +
+                '<span>Updated: ' + esc(formatPortalDate(order.updated_at)) + '</span>' +
+            '</div></article>';
+    }
+
+    function renderSalesOrderCard(order) {
+        return renderOrderCard(order, 'showSalesOrderDetail');
     }
 
     /* ══════════════════════════════════════════════════
@@ -887,7 +913,7 @@
         setCurrentView('list', { listKind: 'admin-' + tab });
         resetPortalNav();
         var me = user();
-        main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Manage reps, customers, orders, and portal activity.') +
+        main.innerHTML = renderRoleHeader('Operations Console', adminGreeting(me), 'Monitor reps, customers, orders, and activity.') +
             '<div class="portal-admin-tabs">' +
             ['overview','sales-reps','customers','orders','activity'].map(function (t) {
                 return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard','Sales Reps','Customers','Orders','Activity Logs'][['overview','sales-reps','customers','orders','activity'].indexOf(t)] + '</button>';
@@ -1154,7 +1180,7 @@
         stopAutoRefresh();
         var me = user();
         selectedAdminSalesRep = null;
-        main.innerHTML = renderRoleHeader('Operations Console', me.display_name || me.email, 'Create a new user account.') +
+        main.innerHTML = renderRoleHeader('Operations Console', adminGreeting(me), 'Create a new user account.') +
             '<div class="portal-panel portal-panel-compact">' +
             '<h3>Create User</h3>' +
             '<div class="portal-stack-sm">' +
@@ -1253,16 +1279,16 @@
         resetPortalNav();
         clearMediaUrls();
         stopAutoRefresh();
-        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
+        main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
             renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) + renderCardGridSkeleton(4);
         try {
             var resp = await api('/api/portal/orders' + _searchQuery);
             var orders = resp.orders || [];
-            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
+            main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
                 renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                 '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
+        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
     }
 
 
@@ -1276,36 +1302,11 @@
             '</div>';
     }
 
-    function renderSalesOrderCard(order) {
-        return '<div class="portal-order-card portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="showSalesOrderDetail(' + order.id + ')">' +
-            '<h3>' + esc(order.title || 'Order #' + order.order_no) + ' <span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span></h3>' +
-            '<div class="portal-order-meta"><span>Stage: <span class="portal-badge active">' + esc(order.current_stage || 'N/A') + '</span></span>' +
-            '<span>Delivery: ' + renderDeliveryInfo(order) + '</span><span>' + esc(formatPortalDate(order.updated_at)) + '</span></div></div>';
-    }
-
-    async function showSalesCustomers() {
-        setCurrentView('list', { listKind: 'sales-customers' });
-        resetPortalNav();
-        clearMediaUrls();
-        stopAutoRefresh();
-        var u = user();
-        main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
-            renderSalesCommandBar('customers') + renderCardGridSkeleton(4);
-        try {
-            var resp = await api('/api/portal/sales/customers');
-            var customers = resp.customers || [];
-            main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) +
-                renderSalesCommandBar('customers') +
-                '<div class="portal-dashboard">' + (customers.length ? customers.map(function (c) {
-                    return '<div class="portal-order-card"><h3>' + esc(c.display_name || c.email) + '</h3><div class="portal-order-meta"><span>' + esc(c.email) + '</span><span>' + esc(c.company_name || '-') + '</span><span>' + esc(c.status) + '</span></div></div>';
-                }).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">👥</div><h3>No customers yet</h3><p>Add a customer account before creating orders.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button></div></div>') + '</div>';
-        } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', u.display_name || u.email, salesGreeting(u)) + renderErrorState('Unable to load customers.', e.message, 'Retry', 'showSalesCustomers()'); }
-    }
 
     function showCreateCustomer() {
         setCurrentView('list', { listKind: 'form' });
         stopAutoRefresh();
-        main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Add a new customer account.') +
+        main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(user()), 'Add a new customer account.') +
             '<div class="portal-panel portal-panel-narrow"><h3>Create Customer</h3>' +
             '<div class="portal-field"><label>Email</label><input id="new-cust-email" type="email" placeholder="customer@example.com"></div>' +
             '<div class="portal-field"><label>Display Name</label><input id="new-cust-name" type="text" placeholder="John Smith"></div>' +
@@ -1332,7 +1333,7 @@
         setCurrentView('list', { listKind: 'form' });
         stopAutoRefresh();
         selectedOrderCustomer = null;
-        main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, 'Create a new order.') +
+        main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(user()), 'Create a new order.') +
             '<div class="portal-panel portal-panel-narrow"><h3>Create Order</h3>' +
             '<div class="portal-field"><label>Customer</label>' +
                 '<input id="order-customer-search" type="text" placeholder="Search customer name, company, or email">' +
@@ -1451,7 +1452,7 @@
         portalState.pendingStageLabel = null;
 
         main.innerHTML =
-            renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', user().display_name || user().email, '') +
+            renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', (isSales ? salesGreeting : customerGreeting)(user()), '') +
             '<div id="order-header" class="portal-panel portal-panel-spaced"></div>' +
             (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id, o.current_stage) + '</div>' : '') +
             '<div id="order-stepper"></div>' +
@@ -1829,7 +1830,7 @@
         }
     }
 
-    var stageOrder = ["order_confirmed","machining","surface_treatment","quality_inspection","shipped","received"];
+    var stageOrder = ["order_confirmed","material_ready","machining","surface_treatment","quality_inspection","packing","shipped","received"];
 
     var _searchQuery = '';
     var _searchState = { q: '', stage: '', status: '' };

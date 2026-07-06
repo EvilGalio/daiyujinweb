@@ -476,3 +476,13 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-attachment-group { margin-bottom: 1rem; }
 .portal-attachment-group-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: .75rem 0 .5rem; padding: .3rem .5rem; background: #f8fafc; border-radius: var(--radius); }
 .portal-complaint-btn { margin-top: .5rem; }
+
+.portal-order-card-large { padding: 1rem 1.25rem; }
+.portal-card-topline { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.portal-order-no { font-family: monospace; font-size: 12px; color: var(--muted); letter-spacing: .5px; }
+.portal-card-main { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-bottom: .5rem; }
+.portal-card-main h3 { font-size: 15px; margin: 0; flex: 1; }
+.portal-card-customer { font-size: 12px; color: var(--muted); }
+.portal-card-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem 1rem; font-size: 12px; color: var(--muted); }
+.portal-card-meta-grid span:nth-child(odd) { color: var(--muted); }
+.portal-card-meta-grid span:nth-child(even) { color: var(--ink); }

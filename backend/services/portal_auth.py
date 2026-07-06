@@ -65,7 +65,16 @@ def _add_security_headers(resp):
 SESSION_HOURS = 24
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 
-VALID_STAGES = {"order_confirmed", "machining", "surface_treatment", "quality_inspection", "shipped", "received"}
+VALID_STAGES = {
+    "order_confirmed",
+    "material_ready",
+    "machining",
+    "surface_treatment",
+    "quality_inspection",
+    "packing",
+    "shipped",
+    "received",
+}
 VALID_STATUSES = {"active", "on_hold", "shipped", "delivered", "cancelled"}  # legacy, kept for compat
 VALID_MANUAL_STATUSES = {"normal", "complaint", "on_hold", "cancelled"}
 VALID_SHIPPING_METHODS = {"DHL", "FedEx", "Sea", "Other"}
@@ -119,9 +128,9 @@ def _display_status(order) -> str:
     return "normal"
 
 
-def _order_summary(order) -> dict:
+def _order_summary(order, customer=None, sales=None) -> dict:
     """Return a consistent order summary dict for all list/detail endpoints."""
-    return {
+    data = {
         "id": order.id,
         "order_no": order.order_no,
         "title": order.title,
@@ -137,6 +146,13 @@ def _order_summary(order) -> dict:
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "updated_at": order.updated_at.isoformat() if order.updated_at else None,
     }
+    if customer:
+        data["customer_name"] = customer.display_name or customer.email
+        data["customer_email"] = customer.email
+    if sales:
+        data["sales_name"] = sales.display_name or sales.email
+        data["sales_email"] = sales.email
+    return data
 
 
 def _hash_token(token: str) -> str:
@@ -489,8 +505,10 @@ def portal_orders_list():
                 | PortalOrder.po_number.ilike(f"%{q_str}%")
             )
         rows = q.order_by(PortalOrder.updated_at.desc()).limit(100).all()
+        customer_ids = {o.customer_user_id for o in rows if o.customer_user_id}
+        customers = {c.id: c for c in session.query(PortalUser).filter(PortalUser.id.in_(customer_ids)).all()} if customer_ids else {}
         # display_status filter is done in Python (see PRD 5.10)
-        results = [_order_summary(o) for o in rows]
+        results = [_order_summary(o, customer=customers.get(o.customer_user_id)) for o in rows]
         if d_stat:
             results = [r for r in results if r["display_status"] == d_stat]
         return jsonify({"error": False, "orders": results})
