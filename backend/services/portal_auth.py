@@ -10,6 +10,7 @@ import secrets
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -145,6 +146,33 @@ def _display_status(order) -> str:
     return "normal"
 
 
+def _portal_order_metrics(orders) -> dict:
+    total = len(orders)
+    received = [o for o in orders if o.current_stage == "received"]
+    on_time = 0
+    for o in received:
+        est = _parse_date(o.estimated_delivery_date)
+        if not est:
+            continue
+        actual = getattr(o, "actual_delivery_date", None)
+        if actual:
+            try:
+                act_d = datetime.strptime(str(actual)[:10], "%Y-%m-%d").date()
+            except ValueError:
+                continue
+        else:
+            act_d = o.updated_at.date() if o.updated_at else None
+        if act_d and act_d <= est:
+            on_time += 1
+    complaint_count = sum(1 for o in orders if _display_status(o) == "complaint")
+    return {
+        "total_orders": total,
+        "received_orders": len(received),
+        "on_time_orders": on_time,
+        "on_time_rate": round(on_time / total, 3) if total > 0 else 0,
+        "complaint_orders": complaint_count,
+        "complaint_rate": round(complaint_count / total, 3) if total > 0 else 0,
+    }
 def _order_summary(order, customer=None, sales=None) -> dict:
     """Return a consistent order summary dict for all list/detail endpoints."""
     data = {
@@ -701,6 +729,8 @@ def sales_update_order(order_id):
             if s and s not in VALID_STAGES:
                 return jsonify({"error": True, "message": f"Invalid stage: {s}"}), 400
             o.current_stage = s or None
+            if s == "received" and not getattr(o, "actual_delivery_date", None):
+                o.actual_delivery_date = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
 
         if "manual_status" in data:
             ms = (data["manual_status"] or "normal").lower()
@@ -1212,9 +1242,14 @@ def admin_overview():
         active_orders = session.query(PortalOrder).filter_by(status="active").count()
         today = datetime.utcnow().date()
         week_updates = session.query(PortalOrderUpdate).filter(PortalOrderUpdate.created_at >= today).count()
+        all_orders = session.query(PortalOrder).all()
+        metrics = _portal_order_metrics(all_orders)
         return jsonify({"error": False, "overview": {
             "sales_count": sales_count, "customer_count": customer_count,
             "active_orders": active_orders, "updates_today": week_updates,
+            "on_time_rate": metrics["on_time_rate"], "complaint_rate": metrics["complaint_rate"],
+            "on_time_orders": metrics["on_time_orders"], "total_orders": metrics["total_orders"],
+            "complaint_orders": metrics["complaint_orders"],
         }})
     finally:
         session.close()
@@ -1597,5 +1632,26 @@ def portal_order_complaint(order_id):
         emit_portal_event(session, "complaint_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "manual_status": "complaint"})
         session.commit()
         return jsonify({"error": False, "message_id": msg.id, "manual_status": o.manual_status, "display_status": _display_status(o)})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/sales/overview")
+def sales_overview():
+    u, err = _require_role(("sales",))
+    if err: return err
+    session = SessionLocal()
+    try:
+        orders = session.query(PortalOrder).filter_by(sales_user_id=u["id"]).all()
+        metrics = _portal_order_metrics(orders)
+        active = sum(1 for o in orders if o.status == "active")
+        return jsonify({"error": False, "overview": {
+            "active_orders": active,
+            "on_time_rate": metrics["on_time_rate"],
+            "complaint_rate": metrics["complaint_rate"],
+            "on_time_orders": metrics["on_time_orders"],
+            "total_orders": metrics["total_orders"],
+            "complaint_orders": metrics["complaint_orders"],
+        }})
     finally:
         session.close()

@@ -52,6 +52,40 @@
         return raw;
     }
 
+    function portalWatermarkBrand() {
+        var site = currentPortalSite();
+        if (site === 'mfg') return 'MFG SOLUTION CO., LIMITED';
+        if (site === 'gcindus') return 'GCINDUS CO., LIMITED';
+        if (site === 'gcnov') return 'GCNOV';
+        return 'DAIYUJIN';
+    }
+
+    function updatePortalWatermark() {
+        var brand = portalWatermarkBrand();
+        var u = user();
+        var text = brand + ' · ' + userDisplayName(u) + ' · ' + (u.email || '');
+        var root = portalRoot !== document ? portalRoot : document.body;
+        var existing = root.querySelector('.portal-watermark-layer');
+        if (existing) existing.remove();
+        var layer = document.createElement('div');
+        layer.className = 'portal-watermark-layer';
+        layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden';
+        var html = '';
+        for (var y = 0; y < 2000; y += 180) {
+            for (var x = 0; x < 2500; x += 400) {
+                html += '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;transform:rotate(-45deg);font-size:14px;color:#000;opacity:0.06;white-space:nowrap;font-family:monospace">' + esc(text) + '</span>';
+            }
+        }
+        layer.innerHTML = html;
+        root.appendChild(layer);
+    }
+
+    function removePortalWatermark() {
+        var root = portalRoot !== document ? portalRoot : document.body;
+        var existing = root.querySelector('.portal-watermark-layer');
+        if (existing) existing.remove();
+    }
+
     function applyPortalBranding() {
         var titleEl = document.querySelector('[data-portal-title]');
         if (titleEl) titleEl.textContent = portalFullTitle();
@@ -123,6 +157,7 @@
         lastEventAt: null,
         dirtyLists: {},
         sseFailCount: 0,
+        uploadInFlight: false,
         sseConnectedAt: null,
         lastHeartbeatAt: null,
         lastReconnectAt: null,
@@ -237,6 +272,7 @@
                 showChangePassword(true);
             } else {
                 startPortalRealtime();
+                updatePortalWatermark();
                 routeByRole(resp.user.role);
             }
         } catch (err) { showError(err.message || 'Login failed.'); }
@@ -771,6 +807,7 @@ window.showCustomerDashboard = showCustomerDashboard;
     window.portalLogout = async function () {
         try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
         broadcastPortalMessage('logout', {});
+        removePortalWatermark();
         disconnectPortalEvents();
         clearSession(); leaveAppMode(); location.reload();
     };
@@ -1051,11 +1088,15 @@ window.showCustomerDashboard = showCustomerDashboard;
         var ov = results[0].overview || {};
         var recentOrders = (results[1].orders || []).slice(0, 6);
         var recentLogs = (results[2].logs || []).slice(0, 6);
+        var otr = Math.round((ov.on_time_rate || 0) * 100) + '%';
+        var cr = Math.round((ov.complaint_rate || 0) * 100) + '%';
+        var otrHelp = (ov.on_time_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders';
+        var crHelp = (ov.complaint_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders';
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-admin-kpi-grid">' +
-            ['Active Sales Reps','Active Customers','Orders in Production','Updates Today'].map(function (label, i) {
-                var val = [ov.sales_count, ov.customer_count, ov.active_orders, ov.updates_today][i];
-                var help = ['People responsible for customers','Assigned customer accounts','Orders currently in production','Progress entries today'][i];
+            ['Active Sales Reps','Active Customers','Orders in Production','Updates Today','On-time Rate','Complaint Rate'].map(function (label, i) {
+                var val = [ov.sales_count, ov.customer_count, ov.active_orders, ov.updates_today, otr, cr][i];
+                var help = ['People responsible for customers','Assigned customer accounts','Orders currently in production','Progress entries today', otrHelp, crHelp][i];
                 return '<div class="portal-admin-kpi"><strong>' + val + '</strong><span>' + label + '</span><small>' + help + '</small></div>';
             }).join('') + '</div>' +
             '<div class="portal-admin-overview-grid">' +
@@ -1336,10 +1377,18 @@ window.showCustomerDashboard = showCustomerDashboard;
         main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
             renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) + renderCardGridSkeleton(4);
         try {
-            var resp = await api('/api/portal/orders' + _searchQuery);
-            var orders = resp.orders || [];
+            var results = await Promise.all([
+                api('/api/portal/sales/overview'),
+                api('/api/portal/orders' + _searchQuery)
+            ]);
+            var ov = results[0].overview || {};
+            var orders = results[1].orders || [];
+            var otr = Math.round((ov.on_time_rate || 0) * 100) + '%';
+            var cr = Math.round((ov.complaint_rate || 0) * 100) + '%';
             main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
                 renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) +
+                '<div class="portal-admin-kpi-grid" style="margin-bottom:1rem"><div class="portal-admin-kpi"><strong>' + otr + '</strong><span>On-time Rate</span><small>' + (ov.on_time_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div>' +
+                '<div class="portal-admin-kpi"><strong>' + cr + '</strong><span>Complaint Rate</span><small>' + (ov.complaint_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div></div>' +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                 '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
         } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
@@ -1475,11 +1524,18 @@ window.showCustomerDashboard = showCustomerDashboard;
         pushPortalView('My Orders', showCustomerDashboard, []);
         main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
-            var results = await Promise.all([
-                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
+            var orderResp = await api('/api/portal/orders/' + orderId);
+            var o = orderResp.order;
+            var parts = await Promise.allSettled([
+                api('/api/portal/orders/' + orderId + '/updates'),
+                api('/api/portal/orders/' + orderId + '/messages'),
+                api('/api/portal/orders/' + orderId + '/media')
             ]);
-            var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
-            renderOrderDetail(o, updates, messages, media, false);
+            var updates = parts[0].status === 'fulfilled' ? (parts[0].value.updates || []) : [];
+            var messages = parts[1].status === 'fulfilled' ? (parts[1].value.messages || []) : [];
+            var media = parts[2].status === 'fulfilled' ? (parts[2].value.media || []) : [];
+            var detailErrors = { updates: parts[0].status === 'rejected', messages: parts[1].status === 'rejected', media: parts[2].status === 'rejected' };
+            renderOrderDetail(o, updates, messages, media, false, detailErrors);
         } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to My Orders', 'showCustomerDashboard()'); }
     }
 
@@ -1487,15 +1543,23 @@ window.showCustomerDashboard = showCustomerDashboard;
         pushPortalView('Orders', showSalesOrders, []);
         main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
-            var results = await Promise.all([
-                api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
+            var orderResp = await api('/api/portal/orders/' + orderId);
+            var o = orderResp.order;
+            var parts = await Promise.allSettled([
+                api('/api/portal/orders/' + orderId + '/updates'),
+                api('/api/portal/orders/' + orderId + '/messages'),
+                api('/api/portal/orders/' + orderId + '/media')
             ]);
-            var o = results[0].order, updates = results[1].updates || [], messages = results[2].messages || [], media = results[3].media || [];
-            renderOrderDetail(o, updates, messages, media, true);
+            var updates = parts[0].status === 'fulfilled' ? (parts[0].value.updates || []) : [];
+            var messages = parts[1].status === 'fulfilled' ? (parts[1].value.messages || []) : [];
+            var media = parts[2].status === 'fulfilled' ? (parts[2].value.media || []) : [];
+            var detailErrors = { updates: parts[0].status === 'rejected', messages: parts[1].status === 'rejected', media: parts[2].status === 'rejected' };
+            renderOrderDetail(o, updates, messages, media, true, detailErrors);
         } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showSalesOrders()'); }
     }
 
-    function renderOrderDetail(o, updates, messages, media, isSales) { enterAppMode();
+    function renderOrderDetail(o, updates, messages, media, isSales, detailErrors) { enterAppMode();
+        detailErrors = detailErrors || {};
         setCurrentView('order-detail', { orderId: o.id, isSales: isSales });
         clearOrderChanged(o.id);
         portalState.ordersById[o.id] = o;
@@ -1529,6 +1593,10 @@ window.showCustomerDashboard = showCustomerDashboard;
         patchTimeline(o.id, updates);
         patchMessages(o.id, messages, isSales);
         patchMedia(o.id, media);
+
+        if (detailErrors.updates) { var elU = document.getElementById('order-timeline'); if (elU) elU.innerHTML += '<div class="portal-note-card" style="cursor:pointer">Updates unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderUpdates(' + o.id + ')">Retry</a></div>'; }
+        if (detailErrors.messages) { var elM = document.getElementById('order-messages'); if (elM) elM.innerHTML = '<div class="portal-note-card" style="cursor:pointer">Messages unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMessages(' + o.id + ')">Retry</a></div>'; }
+        if (detailErrors.media) { var elD = document.getElementById('order-media'); if (elD) elD.innerHTML = '<div class="portal-note-card" style="cursor:pointer">Attachments unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMedia(' + o.id + ')">Retry</a></div>'; }
     }
 
     function patchOrderHeader(o, isSalesView) {
@@ -1630,7 +1698,7 @@ window.showCustomerDashboard = showCustomerDashboard;
             '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
                 '<label class="portal-check"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="uploadPhoto(' + orderId + ')">Upload</button></div></section>' +
+                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" id="upload-btn" onclick="uploadPhoto(' + orderId + ')">Upload</button></div></section>' +
             '</div>';
     }
 
@@ -1701,10 +1769,18 @@ window.showCustomerDashboard = showCustomerDashboard;
         el.focus();
     };
 
-    window.uploadPhoto = async function (orderId) {
+    window.uploadPhoto = function (orderId) {
+        if (portalState.uploadInFlight) return;
+        portalState.uploadInFlight = true;
         var fileEl = document.getElementById('upload-file');
         var file = fileEl.files[0];
         if (!file) { alert('Select a file first.'); return; }
+
+        var maxSizes = { 'image/jpeg': 10*1024*1024, 'image/png': 10*1024*1024, 'image/webp': 10*1024*1024, 'application/pdf': 30*1024*1024, 'video/mp4': 100*1024*1024, 'video/webm': 100*1024*1024, 'video/quicktime': 100*1024*1024 };
+        var maxSize = 10*1024*1024;
+        for (var k in maxSizes) { if (file.type === k || (k === 'application/pdf' && file.name.toLowerCase().endsWith('.pdf')) || (k.indexOf('video/')===0 && file.name.toLowerCase().match(/\.(mp4|webm|mov)$/))) { maxSize = maxSizes[k]; break; } }
+        if (file.size > maxSize) { alert('File too large. Max ' + (maxSize/(1024*1024)) + 'MB for this type.'); return; }
+
         var caption = document.getElementById('upload-caption').value.trim();
         var pub = document.getElementById('upload-public').checked;
         var fd = new FormData();
@@ -1713,12 +1789,48 @@ window.showCustomerDashboard = showCustomerDashboard;
         fd.append('visible_to_customer', pub ? '1' : '0');
         var stageKey = document.getElementById('upload-stage-key');
         if (stageKey && stageKey.value) fd.append('stage_key', stageKey.value);
-        try {
-            await api('/api/portal/sales/orders/' + orderId + '/media', { method: 'POST', body: fd });
-            fileEl.value = '';
-            document.getElementById('upload-caption').value = '';
-            await refreshCurrentOrderMedia(orderId);
-        } catch (e) { alert('Upload failed.'); }
+
+        var statusEl = document.getElementById('upload-status');
+        if (!statusEl) { statusEl = document.createElement('div'); statusEl.id = 'upload-status'; statusEl.className = 'portal-upload-status'; document.getElementById('upload-file').parentNode.appendChild(statusEl); }
+        statusEl.innerHTML = '<span>Uploading: ' + esc(file.name) + ' (' + (file.size/1024/1024).toFixed(1) + 'MB)</span><div class="portal-upload-bar"><div class="portal-upload-fill" id="upload-fill"></div></div><span id="upload-pct">0%</span>';
+
+        var controls = ['upload-btn','upload-file','upload-caption','upload-public','upload-stage-key'];
+        controls.forEach(function (id) { var el = document.getElementById(id); if (el) el.disabled = true; });
+
+        function unlockUpload() {
+            portalState.uploadInFlight = false;
+            controls.forEach(function (id) { var el = document.getElementById(id); if (el) el.disabled = false; });
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', window.DaiyujinAPI.config.baseUrl + '/api/portal/sales/orders/' + orderId + '/media');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token());
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                var pct = Math.round(e.loaded/e.total*100);
+                var fill = document.getElementById('upload-fill');
+                if (fill) fill.style.width = pct + '%';
+                var pctEl = document.getElementById('upload-pct');
+                if (pctEl) pctEl.textContent = pct + '%';
+            }
+        };
+        xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                document.getElementById('upload-pct').textContent = 'Done';
+                fileEl.value = '';
+                document.getElementById('upload-caption').value = '';
+                unlockUpload();
+                setTimeout(function () { if (statusEl) statusEl.innerHTML = ''; }, 2000);
+                refreshCurrentOrderMedia(orderId);
+            } else {
+                var msg = 'Upload failed';
+                try { var r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch (e) {}
+                document.getElementById('upload-pct').textContent = msg;
+                unlockUpload();
+            }
+        };
+        xhr.onerror = function () { document.getElementById('upload-pct').textContent = 'Upload did not reach the server. Check network or file size.'; unlockUpload(); };
+        xhr.send(fd);
     };
 
     /* ══════════════════════════════════════════════════
@@ -1876,6 +1988,7 @@ window.showCustomerDashboard = showCustomerDashboard;
                 showChangePassword(true);
             } else {
                 startPortalRealtime();
+                updatePortalWatermark();
                 routeByRole(me.user.role);
             }
         } catch (e) {

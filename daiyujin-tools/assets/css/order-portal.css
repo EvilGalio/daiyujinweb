@@ -491,3 +491,8 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-card-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem 1rem; font-size: 12px; color: var(--muted); }
 .portal-card-meta-grid span:nth-child(odd) { color: var(--muted); }
 .portal-card-meta-grid span:nth-child(even) { color: var(--ink); }
+
+.portal-upload-status { margin-top: .5rem; font-size: 12px; }
+.portal-upload-status span { display: block; margin-bottom: .25rem; color: var(--muted); }
+.portal-upload-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin: .25rem 0; }
+.portal-upload-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .2s; width: 0; }
