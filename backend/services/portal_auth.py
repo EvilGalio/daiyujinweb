@@ -65,9 +65,27 @@ def _add_security_headers(resp):
 SESSION_HOURS = 24
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 
-VALID_STAGES = {"order_confirmed", "material_purchasing", "material_ready", "machining",
-    "in_process_qc", "surface_treatment", "final_inspection", "packing", "shipped", "delivered", "on_hold"}
-VALID_STATUSES = {"active", "on_hold", "shipped", "delivered", "cancelled"}
+VALID_STAGES = {"order_confirmed", "machining", "surface_treatment", "quality_inspection", "shipped", "received"}
+VALID_STATUSES = {"active", "on_hold", "shipped", "delivered", "cancelled"}  # legacy, kept for compat
+VALID_MANUAL_STATUSES = {"normal", "complaint", "on_hold", "cancelled"}
+VALID_SHIPPING_METHODS = {"DHL", "FedEx", "Sea", "Other"}
+VALID_COMPLAINT_STATUSES = {"open", "reviewing", "resolved", "closed"}
+
+ALLOWED_ATTACHMENTS = {
+    ".jpg":  ("image/jpeg",        "image", 10 * 1024 * 1024),
+    ".jpeg": ("image/jpeg",        "image", 10 * 1024 * 1024),
+    ".png":  ("image/png",         "image", 10 * 1024 * 1024),
+    ".webp": ("image/webp",        "image", 10 * 1024 * 1024),
+    ".pdf":  ("application/pdf",   "pdf",   30 * 1024 * 1024),
+    ".mp4":  ("video/mp4",         "video", 100 * 1024 * 1024),
+    ".webm": ("video/webm",        "video", 100 * 1024 * 1024),
+    ".mov":  ("video/quicktime",   "video", 100 * 1024 * 1024),
+}
+
+# Kept for backward compat — upload validation uses ALLOWED_ATTACHMENTS now
+ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_EXT  = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 def _validate_progress(val):
@@ -78,6 +96,47 @@ def _validate_progress(val):
     except (TypeError, ValueError):
         return None
     return max(0, min(100, n))
+
+
+def _parse_date(value):
+    """Parse a YYYY-MM-DD string or date-like value into a date object."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _display_status(order) -> str:
+    """Compute the display status for an order (backend-canonical)."""
+    manual = (getattr(order, "manual_status", None) or "normal").lower()
+    if manual in {"on_hold", "complaint", "cancelled"}:
+        return manual
+    due = _parse_date(order.estimated_delivery_date)
+    if due and due < datetime.utcnow().date() and order.current_stage != "received":
+        return "delayed"
+    return "normal"
+
+
+def _order_summary(order) -> dict:
+    """Return a consistent order summary dict for all list/detail endpoints."""
+    return {
+        "id": order.id,
+        "order_no": order.order_no,
+        "title": order.title,
+        "po_number": order.po_number,
+        "current_stage": order.current_stage,
+        "status": order.status,
+        "manual_status": getattr(order, "manual_status", "normal") or "normal",
+        "display_status": _display_status(order),
+        "estimated_delivery_date": order.estimated_delivery_date,
+        "shipping_method": getattr(order, "shipping_method", None),
+        "shipping_tracking_no": order.shipping_tracking_no,
+        "customer_visible_note": order.customer_visible_note,
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+    }
 
 
 def _hash_token(token: str) -> str:
@@ -411,22 +470,33 @@ def portal_orders_list():
 
     session = SessionLocal()
     try:
+        q_str  = request.args.get("q", "").strip()
+        stage  = request.args.get("stage", "").strip()
+        d_stat = request.args.get("display_status", "").strip()
+
         q = session.query(PortalOrder)
         if u["role"] == "customer":
             q = q.filter(PortalOrder.customer_user_id == u["id"])
         elif u["role"] == "sales":
             q = q.filter(PortalOrder.sales_user_id == u["id"])
+
+        if stage:
+            q = q.filter(PortalOrder.current_stage == stage)
+        if q_str:
+            q = q.filter(
+                PortalOrder.title.ilike(f"%{q_str}%")
+                | PortalOrder.order_no.ilike(f"%{q_str}%")
+                | PortalOrder.po_number.ilike(f"%{q_str}%")
+            )
         rows = q.order_by(PortalOrder.updated_at.desc()).limit(100).all()
-        return jsonify({"error": False, "orders": [{
-            "id": o.id, "order_no": o.order_no, "title": o.title,
-            "current_stage": o.current_stage, "status": o.status,
-            "estimated_delivery_date": o.estimated_delivery_date,
-            "customer_visible_note": o.customer_visible_note,
-            "created_at": o.created_at.isoformat() if o.created_at else None,
-            "updated_at": o.updated_at.isoformat() if o.updated_at else None,
-        } for o in rows]})
+        # display_status filter is done in Python (see PRD 5.10)
+        results = [_order_summary(o) for o in rows]
+        if d_stat:
+            results = [r for r in results if r["display_status"] == d_stat]
+        return jsonify({"error": False, "orders": results})
     finally:
         session.close()
+
 
 
 @portal_bp.get("/orders/<int:order_id>")
@@ -446,19 +516,17 @@ def portal_order_detail(order_id):
 
         cu = session.query(PortalUser).filter_by(id=o.customer_user_id).first()
         su = session.query(PortalUser).filter_by(id=o.sales_user_id).first() if o.sales_user_id else None
-        return jsonify({"error": False, "order": {
-            "id": o.id, "order_no": o.order_no, "title": o.title,
-            "po_number": o.po_number, "current_stage": o.current_stage,
-            "status": o.status, "estimated_delivery_date": o.estimated_delivery_date,
-            "shipping_tracking_no": o.shipping_tracking_no,
-            "customer_visible_note": o.customer_visible_note,
-            "customer": {"email": cu.email, "display_name": cu.display_name} if cu else None,
-            "sales": {"email": su.email, "display_name": su.display_name} if su else None,
-            "created_at": o.created_at.isoformat() if o.created_at else None,
-            "updated_at": o.updated_at.isoformat() if o.updated_at else None,
-        }})
+        detail = _order_summary(o)
+        detail["customer"] = {"email": cu.email, "display_name": cu.display_name} if cu else None
+        detail["sales"]    = {"email": su.email, "display_name": su.display_name} if su else None
+        # complaint info (visible to all roles for status display)
+        detail["complaint_status"]      = getattr(o, "complaint_status", None)
+        detail["complaint_opened_at"]   = o.complaint_opened_at.isoformat() if getattr(o, "complaint_opened_at", None) else None
+        detail["complaint_resolved_at"] = o.complaint_resolved_at.isoformat() if getattr(o, "complaint_resolved_at", None) else None
+        return jsonify({"error": False, "order": detail})
     finally:
         session.close()
+
 
 
 @portal_bp.post("/sales/orders")
@@ -592,18 +660,54 @@ def sales_update_order(order_id):
             return jsonify({"error": True, "message": "Forbidden"}), 403
 
         if "title" in data: o.title = data["title"] or None
+
         if "current_stage" in data:
             s = data["current_stage"]
             if s and s not in VALID_STAGES:
                 return jsonify({"error": True, "message": f"Invalid stage: {s}"}), 400
             o.current_stage = s or None
+
+        if "manual_status" in data:
+            ms = (data["manual_status"] or "normal").lower()
+            if ms not in VALID_MANUAL_STATUSES:
+                return jsonify({"error": True, "message": f"Invalid manual_status: {ms}"}), 400
+            o.manual_status = ms
+            if ms == "complaint" and not getattr(o, "complaint_status", None):
+                o.complaint_status = "open"
+                o.complaint_opened_at = datetime.utcnow()
+
+        if "complaint_status" in data:
+            cs = (data["complaint_status"] or "").lower()
+            if cs and cs not in VALID_COMPLAINT_STATUSES:
+                return jsonify({"error": True, "message": f"Invalid complaint_status: {cs}"}), 400
+            o.complaint_status = cs or None
+            if cs == "resolved" and not getattr(o, "complaint_resolved_at", None):
+                o.complaint_resolved_at = datetime.utcnow()
+
         if "status" in data:
             s = data["status"]
             if s and s not in VALID_STATUSES:
                 return jsonify({"error": True, "message": f"Invalid status: {s}"}), 400
             o.status = s
-        if "estimated_delivery_date" in data: o.estimated_delivery_date = data["estimated_delivery_date"] or None
+
+        if "shipping_method" in data:
+            sm = data["shipping_method"] or None
+            if sm and sm not in VALID_SHIPPING_METHODS:
+                return jsonify({"error": True, "message": f"Invalid shipping_method: {sm}"}), 400
+            o.shipping_method = sm
+
+        if "estimated_delivery_date" in data:
+            raw_date = (data["estimated_delivery_date"] or "").strip()
+            if raw_date and not _parse_date(raw_date):
+                return jsonify({"error": True, "message": "estimated_delivery_date must be YYYY-MM-DD"}), 400
+            o.estimated_delivery_date = raw_date or None
         if "shipping_tracking_no" in data: o.shipping_tracking_no = data["shipping_tracking_no"] or None
+
+        # shipped stage: require tracking for DHL/FedEx
+        if o.current_stage == "shipped" and getattr(o, "shipping_method", None) in {"DHL", "FedEx"}:
+            if not o.shipping_tracking_no:
+                return jsonify({"error": True, "message": "Tracking number is required for DHL/FedEx shipments"}), 400
+
         if "customer_visible_note" in data: o.customer_visible_note = data["customer_visible_note"] or None
         if "internal_note" in data: o.internal_note = data["internal_note"] or None
         o.updated_at = datetime.utcnow()
@@ -617,18 +721,31 @@ def sales_update_order(order_id):
                 created_by_user_id=u["id"],
             ))
 
-        log_portal_action(session, u, "sales_update_order_stage", entity_type="portal_order", entity_id=order_id, entity_label=f"stage={data.get('current_stage','')} status={data.get('status','')}".strip())
+        log_portal_action(session, u, "sales_update_order", entity_type="portal_order", entity_id=order_id,
+            entity_label=f"stage={data.get('current_stage','')} manual_status={data.get('manual_status','')}")
         if "current_stage" in data:
-            emit_portal_event(session, "order_stage_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "current_stage": data["current_stage"]})
-        summary_keys = ["status", "estimated_delivery_date", "customer_visible_note", "shipping_tracking_no"]
+            emit_portal_event(session, "order_stage_changed", "order", entity_id=order_id, order_id=order_id,
+                actor_user_id=u["id"], visibility="public",
+                payload={"order_id": order_id, "current_stage": data["current_stage"]})
+        summary_keys = ["status", "manual_status", "estimated_delivery_date", "customer_visible_note",
+                        "shipping_tracking_no", "shipping_method"]
         if any(k in data for k in summary_keys):
-            emit_portal_event(session, "order_summary_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "changed_keys": [k for k in summary_keys if k in data]})
+            emit_portal_event(session, "order_summary_changed", "order", entity_id=order_id, order_id=order_id,
+                actor_user_id=u["id"], visibility="public",
+                payload={"order_id": order_id, "changed_keys": [k for k in summary_keys if k in data]})
         if "internal_note" in data:
-            emit_portal_event(session, "order_internal_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="internal", payload={"order_id": order_id})
-        session.commit()  # single commit for order + timeline
-        return jsonify({"error": False, "message": "Order updated", "order_id": o.id})
+            emit_portal_event(session, "order_internal_changed", "order", entity_id=order_id, order_id=order_id,
+                actor_user_id=u["id"], visibility="internal", payload={"order_id": order_id})
+        if "complaint_status" in data or "manual_status" in data:
+            emit_portal_event(session, "complaint_changed", "order", entity_id=order_id, order_id=order_id,
+                actor_user_id=u["id"], visibility="public",
+                payload={"order_id": order_id, "manual_status": o.manual_status, "complaint_status": o.complaint_status})
+        session.commit()
+        return jsonify({"error": False, "message": "Order updated", "order_id": o.id,
+                        "manual_status": o.manual_status, "display_status": _display_status(o)})
     finally:
         session.close()
+
 
 
 # ══════════════════════════════════════════════════
@@ -663,6 +780,8 @@ def portal_order_media_list(order_id):
         rows = q.all()
         return jsonify({"error": False, "media": [{
             "id": m.id, "caption": m.caption, "filename": m.original_filename,
+            "original_filename": m.original_filename, "file_kind": m.file_kind or "image",
+            "mime_type": m.mime_type, "stage_key": m.stage_key,
             "file_size": m.file_size, "visible_to_customer": bool(m.visible_to_customer),
             "created_at": m.created_at.isoformat() if m.created_at else None,
         } for m in rows]})
@@ -711,12 +830,14 @@ def sales_upload_media(order_id):
         return jsonify({"error": True, "message": "No file uploaded"}), 400
 
     ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXT:
-        return jsonify({"error": True, "message": "Only jpg/png/webp images allowed"}), 400
+    spec = ALLOWED_ATTACHMENTS.get(ext)
+    if not spec:
+        return jsonify({"error": True, "message": "Only jpg/png/webp/pdf/mp4/webm/mov files allowed"}), 400
+    mapped_mime, file_kind, size_limit = spec
 
     data = file.read()
-    if len(data) > MAX_FILE_SIZE:
-        return jsonify({"error": True, "message": "File too large (max 10MB)"}), 400
+    if len(data) > size_limit:
+        return jsonify({"error": True, "message": f"File too large (max {size_limit // (1024*1024)}MB for {ext})"}), 400
 
     session = SessionLocal()
     path = None
@@ -727,7 +848,7 @@ def sales_upload_media(order_id):
 
         count = session.query(PortalOrderMedia).filter_by(order_id=order.id).count()
         if count >= 100:
-            return jsonify({"error": True, "message": "Maximum 100 images per order"}), 400
+            return jsonify({"error": True, "message": "Maximum 100 attachments per order"}), 400
 
         stored = f"{secrets.token_hex(16)}{ext}"
         path = MEDIA_DIR / stored
@@ -735,6 +856,9 @@ def sales_upload_media(order_id):
 
         visible_raw = (request.form.get("visible_to_customer", "1") or "1").strip().lower()
         visible = visible_raw not in {"0", "false", "no", "off"}
+        stage_key = request.form.get("stage_key") or order.current_stage
+        if stage_key not in VALID_STAGES:
+            stage_key = order.current_stage
 
         media = PortalOrderMedia(
             order_id=order.id,
@@ -742,8 +866,10 @@ def sales_upload_media(order_id):
             uploaded_by_user_id=u["id"],
             stored_filename=stored,
             original_filename=Path(file.filename).name,
-            mime_type=file.content_type or "image/jpeg",
+            mime_type=mapped_mime,
             file_size=len(data),
+            file_kind=file_kind,
+            stage_key=stage_key,
             caption=(request.form.get("caption") or "").strip() or None,
             visible_to_customer=visible,
         )
@@ -996,11 +1122,12 @@ def admin_list_orders():
             query = query.filter(PortalOrder.customer_user_id == customer_id)
         if status:
             query = query.filter(PortalOrder.status == status)
+        d_stat = request.args.get("display_status", "").strip()
         if stage:
             query = query.filter(PortalOrder.current_stage == stage)
         if q:
             query = query.filter(
-                PortalOrder.title.ilike(f"%{q}%") | PortalOrder.order_no.ilike(f"%{q}%")
+                PortalOrder.title.ilike(f"%{q}%") | PortalOrder.order_no.ilike(f"%{q}%") | PortalOrder.po_number.ilike(f"%{q}%")
             )
 
         rows = query.order_by(PortalOrder.updated_at.desc()).limit(200).all()
@@ -1013,10 +1140,11 @@ def admin_list_orders():
         def _count(model, field, val):
             return session.query(model).filter(field == val).count()
 
-        return jsonify({"error": False, "orders": [{
+        results = [{
             "id": o.id, "order_no": o.order_no, "title": o.title,
             "customer_user_id": o.customer_user_id, "sales_user_id": o.sales_user_id,
             "customer_name": (users.get(o.customer_user_id).display_name or users.get(o.customer_user_id).email) if o.customer_user_id in users else None,
+            "display_status": _display_status(o), "manual_status": getattr(o, "manual_status", "normal") or "normal",
             "customer_email": users.get(o.customer_user_id).email if o.customer_user_id in users else None,
             "sales_name": (users.get(o.sales_user_id).display_name or users.get(o.sales_user_id).email) if o.sales_user_id in users else None,
             "sales_email": users.get(o.sales_user_id).email if o.sales_user_id in users else None,
@@ -1027,7 +1155,12 @@ def admin_list_orders():
             "messages_count": _count(PortalMessage, PortalMessage.order_id, o.id),
             "created_at": o.created_at.isoformat() if o.created_at else None,
             "updated_at": o.updated_at.isoformat() if o.updated_at else None,
-        } for o in rows]})
+        } for o in rows]
+
+        if d_stat:
+            results = [r for r in results if r.get("display_status") == d_stat]
+
+        return jsonify({"error": False, "orders": results})
     finally:
         session.close()
 
@@ -1183,7 +1316,7 @@ def admin_order_full(order_id):
             "customer": _user_json(customer) if customer else None,
             "sales": _user_json(sales) if sales else None,
             "updates": [{"id": up.id, "stage_key": up.stage_key, "title": up.title, "message": up.message, "progress_percent": up.progress_percent, "created_at": up.created_at.isoformat() if up.created_at else None} for up in updates],
-            "media": [{"id": m.id, "original_filename": m.original_filename, "mime_type": m.mime_type, "caption": m.caption, "visible_to_customer": m.visible_to_customer, "created_at": m.created_at.isoformat() if m.created_at else None} for m in media],
+            "media": [{"id": m.id, "original_filename": m.original_filename, "filename": m.original_filename, "file_kind": m.file_kind or "image", "stage_key": m.stage_key, "mime_type": m.mime_type, "file_size": m.file_size, "caption": m.caption, "visible_to_customer": m.visible_to_customer, "created_at": m.created_at.isoformat() if m.created_at else None} for m in media],
             "messages": [{"id": msg.id, "sender_user_id": msg.sender_user_id, "message": msg.message, "status": msg.status, "parent_message_id": msg.parent_message_id, "created_at": msg.created_at.isoformat() if msg.created_at else None} for msg in msgs],
         }})
     finally:
@@ -1324,5 +1457,112 @@ def portal_snapshot():
                 }
             })
         return jsonify({"error": False, "server_time": datetime.utcnow().isoformat(), "latest_event_id": latest_event_id, "orders": result})
+    finally:
+        session.close()
+
+
+# ══════════════════════════════════════════════════
+# Media ticket — preview/download
+# ══════════════════════════════════════════════════
+
+@portal_bp.post("/orders/<int:order_id>/media/<int:media_id>/ticket")
+def portal_media_ticket(order_id, media_id):
+    u, err = _require_authenticated()
+    if err: return err
+
+    session = SessionLocal()
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err: return err
+
+        media = session.query(PortalOrderMedia).filter_by(id=media_id, order_id=order.id).first()
+        if not media:
+            return jsonify({"error": True, "message": "Not found"}), 404
+        if u["role"] == "customer" and not media.visible_to_customer:
+            return jsonify({"error": True, "message": "Not found"}), 404
+
+        from itsdangerous import URLSafeTimedSerializer
+        from flask import current_app
+        serializer = URLSafeTimedSerializer(current_app.config.get("SECRET_KEY", "portal-key-change-me"))
+        token = serializer.dumps({"o": order_id, "m": media_id, "u": u["id"], "r": u["role"]})
+        url = url_for("portal.portal_media_serve", token=token, _external=True)
+        return jsonify({"error": False, "url": url, "expires_in": 600})
+    finally:
+        session.close()
+
+
+@portal_bp.get("/media-ticket/<token>")
+def portal_media_serve(token):
+    from itsdangerous import URLSafeTimedSerializer, BadData, SignatureExpired
+    from flask import current_app, send_file
+
+    serializer = URLSafeTimedSerializer(current_app.config.get("SECRET_KEY", "portal-key-change-me"))
+    try:
+        payload = serializer.loads(token, max_age=600)
+    except SignatureExpired:
+        return jsonify({"error": True, "message": "Ticket expired"}), 410
+    except BadData:
+        return jsonify({"error": True, "message": "Invalid ticket"}), 400
+
+    session = SessionLocal()
+    try:
+        media = session.query(PortalOrderMedia).filter_by(id=payload["m"], order_id=payload["o"]).first()
+        if not media or not media.stored_filename:
+            return jsonify({"error": True, "message": "Not found"}), 404
+
+        user = session.query(PortalUser).filter_by(id=payload["u"]).first()
+        if not user or user.status != "active":
+            return jsonify({"error": True, "message": "Unauthorized"}), 401
+        if payload["r"] == "customer" and not media.visible_to_customer:
+            return jsonify({"error": True, "message": "Not found"}), 404
+
+        file_path = MEDIA_DIR / media.stored_filename
+        if not file_path.exists():
+            return jsonify({"error": True, "message": "File not found"}), 404
+
+        attachment = request.args.get("download") == "1"
+        return send_file(str(file_path), mimetype=media.mime_type or "application/octet-stream", conditional=True, as_attachment=attachment, download_name=media.original_filename)
+    finally:
+        session.close()
+
+
+# ══════════════════════════════════════════════════
+# Complaint
+# ══════════════════════════════════════════════════
+
+@portal_bp.post("/orders/<int:order_id>/complaints")
+def portal_order_complaint(order_id):
+    u, err = _require_authenticated()
+    if err: return err
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("message") or "").strip()
+    if not text:
+        return jsonify({"error": True, "message": "Message is required"}), 400
+
+    session = SessionLocal()
+    try:
+        o = session.query(PortalOrder).filter_by(id=order_id).first()
+        if not o:
+            return jsonify({"error": True, "message": "Order not found"}), 404
+        if u["role"] == "customer" and o.customer_user_id != u["id"]:
+            return jsonify({"error": True, "message": "Order not found"}), 404
+        if u["role"] == "sales" and o.sales_user_id != u["id"] and u["role"] != "admin":
+            return jsonify({"error": True, "message": "Forbidden"}), 403
+        if u["role"] == "customer" and o.current_stage != "received":
+            return jsonify({"error": True, "message": "Complaints can only be opened after the order is received"}), 400
+
+        msg = PortalMessage(order_id=order_id, sender_user_id=u["id"], message=text, status="open")
+        session.add(msg)
+        session.flush()
+        o.manual_status = "complaint"
+        if not o.complaint_status:
+            o.complaint_status = "open"
+        if not o.complaint_opened_at:
+            o.complaint_opened_at = datetime.utcnow()
+        emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "message_id": msg.id})
+        emit_portal_event(session, "complaint_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "manual_status": "complaint"})
+        session.commit()
+        return jsonify({"error": False, "message_id": msg.id, "manual_status": o.manual_status, "display_status": _display_status(o)})
     finally:
         session.close()

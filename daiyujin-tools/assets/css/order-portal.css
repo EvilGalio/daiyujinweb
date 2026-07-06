@@ -2,7 +2,7 @@
    Order Portal — Light Industrial v2
    ══════════════════════════════════════════════════ */
 
-.dyj-order-portal-embed {
+:root {
     --bg: #f5f7fa;
     --panel: rgba(255,255,255,.82);
     --ink: #172033;
@@ -31,7 +31,7 @@
     --portal-shadow: var(--shadow);
 }
 
-.dyj-order-portal-embed {
+body {
     margin: 0;
     padding: 0;
     background: var(--bg);
@@ -47,12 +47,12 @@
     margin: 0 auto;
     padding: 40px 24px;
 }
-.dyj-order-portal-embed.portal-authenticated .portal-shell {
+body.portal-authenticated .portal-shell {
     max-width: min(calc(100% - 48px), 1480px);
     padding: 24px;
 }
 @media (max-width: 768px) {
-    .dyj-order-portal-embed.portal-authenticated .portal-shell { max-width: calc(100% - 24px); padding: 12px; }
+    body.portal-authenticated .portal-shell { max-width: calc(100% - 24px); padding: 12px; }
 }
 
 /* ── Login ── */
@@ -63,7 +63,7 @@
 .portal-login-features { list-style: none; padding: 0; margin: 1.5rem 0 0; }
 .portal-login-features li { padding: .35rem 0; font-size: 13px; color: var(--muted); }
 .portal-login-features li::before { content: "\2713 "; color: var(--success); margin-right: .5rem; font-weight: 700; }
-.dyj-order-portal-embed.portal-authenticated .portal-login-layout { display: none; }
+body.portal-authenticated .portal-login-layout { display: none; }
 .portal-login-card { max-width: 360px; background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
 .portal-login-card h3 { margin: 0 0 .5rem; font-size: 16px; }
 
@@ -464,3 +464,15 @@
 .portal-lightbox figcaption { margin-top: 10px; color: white; text-align: center; font-size: 13px; }
 .portal-lightbox-close { position: fixed; top: 22px; right: 24px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.12); color: white; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 .portal-lightbox-open { overflow: hidden; }
+
+.portal-status-normal { background: #dcfce7; color: #166534; }
+.portal-status-delayed { background: #fee2e2; color: #991b1b; }
+.portal-status-complaint { background: #fef3c7; color: #92400e; }
+.portal-status-on_hold { background: #dbeafe; color: #1e40af; }
+.portal-status-cancelled { background: #f3f4f6; color: #4b5563; }
+.portal-search-bar { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.portal-search-bar input { flex: 1; min-width: 180px; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 13px; }
+.portal-search-bar select { padding: .4rem .6rem; border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 13px; background: white; }
+.portal-attachment-group { margin-bottom: 1rem; }
+.portal-attachment-group-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: .75rem 0 .5rem; padding: .3rem .5rem; background: #f8fafc; border-radius: var(--radius); }
+.portal-complaint-btn { margin-top: .5rem; }
