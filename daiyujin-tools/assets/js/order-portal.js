@@ -59,6 +59,8 @@
 
     var mediaObjectUrls = [];
     var autoRefreshTimer = null;
+    var _searchQuery = '';
+    var _searchState = { q: '', stage: '', status: '' };
 
     var portalChannel = null;
 
@@ -937,6 +939,7 @@
 
     function renderSearchBar(opts) {
         opts = opts || {};
+        _searchState = _searchState || { q: '', stage: '', status: '' };
         var q = _searchState.q || '';
         var stage = _searchState.stage || '';
         var status = _searchState.status || '';
@@ -1832,12 +1835,7 @@
 
     var stageOrder = ["order_confirmed","material_ready","machining","surface_treatment","quality_inspection","packing","shipped","received"];
 
-    var _searchQuery = '';
-    var _searchState = { q: '', stage: '', status: '' };
-
-    applyPortalBranding();
-    bootstrapPortal();
-
+    
     function selectedAttr(value, expected) {
         return String(value || '') === String(expected || '') ? ' selected' : '';
     }
