@@ -45,6 +45,13 @@
         return 'Welcome, ' + firstName((u && (u.display_name || u.email)) || '');
     }
 
+    function userDisplayName(u) {
+        var raw = (u && (u.display_name || u.email)) || '';
+        if (!raw) return 'User';
+        if (raw.indexOf('@') >= 0) return raw.split('@')[0];
+        return raw;
+    }
+
     function applyPortalBranding() {
         var titleEl = document.querySelector('[data-portal-title]');
         if (titleEl) titleEl.textContent = portalFullTitle();
@@ -1466,7 +1473,7 @@ window.showCustomerDashboard = showCustomerDashboard;
 
     async function showCustomerOrderDetail(orderId) {
         pushPortalView('My Orders', showCustomerDashboard, []);
-        main.innerHTML = renderRoleHeader('Order Detail', user().display_name || user().email, '') + renderOrderDetailSkeleton();
+        main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
@@ -1478,7 +1485,7 @@ window.showCustomerDashboard = showCustomerDashboard;
 
     async function showSalesOrderDetail(orderId) {
         pushPortalView('Orders', showSalesOrders, []);
-        main.innerHTML = renderRoleHeader('Sales Workspace', user().display_name || user().email, '') + renderOrderDetailSkeleton();
+        main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
             var results = await Promise.all([
                 api('/api/portal/orders/' + orderId), api('/api/portal/orders/' + orderId + '/updates'), api('/api/portal/orders/' + orderId + '/messages'), api('/api/portal/orders/' + orderId + '/media')
@@ -1499,7 +1506,7 @@ window.showCustomerDashboard = showCustomerDashboard;
         portalState.pendingStageLabel = null;
 
         main.innerHTML =
-            renderRoleHeader(isSales ? 'Sales Workspace' : 'Order Detail', (isSales ? salesGreeting : customerGreeting)(user()), '') +
+            renderRoleHeader('Order Detail', userDisplayName(user()), '') +
             '<div id="order-header" class="portal-panel portal-panel-spaced"></div>' +
             (isSales ? '<div id="order-sales-actions">' + renderSalesActions(o.id, o.current_stage) + '</div>' : '') +
             '<div id="order-stepper"></div>' +

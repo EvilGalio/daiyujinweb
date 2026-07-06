@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import random
 import secrets
 import time
@@ -25,6 +26,22 @@ from pathlib import Path
 MEDIA_DIR = Path(__file__).resolve().parents[1] / "private" / "order_media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 (MEDIA_DIR / "thumbs").mkdir(exist_ok=True)
+
+
+def _portal_ticket_secret() -> str:
+    from flask import current_app
+    key = (
+        current_app.config.get("SECRET_KEY")
+        or os.environ.get("PORTAL_TICKET_SECRET")
+        or os.environ.get("SECRET_KEY")
+        or "portal-key-change-me"
+    )
+    return str(key)
+
+
+def _media_ticket_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(_portal_ticket_secret(), salt="portal-media-ticket")
 
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
@@ -1499,9 +1516,7 @@ def portal_media_ticket(order_id, media_id):
         if u["role"] == "customer" and not media.visible_to_customer:
             return jsonify({"error": True, "message": "Not found"}), 404
 
-        from itsdangerous import URLSafeTimedSerializer
-        from flask import current_app
-        serializer = URLSafeTimedSerializer(current_app.config.get("SECRET_KEY", "portal-key-change-me"))
+        serializer = _media_ticket_serializer()
         token = serializer.dumps({"o": order_id, "m": media_id, "u": u["id"], "r": u["role"]})
         url = url_for("portal.portal_media_serve", token=token, _external=True)
         return jsonify({"error": False, "url": url, "expires_in": 600})
@@ -1511,10 +1526,10 @@ def portal_media_ticket(order_id, media_id):
 
 @portal_bp.get("/media-ticket/<token>")
 def portal_media_serve(token):
-    from itsdangerous import URLSafeTimedSerializer, BadData, SignatureExpired
-    from flask import current_app, send_file
+    from itsdangerous import BadData, SignatureExpired
+    from flask import send_file
 
-    serializer = URLSafeTimedSerializer(current_app.config.get("SECRET_KEY", "portal-key-change-me"))
+    serializer = _media_ticket_serializer()
     try:
         payload = serializer.loads(token, max_age=600)
     except SignatureExpired:

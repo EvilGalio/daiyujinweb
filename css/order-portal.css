@@ -287,10 +287,15 @@ body.portal-authenticated .portal-login-layout { display: none; }
     gap: .75rem; margin-bottom: 1.25rem;
 }
 .portal-role-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.portal-role-header b { font-size: 14px; font-weight: 500; color: var(--muted); }
-.portal-role-header span { font-size: 13px; color: var(--muted); flex: 1; }
+
 .portal-header-main { display: flex; align-items: center; gap: .75rem; min-width: 0; }
-.portal-header-main > div { min-width: 0; }
+
+.portal-header-main > div { min-width: 0; display: grid; gap: 3px; }
+
+.portal-header-main > div > b { display: block; font-size: 14px; font-weight: 500; color: var(--muted); }
+
+.portal-header-main > div > span { display: block; font-size: 13px; color: var(--muted); }
+
 .portal-back-button { flex-shrink: 0; }
 .portal-header-actions { display: flex; gap: .25rem; align-items: center; flex-wrap: wrap; }
 .portal-sync-label {
