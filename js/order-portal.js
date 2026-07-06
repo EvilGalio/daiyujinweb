@@ -676,7 +676,51 @@
         };
     };
 
-    window.showCustomerDashboard = showCustomerDashboard;
+
+    async function showSalesCustomers() {
+        setCurrentView('list', { listKind: 'sales-customers' });
+        resetPortalNav();
+        clearMediaUrls();
+        stopAutoRefresh();
+        var u = user();
+        main.innerHTML =
+            renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
+            renderSalesCommandBar('customers') +
+            renderCardGridSkeleton(4);
+        try {
+            var resp = await api('/api/portal/sales/customers');
+            var customers = resp.customers || [];
+            main.innerHTML =
+                renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
+                renderSalesCommandBar('customers') +
+                '<div class="portal-dashboard">' +
+                    (customers.length ? customers.map(function (c) {
+                        return '<div class="portal-order-card">' +
+                            '<h3>' + esc(c.display_name || c.email) + '</h3>' +
+                            '<div class="portal-order-meta">' +
+                                '<span>' + esc(c.email) + '</span>' +
+                                '<span>' + esc(c.company_name || '-') + '</span>' +
+                                '<span>' + esc(c.status || '-') + '</span>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('') :
+                    '<div class="portal-empty-state">' +
+                        '<div class="portal-empty-state-icon">👥</div>' +
+                        '<h3>No customers yet</h3>' +
+                        '<p>Add a customer account before creating orders.</p>' +
+                        '<div class="portal-cta-row">' +
+                            '<button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button>' +
+                        '</div>' +
+                    '</div>') +
+                '</div>';
+        } catch (e) {
+            main.innerHTML =
+                renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
+                renderErrorState('Unable to load customers.', e.message, 'Retry', 'showSalesCustomers()');
+        }
+    }
+
+window.showCustomerDashboard = showCustomerDashboard;
     window.showSalesWorkspace = showSalesWorkspace;
     window.showSalesOrders = showSalesOrders;
     window.showSalesCustomers = showSalesCustomers;
