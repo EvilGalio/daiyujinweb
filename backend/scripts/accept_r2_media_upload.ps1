@@ -62,7 +62,8 @@ $fileSize = [int]$fileInfo.Length
 $headers = @{}
 
 if (-not $SalesToken) {
-    Assert-Condition (-not [string]::IsNullOrWhiteSpace($SalesEmail) -and -not [string]::IsNullOrWhiteSpace($SalesPassword)),
+    Assert-Condition `
+        (-not [string]::IsNullOrWhiteSpace($SalesEmail) -and -not [string]::IsNullOrWhiteSpace($SalesPassword)) `
         "SalesToken is empty. Please provide -SalesToken or both -SalesEmail and -SalesPassword."
 
     $loginBody = @{
@@ -72,7 +73,7 @@ if (-not $SalesToken) {
 
     Write-Checkpoint "Login to get token..."
     $loginResp = Invoke-RestMethod -Method POST -Uri ($BaseUrl.TrimEnd("/") + "/api/portal/auth/login") -ContentType "application/json" -Body $loginBody
-    Assert-Condition (-not $loginResp.error), "Login failed: $($loginResp.message)"
+    Assert-Condition (-not $loginResp.error) "Login failed: $($loginResp.message)"
     $SalesToken = $loginResp.token
 }
 
@@ -98,7 +99,7 @@ $initBody = @{
 
 $initUri = $BaseUrl.TrimEnd("/") + "/api/portal/sales/orders/$OrderId/media/r2/init"
 $initResp = Invoke-RestMethod -Method POST -Uri $initUri -Headers $headers -ContentType "application/json" -Body $initBody
-Assert-Condition (-not $initResp.error), "r2/init failed: $($initResp.message)"
+Assert-Condition (-not $initResp.error) "r2/init failed: $($initResp.message)"
 Write-Checkpoint "init ok; upload_id=$($initResp.upload_id)"
 
 $uploadId = $initResp.upload_id
@@ -106,7 +107,7 @@ $uploadUrl = $initResp.upload_url
 
 Write-Checkpoint "Upload file to R2 with PUT..."
 $putResp = Invoke-WebRequest -Method PUT -Uri $uploadUrl -Headers @{"Content-Type" = $mimeType} -InFile $TestFile -UseBasicParsing
-Assert-Condition ($putResp.StatusCode -ge 200 -and $putResp.StatusCode -lt 300), "R2 PUT failed status=$($putResp.StatusCode)"
+Assert-Condition ($putResp.StatusCode -ge 200 -and $putResp.StatusCode -lt 300) "R2 PUT failed status=$($putResp.StatusCode)"
 
 $completeUri = $BaseUrl.TrimEnd("/") + "/api/portal/sales/orders/$OrderId/media/r2/complete"
 $completeBody = @{ upload_id = $uploadId } | ConvertTo-Json
@@ -120,20 +121,20 @@ $completeReq = @{
 
 Write-Checkpoint "Complete upload..."
 $complete1 = Invoke-RestMethod @completeReq
-Assert-Condition (-not $complete1.error), "first complete failed: $($complete1.message)"
+Assert-Condition (-not $complete1.error) "first complete failed: $($complete1.message)"
 $mediaId = [int]$complete1.media_id
 Write-Checkpoint "complete1 ok; media_id=$mediaId"
 
 Write-Checkpoint "Repeat complete for idempotency check..."
 $complete2 = Invoke-RestMethod @completeReq
-Assert-Condition (-not $complete2.error), "second complete failed: $($complete2.message)"
-Assert-Condition ([int]$complete2.media_id -eq $mediaId), "idempotency broken: media_id mismatch"
+Assert-Condition (-not $complete2.error) "second complete failed: $($complete2.message)"
+Assert-Condition ([int]$complete2.media_id -eq $mediaId) "idempotency broken: media_id mismatch"
 Write-Checkpoint "idempotency ok; media_id same"
 
 Write-Checkpoint "Get ticket..."
 $ticketUri = $BaseUrl.TrimEnd("/") + "/api/portal/orders/$OrderId/media/$mediaId/ticket"
 $ticketResp = Invoke-RestMethod -Method POST -Uri $ticketUri -Headers $headers -ContentType "application/json" -Body (@{} | ConvertTo-Json)
-Assert-Condition (-not $ticketResp.error), "ticket failed: $($ticketResp.message)"
+Assert-Condition (-not $ticketResp.error) "ticket failed: $($ticketResp.message)"
 $previewUrl = $ticketResp.url_path
 if ($previewUrl -notmatch "^https?://") {
     $previewUrl = $BaseUrl.TrimEnd("/") + $previewUrl
@@ -189,4 +190,3 @@ try {
 }
 
 Write-Checkpoint "Acceptance flow completed."
-
