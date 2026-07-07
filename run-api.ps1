@@ -60,4 +60,4 @@ if (Test-Path -LiteralPath $envFile) {
     }
 }
 
-& $OccPython -m waitress "--listen=127.0.0.1:$ApiPort" app:app
+& $OccPython -m waitress "--listen=127.0.0.1:$ApiPort" "--threads=16" "--channel-timeout=300" app:app

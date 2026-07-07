@@ -982,7 +982,7 @@
         try {
             var resp = await api('/api/portal/orders' + _searchQuery);
             main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') +
-                renderSearchBar({ refreshFn: 'showCustomerDashboard' }) + '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(renderOrderCard).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p class="portal-muted">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
+                renderSearchBar({ refreshFn: 'showCustomerDashboard' }) + '<div class="portal-dashboard">' + (resp.orders && resp.orders.length ? resp.orders.map(function (order) { return renderOrderCard(order, 'showOrderDetail'); }).join('') : '<div class="portal-empty-state"><div class="portal-empty-state-icon">📦</div><h3>No active orders yet</h3><p>Your manufacturing orders will appear here once your sales representative creates them.</p><p class="portal-muted">If you expected to see an order, contact your sales representative.</p></div>') + '</div>';
         } catch (e) { main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showCustomerDashboard()'); }
     }
 
@@ -990,6 +990,7 @@
     var stageDefaultProgress = 10;
 
     function renderOrderCard(order, detailFn) {
+        if (typeof detailFn !== 'string') detailFn = 'showOrderDetail';
         detailFn = detailFn || 'showOrderDetail';
         var stageLabel = stageLabels[order.current_stage] || 'N/A';
         var progress = stageProgress[order.current_stage] || stageDefaultProgress;
@@ -1804,7 +1805,6 @@
 
     window.uploadPhoto = function (orderId) {
         if (portalState.uploadInFlight) return;
-        portalState.uploadInFlight = true;
         var fileEl = document.getElementById('upload-file');
         var file = fileEl.files[0];
         if (!file) { alert('Select a file first.'); return; }
@@ -1813,6 +1813,8 @@
         var maxSize = 10 * 1024 * 1024;
         for (var k in maxSizes) { if (file.type === k || (k === 'application/pdf' && file.name.toLowerCase().endsWith('.pdf')) || (k.indexOf('video/') === 0 && file.name.toLowerCase().match(/\.(mp4|webm|mov)$/))) { maxSize = maxSizes[k]; break; } }
         if (file.size > maxSize) { alert('File too large. Max ' + (maxSize / (1024 * 1024)) + 'MB for this type.'); return; }
+
+        portalState.uploadInFlight = true;
 
         var caption = document.getElementById('upload-caption').value.trim();
         var pub = document.getElementById('upload-public').checked;
@@ -1951,10 +1953,8 @@
             section.appendChild(title);
             var groupGrid = document.createElement('div');
             groupGrid.className = 'portal-media-grid';
-            for (var i = 0; i < group.items.length; i++) {
-                var item = await renderAttachmentItem(orderId, group.items[i]);
-                groupGrid.appendChild(item);
-            }
+            var items = await Promise.all(group.items.map(function (m) { return renderAttachmentItem(orderId, m); }));
+            items.forEach(function (item) { groupGrid.appendChild(item); });
             section.appendChild(groupGrid);
             grid.appendChild(section);
         }

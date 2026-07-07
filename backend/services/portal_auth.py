@@ -919,12 +919,21 @@ def sales_upload_media(order_id):
         return jsonify({"error": True, "message": "Only jpg/png/webp/pdf/mp4/webm/mov files allowed"}), 400
     mapped_mime, file_kind, size_limit = spec
 
-    current_app.logger.info("portal_upload_read_start order_id=%s filename=%s", order_id, Path(file.filename).name)
-    data = file.read()
-    current_app.logger.info("portal_upload_read_done order_id=%s size=%s", order_id, len(data))
-    if len(data) > size_limit:
-        current_app.logger.warning("portal_upload_too_large order_id=%s size=%s limit=%s ext=%s", order_id, len(data), size_limit, ext)
+    stored = f"{secrets.token_hex(16)}{ext}"
+    tmp_path = MEDIA_DIR / f"{stored}.uploading"
+    path = MEDIA_DIR / stored
+
+    current_app.logger.info("portal_upload_save_start order_id=%s filename=%s size=%s", order_id, Path(file.filename).name, getattr(file, 'content_length', 'unknown'))
+    file.save(str(tmp_path))
+    actual_size = tmp_path.stat().st_size
+    current_app.logger.info("portal_upload_save_done order_id=%s size=%s", order_id, actual_size)
+
+    if actual_size > size_limit:
+        tmp_path.unlink(missing_ok=True)
+        current_app.logger.warning("portal_upload_too_large order_id=%s size=%s limit=%s ext=%s", order_id, actual_size, size_limit, ext)
         return jsonify({"error": True, "message": f"File too large (max {size_limit // (1024*1024)}MB for {ext})"}), 400
+
+    tmp_path.replace(path)
 
     session = SessionLocal()
     path = None
@@ -937,10 +946,7 @@ def sales_upload_media(order_id):
         if count >= 100:
             return jsonify({"error": True, "message": "Maximum 100 attachments per order"}), 400
 
-        stored = f"{secrets.token_hex(16)}{ext}"
-        path = MEDIA_DIR / stored
-        path.write_bytes(data)
-        current_app.logger.info("portal_upload_file_written order_id=%s path=%s size=%s", order_id, path, len(data))
+        current_app.logger.info("portal_upload_file_written order_id=%s path=%s size=%s", order_id, path, actual_size)
 
         visible_raw = (request.form.get("visible_to_customer", "1") or "1").strip().lower()
         visible = visible_raw not in {"0", "false", "no", "off"}
@@ -955,7 +961,7 @@ def sales_upload_media(order_id):
             stored_filename=stored,
             original_filename=Path(file.filename).name,
             mime_type=mapped_mime,
-            file_size=len(data),
+            file_size=actual_size,
             file_kind=file_kind,
             stage_key=stage_key,
             caption=(request.form.get("caption") or "").strip() or None,
