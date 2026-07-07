@@ -23,9 +23,29 @@ from services.portal_events import (
     query_visible_events,
     wait_for_portal_events,
 )
+from services.r2_storage import (
+    current_r2_usage_bytes,
+    delete_object,
+    head_object,
+    make_object_key,
+    presign_get,
+    presign_put,
+    r2_enabled,
+)
 
 logger = logging.getLogger(__name__)
-from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent, PortalSecurityLog
+from models import (
+    PortalSession,
+    PortalUser,
+    PortalOrder,
+    PortalOrderUpdate,
+    PortalOrderMedia,
+    PortalPendingUpload,
+    PortalMessage,
+    PortalAuditLog,
+    PortalEvent,
+    PortalSecurityLog,
+)
 
 from pathlib import Path
 
@@ -118,6 +138,68 @@ ALLOWED_ATTACHMENTS = {
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_EXT  = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
+
+
+def _coerce_positive_int(value, *, default: int | None = None) -> int | None:
+    try:
+        n = int(value)
+        if n < 0:
+            return default
+        return n
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_bool(value, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    v = str(value).strip().lower()
+    if v in {"1", "true", "yes", "on", "y"}:
+        return True
+    if v in {"0", "false", "no", "off", "n"}:
+        return False
+    return default
+
+
+def _portal_r2_max_file_bytes(ext: str) -> int | None:
+    configured = _coerce_positive_int(os.environ.get("PORTAL_R2_MAX_FILE_MB"), default=None)
+    spec = ALLOWED_ATTACHMENTS.get(ext.lower())
+    default_limit = spec[2] if spec else None
+    if configured is None:
+        return default_limit
+    configured_bytes = configured * 1024 * 1024
+    if default_limit is None:
+        return configured_bytes
+    return min(configured_bytes, default_limit)
+
+
+def _portal_r2_soft_quota_bytes() -> int | None:
+    configured = os.environ.get("PORTAL_R2_SOFT_QUOTA_GB")
+    try:
+        q = float(configured) if configured is not None else 0
+    except (TypeError, ValueError):
+        return None
+    if q <= 0:
+        return None
+    return int(q * 1024 * 1024 * 1024)
+
+
+def _portal_r2_media_payload(media: PortalOrderMedia) -> dict:
+    return {
+        "id": media.id,
+        "original_filename": media.original_filename,
+        "filename": media.original_filename,
+        "file_kind": media.file_kind or "image",
+        "mime_type": media.mime_type,
+        "stage_key": media.stage_key,
+        "file_size": media.file_size,
+        "caption": media.caption,
+        "visible_to_customer": bool(media.visible_to_customer),
+        "storage_backend": media.storage_backend,
+        "created_at": media.created_at.isoformat() if media.created_at else None,
+    }
 
 
 def _validate_progress(val):
@@ -910,14 +992,22 @@ def portal_order_media_get(order_id, media_id):
         media = q.first()
         if not media:
             return jsonify({"error": True, "message": "Image not found"}), 404
-        stored = media.stored_filename
-        if not stored:
-            return jsonify({'error': True, 'message': 'Image not found'}), 404
         mime = media.mime_type or "image/jpeg"
     finally:
         session.close()
 
-    path = MEDIA_DIR / stored
+    from flask import redirect
+    if media.storage_backend == "r2":
+        if not media.storage_key:
+            return jsonify({"error": True, "message": "Image not found"}), 404
+        try:
+            return redirect(presign_get(media.storage_key, filename=media.original_filename), 302)
+        except Exception:
+            return jsonify({"error": True, "message": "Image not found"}), 404
+
+    if not media.stored_filename:
+        return jsonify({'error': True, 'message': 'Image not found'}), 404
+    path = MEDIA_DIR / media.stored_filename
     if not path.exists():
         return jsonify({"error": True, "message": "Image not found"}), 404
 
@@ -1026,6 +1116,254 @@ def sales_upload_media(order_id):
 # ══════════════════════════════════════════════════
 # Messages — customer feedback & sales replies
 # ══════════════════════════════════════════════════
+
+@portal_bp.post("/sales/orders/<int:order_id>/media/r2/init")
+def sales_upload_media_r2_init(order_id):
+    u, err = _require_role(("sales", "admin"))
+    if err:
+        return err
+
+    if not r2_enabled():
+        return jsonify({"error": True, "message": "R2 storage is not configured"}), 503
+
+    from flask import current_app
+
+    data = request.get_json(silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    file_size = _coerce_positive_int(data.get("file_size"), default=0)
+    mime_type = (data.get("mime_type") or "").strip()
+
+    if not filename:
+        return jsonify({"error": True, "message": "filename is required"}), 400
+    if not file_size or file_size <= 0:
+        return jsonify({"error": True, "message": "file_size must be positive"}), 400
+
+    ext = Path(filename).suffix.lower()
+    spec = ALLOWED_ATTACHMENTS.get(ext)
+    if not spec:
+        return jsonify({"error": True, "message": "Only jpg/png/webp/pdf/mp4/webm/mov files allowed"}), 400
+
+    mapped_mime, file_kind, _ = spec
+    max_size = _portal_r2_max_file_bytes(ext)
+    if max_size is not None and file_size > max_size:
+        return jsonify({"error": True, "message": f"File too large (max {max_size // (1024 * 1024)}MB for {ext})"}), 400
+
+    if not mime_type:
+        mime_type = mapped_mime
+    if mime_type and mime_type != mapped_mime:
+        return jsonify({"error": True, "message": "MIME type does not match file extension"}), 400
+
+    soft_quota = _portal_r2_soft_quota_bytes()
+    session = SessionLocal()
+    pending = None
+
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err:
+            return err
+
+        if soft_quota is not None:
+            current_usage = current_r2_usage_bytes(session)
+            if current_usage + file_size > soft_quota:
+                return jsonify({"error": True, "message": "Storage quota exceeded"}), 409
+
+        visible = _coerce_bool(data.get("visible_to_customer"), True)
+        stage_key = (data.get("stage_key") or "").strip() or order.current_stage
+        if stage_key not in VALID_STAGES:
+            stage_key = order.current_stage
+        caption = (data.get("caption") or "").strip() or None
+
+        upload_id = secrets.token_urlsafe(24)
+        storage_key = make_object_key("portal", order.id, upload_id, filename)
+
+        pending = PortalPendingUpload(
+            upload_id=upload_id,
+            order_id=order.id,
+            uploaded_by_user_id=u["id"],
+            storage_backend="r2",
+            storage_key=storage_key,
+            original_filename=filename,
+            mime_type=mime_type,
+            file_size=file_size,
+            file_kind=file_kind,
+            stage_key=stage_key,
+            caption=caption,
+            visible_to_customer=visible,
+            status="pending",
+            expires_at=datetime.utcnow() + timedelta(minutes=20),
+        )
+        session.add(pending)
+        session.flush()
+        upload_url = presign_put(storage_key, mime_type, expires_seconds=600)
+        session.commit()
+
+        current_app.logger.info(
+            "portal_r2_upload_init order_id=%s upload_id=%s media_id=%s filename=%s",
+            order.id,
+            upload_id,
+            pending.id,
+            filename,
+        )
+        return jsonify({
+            "error": False,
+            "upload_id": upload_id,
+            "upload_url": upload_url,
+            "storage_key": storage_key,
+            "method": "PUT",
+            "headers": {"Content-Type": mime_type},
+            "expires_in": 600,
+        })
+    except Exception:
+        if session is not None:
+            session.rollback()
+            if pending is not None:
+                session.delete(pending)
+                session.commit()
+        raise
+    finally:
+        if session is not None:
+            session.close()
+
+
+@portal_bp.post("/sales/orders/<int:order_id>/media/r2/complete")
+def sales_upload_media_r2_complete(order_id):
+    u, err = _require_role(("sales", "admin"))
+    if err:
+        return err
+
+    if not r2_enabled():
+        return jsonify({"error": True, "message": "R2 storage is not configured"}), 503
+
+    from flask import current_app
+
+    data = request.get_json(silent=True) or {}
+    upload_id = (data.get("upload_id") or "").strip()
+    if not upload_id:
+        return jsonify({"error": True, "message": "upload_id is required"}), 400
+
+    session = SessionLocal()
+    pending = None
+    storage_key = None
+
+    def _fail_complete(message, status_code=400, *, delete_uploaded=False):
+        if pending is not None and pending.id is not None:
+            pending.status = "failed"
+            if session is not None:
+                session.add(pending)
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+        if delete_uploaded and storage_key:
+            try:
+                delete_object(storage_key)
+            except Exception:
+                pass
+        return jsonify({"error": True, "message": message}), status_code
+
+    try:
+        order, err = _load_order_for_user(session, u, order_id)
+        if err:
+            return err
+
+        pending = session.query(PortalPendingUpload).filter_by(
+            upload_id=upload_id,
+            order_id=order.id,
+        ).first()
+        if not pending:
+            return _fail_complete("Upload session not found", 404)
+        storage_key = pending.storage_key
+
+        if pending.status == "completed":
+            if not pending.media_id:
+                return _fail_complete("Upload session is completed but media id missing", 409)
+            media = session.query(PortalOrderMedia).filter_by(id=pending.media_id, order_id=order.id).first()
+            if not media:
+                return _fail_complete("Completed media record not found", 404)
+            return jsonify({"error": False, "media": _portal_r2_media_payload(media), "media_id": media.id, "filename": media.original_filename})
+
+        if pending.status not in {"pending", "failed"}:
+            return _fail_complete("Upload session is not active", 409)
+
+        if pending.expires_at and pending.expires_at < datetime.utcnow():
+            pending.status = "expired"
+            session.commit()
+            return jsonify({"error": True, "message": "Upload session expired"}), 410
+
+        obj = head_object(pending.storage_key)
+        actual_size = _coerce_positive_int(obj.get("size"), default=0)
+        if actual_size <= 0:
+            return _fail_complete("Uploaded object not found in storage", 404, delete_uploaded=True)
+        if actual_size != pending.file_size:
+            return _fail_complete("Uploaded file size mismatch", 409, delete_uploaded=True)
+
+        media_count = session.query(PortalOrderMedia).filter_by(order_id=order.id).count()
+        if media_count >= 100:
+            return _fail_complete("Maximum 100 attachments per order", 400)
+
+        media = PortalOrderMedia(
+            order_id=order.id,
+            update_id=None,
+            uploaded_by_user_id=u["id"],
+            stored_filename=None,
+            original_filename=pending.original_filename,
+            mime_type=pending.mime_type,
+            file_size=actual_size,
+            file_kind=pending.file_kind,
+            stage_key=pending.stage_key,
+            caption=pending.caption,
+            visible_to_customer=pending.visible_to_customer,
+            storage_backend="r2",
+            storage_key=pending.storage_key,
+            storage_bucket=os.environ.get("R2_BUCKET") or None,
+            etag=obj.get("etag"),
+        )
+        session.add(media)
+        session.flush()
+        media_id = media.id
+        pending.status = "completed"
+        pending.media_id = media_id
+        pending.completed_at = datetime.utcnow()
+
+        log_portal_action(
+            session,
+            u,
+            "sales_upload_media",
+            entity_type="portal_order_media",
+            entity_id=media_id,
+            entity_label=f"{pending.storage_key}",
+        )
+        visibility = "public" if media.visible_to_customer else "internal"
+        emit_portal_event(
+            session,
+            "media_created",
+            "media",
+            entity_id=media.id,
+            order_id=order.id,
+            actor_user_id=u["id"],
+            visibility=visibility,
+            payload={"order_id": order.id, "media_id": media.id, "visible_to_customer": media.visible_to_customer},
+        )
+        session.commit()
+        notify_portal_events()
+        current_app.logger.info("portal_r2_upload_complete order_id=%s media_id=%s filename=%s", order.id, media.id, media.original_filename)
+        return jsonify({"error": False, "media": _portal_r2_media_payload(media), "media_id": media.id, "filename": media.original_filename})
+    except Exception:
+        if session is not None:
+            session.rollback()
+        if pending is not None:
+            try:
+                pending.status = "failed"
+                session.add(pending)
+                session.commit()
+            except Exception:
+                if session is not None:
+                    session.rollback()
+        raise
+    finally:
+        if session is not None:
+            session.close()
+
 
 @portal_bp.get("/orders/<int:order_id>/messages")
 def portal_order_messages(order_id):
@@ -1638,7 +1976,7 @@ def portal_media_ticket(order_id, media_id):
 @portal_bp.get("/media-ticket/<token>")
 def portal_media_serve(token):
     from itsdangerous import BadData, SignatureExpired
-    from flask import send_file, current_app
+    from flask import redirect, send_file, current_app
     import time
 
     serializer = _media_ticket_serializer()
@@ -1653,7 +1991,7 @@ def portal_media_serve(token):
     session = SessionLocal()
     try:
         media = session.query(PortalOrderMedia).filter_by(id=payload["m"], order_id=payload["o"]).first()
-        if not media or not media.stored_filename:
+        if not media:
             return jsonify({"error": True, "message": "Not found"}), 404
 
         user = session.query(PortalUser).filter_by(id=payload["u"]).first()
@@ -1661,6 +1999,24 @@ def portal_media_serve(token):
             return jsonify({"error": True, "message": "Unauthorized"}), 401
         if payload["r"] == "customer" and not media.visible_to_customer:
             return jsonify({"error": True, "message": "Not found"}), 404
+        if media.storage_backend == "r2":
+            if not media.storage_key:
+                return jsonify({"error": True, "message": "File not found"}), 404
+            attachment = request.args.get("download") == "1"
+            media_url = presign_get(media.storage_key, expires_seconds=600, filename=media.original_filename)
+            if attachment:
+                current_app.logger.info(
+                    "portal_media_serve_r2_download media_id=%s order_id=%s",
+                    media.id,
+                    media.order_id,
+                )
+            else:
+                current_app.logger.info(
+                    "portal_media_serve_r2_preview media_id=%s order_id=%s",
+                    media.id,
+                    media.order_id,
+                )
+            return redirect(media_url, 302)
 
         file_path = MEDIA_DIR / media.stored_filename
         if not file_path.exists():

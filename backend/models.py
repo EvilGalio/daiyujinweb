@@ -389,10 +389,37 @@ class PortalOrderMedia(Base):
     caption: Mapped[str | None] = mapped_column(String(500))
     file_kind: Mapped[str] = mapped_column(String(20), default="image")
     stage_key: Mapped[str | None] = mapped_column(String(40))
+    storage_backend: Mapped[str] = mapped_column(String(20), nullable=False, default="local")
+    storage_key: Mapped[str | None] = mapped_column(String(500))
+    storage_bucket: Mapped[str | None] = mapped_column(String(120))
+    etag: Mapped[str | None] = mapped_column(String(160))
     download_count: Mapped[int] = mapped_column(Integer, default=0)
     last_downloaded_at: Mapped[datetime | None] = mapped_column(DateTime)
     visible_to_customer: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PortalPendingUpload(Base):
+    __tablename__ = "portal_pending_uploads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    upload_id: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    order_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    uploaded_by_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    storage_backend: Mapped[str] = mapped_column(String(20), nullable=False, default="r2")
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    stage_key: Mapped[str | None] = mapped_column(String(60))
+    caption: Mapped[str | None] = mapped_column(Text)
+    visible_to_customer: Mapped[bool] = mapped_column(Boolean, default=True)
+    media_id: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class PortalMessage(Base):
