@@ -173,6 +173,20 @@ def _portal_order_metrics(orders) -> dict:
         "complaint_orders": complaint_count,
         "complaint_rate": round(complaint_count / total, 3) if total > 0 else 0,
     }
+
+
+def _latest_visible_event_id(session, user) -> int:
+    if user["role"] == "customer":
+        order_ids = [o.id for o in session.query(PortalOrder.id).filter(PortalOrder.customer_user_id == user["id"]).all()]
+        if not order_ids: return 0
+        latest = session.query(PortalEvent).filter(PortalEvent.order_id.in_(order_ids), PortalEvent.visibility == "public").order_by(PortalEvent.id.desc()).first()
+    elif user["role"] == "sales":
+        order_ids = [o.id for o in session.query(PortalOrder.id).filter(PortalOrder.sales_user_id == user["id"]).all()]
+        if not order_ids: return 0
+        latest = session.query(PortalEvent).filter(PortalEvent.order_id.in_(order_ids), PortalEvent.visibility.in_(["public", "internal"])).order_by(PortalEvent.id.desc()).first()
+    else:
+        latest = session.query(PortalEvent).order_by(PortalEvent.id.desc()).first()
+    return latest.id if latest else 0
 def _order_summary(order, customer=None, sales=None) -> dict:
     """Return a consistent order summary dict for all list/detail endpoints."""
     data = {
@@ -1471,9 +1485,17 @@ def portal_events_stream():
 
     def stream():
         current_id = int(last_id or 0)
+        cursor_checked = False
         while True:
             session = SessionLocal()
             try:
+                if not cursor_checked:
+                    latest_id = _latest_visible_event_id(session, u)
+                    if latest_id < current_id:
+                        logger.warning("portal_sse_cursor_ahead_reset user_id=%s role=%s client_after_id=%s latest_visible_id=%s", u.get("id"), u.get("role"), current_id, latest_id)
+                        current_id = 0
+                    cursor_checked = True
+
                 rows = query_visible_events(session, u, after_id=current_id, limit=50)
                 for evt in rows:
                     current_id = evt["id"]

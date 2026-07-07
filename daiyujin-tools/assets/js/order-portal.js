@@ -136,7 +136,11 @@
             patchOrderCardBadge(d.payload.orderId);
         }
         else if (d.type === 'cursor_updated') {
-            portalState.lastEventId = Math.max(portalState.lastEventId, d.payload.lastEventId || 0);
+            if (d.payload.reset === true) {
+                setLastEventId(d.payload.lastEventId || 0);
+            } else {
+                portalState.lastEventId = Math.max(portalState.lastEventId, d.payload.lastEventId || 0);
+            }
         }
     }
 
@@ -179,7 +183,12 @@
     }
 
     function getLastEventId() { return Number(localStorage.getItem(eventCursorKey()) || 0); }
-    function setLastEventId(id) { if (!id) return; portalState.lastEventId = id; localStorage.setItem(eventCursorKey(), String(id)); }
+    function setLastEventId(id) {
+        id = Number(id || 0);
+        if (id < 0) id = 0;
+        portalState.lastEventId = id;
+        localStorage.setItem(eventCursorKey(), String(id));
+    }
 
     function setCurrentView(view, opts) {
         opts = opts || {};
@@ -373,10 +382,30 @@
         streamPortalEvents(controller.signal);
     }
 
-    function startPortalRealtime() {
+    async function startPortalRealtime() {
         if (!token()) return;
         initPortalBroadcast();
-        portalState.lastEventId = getLastEventId();
+
+        var localCursor = getLastEventId();
+        portalState.lastEventId = localCursor;
+
+        try {
+            var snap = await api('/api/portal/snapshot');
+            var serverCursor = Number(snap.latest_event_id || 0);
+
+            if (serverCursor < localCursor) {
+                console.warn('[portal:sse] local cursor is ahead of server, reset cursor', { localCursor: localCursor, serverCursor: serverCursor });
+                setLastEventId(serverCursor);
+                broadcastPortalMessage('cursor_updated', { lastEventId: serverCursor, reset: true });
+            } else if (serverCursor > localCursor) {
+                setLastEventId(serverCursor);
+            }
+
+            applySnapshot(snap);
+        } catch (e) {
+            console.warn('[portal:sse] cursor preflight snapshot failed, continue with local cursor', e);
+        }
+
         connectPortalEvents();
     }
 
@@ -578,7 +607,7 @@
                 refreshCurrentOrderMedia(cur.id);
             }
         }
-        if (snap.latest_event_id) setLastEventId(snap.latest_event_id);
+        if (snap.latest_event_id !== undefined && snap.latest_event_id !== null) setLastEventId(snap.latest_event_id);
     }
 
     /* ── Toast ── */
