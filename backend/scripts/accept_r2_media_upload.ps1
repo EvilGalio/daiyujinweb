@@ -40,7 +40,29 @@ if (-not (Test-Path -LiteralPath $TestFile)) {
     throw "TestFile not found: $TestFile"
 }
 
-$ext = [IO.Path]::GetExtension($TestFile).ToLowerInvariant()
+$fileInfo = Get-Item -LiteralPath $TestFile
+if ($fileInfo.PSIsContainer) {
+    throw "TestFile must be a file, but got a directory: $TestFile"
+}
+
+$stream = $null
+try {
+    $stream = [System.IO.File]::Open(
+        $fileInfo.FullName,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::ReadWrite
+    )
+} catch {
+    throw "Cannot read TestFile: $($fileInfo.FullName). Copy it to a readable local folder such as C:\tmp and retry. Original error: $($_.Exception.Message)"
+} finally {
+    if ($stream) {
+        $stream.Dispose()
+    }
+}
+
+$testFilePath = $fileInfo.FullName
+$ext = $fileInfo.Extension.ToLowerInvariant()
 $mimeByExt = @{
     ".mp4" = "video/mp4"
     ".webm" = "video/webm"
@@ -56,7 +78,6 @@ if (-not $mimeType) {
     throw "Unsupported extension $ext"
 }
 
-$fileInfo = Get-Item -LiteralPath $TestFile
 $fileSize = [int]$fileInfo.Length
 
 $headers = @{}
@@ -106,7 +127,7 @@ $uploadId = $initResp.upload_id
 $uploadUrl = $initResp.upload_url
 
 Write-Checkpoint "Upload file to R2 with PUT..."
-$putResp = Invoke-WebRequest -Method PUT -Uri $uploadUrl -Headers @{"Content-Type" = $mimeType} -InFile $TestFile -UseBasicParsing
+$putResp = Invoke-WebRequest -Method PUT -Uri $uploadUrl -Headers @{"Content-Type" = $mimeType} -InFile $testFilePath -UseBasicParsing
 Assert-Condition ($putResp.StatusCode -ge 200 -and $putResp.StatusCode -lt 300) "R2 PUT failed status=$($putResp.StatusCode)"
 
 $completeUri = $BaseUrl.TrimEnd("/") + "/api/portal/sales/orders/$OrderId/media/r2/complete"

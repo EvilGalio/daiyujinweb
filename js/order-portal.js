@@ -1762,7 +1762,7 @@
             '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div></section>' +
             '<section class="portal-action-card"><h4>Upload Attachment</h4>' +
             '<div class="portal-field"><select id="upload-stage-key" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' + stageOrder.map(function (k) { return '<option value="' + k + '">' + (stageLabels[k] || k) + '</option>'; }).join('') + '</select></div>' +
-            '<div class="portal-field"><input type="file" id="upload-file" accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"></div>' +
+            '<div class="portal-field"><input type="file" id="upload-file" accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,.mov,video/mov"></div>' +
             '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
             '<label class="portal-check"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
@@ -1837,13 +1837,61 @@
         el.focus();
     };
 
-    window.uploadPhoto = function (orderId) {
+    function shouldUseR2Upload(file) {
+        var mime = (file.type || '').toLowerCase();
+        var name = (file.name || '').toLowerCase();
+        if (mime === 'application/pdf' || name.indexOf('.pdf') >= 0) return true;
+        if (mime.indexOf('video/') === 0) return true;
+        if ((file.size || 0) > 10 * 1024 * 1024) return true;
+        return /\.(mp4|webm|mov)$/.test(name);
+    }
+
+    function uploadToR2SignedUrl(uploadUrl, file, mime, onProgress) {
+        return new Promise(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', mime || file.type || 'application/octet-stream');
+            if (typeof onProgress === 'function') {
+                xhr.upload.onprogress = onProgress;
+            }
+            xhr.onload = function () {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(xhr);
+                    return;
+                }
+                reject(new Error('Upload to storage failed with HTTP ' + xhr.status));
+            };
+            xhr.onerror = function () { reject(new Error('Upload to storage failed due network error.')); };
+            xhr.ontimeout = function () { reject(new Error('Upload to storage timed out.')); };
+            xhr.timeout = 300000;
+            xhr.send(file);
+        });
+    }
+
+    function appendR2MediaToState(orderId, media) {
+        if (!media || !media.id) return;
+        var list = (portalState.mediaByOrderId[orderId] || []).slice();
+        var exists = false;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].id === media.id) {
+                list[i] = media;
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) list.push(media);
+        portalState.mediaByOrderId[orderId] = list;
+        patchMedia(orderId, list);
+    }
+
+    window.uploadPhoto = async function (orderId) {
         if (portalState.uploadInFlight) return;
         var fileEl = document.getElementById('upload-file');
         var file = fileEl.files[0];
         if (!file) { alert('Select a file first.'); return; }
 
         var maxSizes = { 'image/jpeg': 10 * 1024 * 1024, 'image/png': 10 * 1024 * 1024, 'image/webp': 10 * 1024 * 1024, 'application/pdf': 30 * 1024 * 1024, 'video/mp4': 100 * 1024 * 1024, 'video/webm': 100 * 1024 * 1024, 'video/quicktime': 100 * 1024 * 1024 };
+        var useR2 = shouldUseR2Upload(file);
         var maxSize = 10 * 1024 * 1024;
         for (var k in maxSizes) { if (file.type === k || (k === 'application/pdf' && file.name.toLowerCase().endsWith('.pdf')) || (k.indexOf('video/') === 0 && file.name.toLowerCase().match(/\.(mp4|webm|mov)$/))) { maxSize = maxSizes[k]; break; } }
         if (file.size > maxSize) { alert('File too large. Max ' + (maxSize / (1024 * 1024)) + 'MB for this type.'); return; }
@@ -1871,37 +1919,81 @@
             controls.forEach(function (id) { var el = document.getElementById(id); if (el) el.disabled = false; });
         }
 
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', window.DaiyujinAPI.config.baseUrl + '/api/portal/sales/orders/' + orderId + '/media');
-        xhr.setRequestHeader('Authorization', 'Bearer ' + token());
-        xhr.upload.onprogress = function (e) {
-            if (e.lengthComputable) {
-                var pct = Math.round(e.loaded / e.total * 100);
-                var fill = document.getElementById('upload-fill');
-                if (fill) fill.style.width = pct + '%';
-                var pctEl = document.getElementById('upload-pct');
-                if (pctEl) { pctEl.textContent = pct >= 100 ? '100% - Finalizing upload on server...' : pct + '%'; }
-            }
+        var uploadFill = document.getElementById('upload-fill');
+        var pctEl = document.getElementById('upload-pct');
+        var onProgress = function (pct, label) {
+            if (uploadFill) uploadFill.style.width = pct + '%';
+            if (pctEl) pctEl.textContent = label || (pct + '%');
         };
-        xhr.onload = function () {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                document.getElementById('upload-pct').textContent = 'Done';
-                fileEl.value = '';
-                document.getElementById('upload-caption').value = '';
-                unlockUpload();
-                setTimeout(function () { if (statusEl) statusEl.innerHTML = ''; }, 2000);
-                refreshCurrentOrderMedia(orderId);
+
+        try {
+            if (useR2) {
+                var initPayload = {
+                    filename: file.name,
+                    file_size: file.size,
+                    mime_type: file.type || 'application/octet-stream',
+                    caption: caption || '',
+                    visible_to_customer: pub,
+                    stage_key: (stageKey && stageKey.value) ? stageKey.value : null
+                };
+                onProgress(5, 'Preparing upload session...');
+                var initResp = await api('/api/portal/sales/orders/' + orderId + '/media/r2/init', {
+                    method: 'POST',
+                    body: JSON.stringify(initPayload)
+                });
+
+                onProgress(8, 'Uploading to R2...');
+                await uploadToR2SignedUrl(initResp.upload_url, file, initResp.headers && initResp.headers['Content-Type'], function (e) {
+                    if (!e.lengthComputable) return;
+                    onProgress(8 + Math.round((e.loaded / e.total) * 88), 'Uploading to R2');
+                });
+
+                onProgress(96, 'Finalizing upload on server...');
+                var completeResp = await api('/api/portal/sales/orders/' + orderId + '/media/r2/complete', {
+                    method: 'POST',
+                    body: JSON.stringify({ upload_id: initResp.upload_id })
+                });
+                onProgress(100, 'Done');
+                appendR2MediaToState(orderId, completeResp.media);
             } else {
-                var msg = 'Upload failed with HTTP ' + xhr.status;
-                try { var r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch (e) { }
-                document.getElementById('upload-pct').textContent = msg;
-                unlockUpload();
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', window.DaiyujinAPI.config.baseUrl + '/api/portal/sales/orders/' + orderId + '/media');
+                xhr.setRequestHeader('Authorization', 'Bearer ' + token());
+                xhr.upload.onprogress = function (e) {
+                    if (e.lengthComputable) {
+                        var pct = Math.round(e.loaded / e.total * 100);
+                        onProgress(pct, pct >= 100 ? '100% - Finalizing upload on server...' : (pct + '%'));
+                    }
+                };
+                await new Promise(function (resolve, reject) {
+                    xhr.onload = function () {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(xhr);
+                            return;
+                        }
+                        var msg = 'Upload failed with HTTP ' + xhr.status;
+                        try {
+                            var r = JSON.parse(xhr.responseText);
+                            msg = r.message || msg;
+                        } catch (e) { }
+                        reject(new Error(msg));
+                    };
+                    xhr.onerror = function () { reject(new Error('Network/CORS error. The API did not return a response. Check DevTools Network and server logs.')); };
+                    xhr.ontimeout = function () { reject(new Error('Upload timed out after reaching the server. Please try again or use a smaller file.')); };
+                    xhr.timeout = 180000;
+                    xhr.send(fd);
+                });
+                onProgress(100, 'Done');
+                refreshCurrentOrderMedia(orderId);
             }
-        };
-        xhr.onerror = function () { document.getElementById('upload-pct').textContent = 'Network/CORS error. The API did not return a response. Check DevTools Network and server logs.'; unlockUpload(); };
-        xhr.ontimeout = function () { document.getElementById('upload-pct').textContent = 'Upload timed out after reaching the server. Please try again or use a smaller file.'; unlockUpload(); };
-        xhr.timeout = 180000;
-        xhr.send(fd);
+        } catch (e) {
+            if (pctEl) pctEl.textContent = (e && e.message) ? e.message : 'Upload failed';
+        } finally {
+            fileEl.value = '';
+            document.getElementById('upload-caption').value = '';
+            setTimeout(function () { if (statusEl) statusEl.innerHTML = ''; }, 1200);
+            unlockUpload();
+        }
     };
 
     /* =========================================
