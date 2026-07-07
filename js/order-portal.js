@@ -174,7 +174,8 @@
         navStack: [],
         isNavigatingBack: false,
         pendingStage: null,
-        pendingStageLabel: null
+        pendingStageLabel: null,
+        backTarget: null
     };
 
     function eventCursorKey() {
@@ -201,6 +202,15 @@
     function resetPortalNav() {
         if (portalState.isNavigatingBack) return;
         portalState.navStack = [];
+        clearPortalBackTarget();
+    }
+
+    function setPortalBackTarget(label, fn, args) {
+        portalState.backTarget = { label: label, fn: fn, args: args || [] };
+    }
+
+    function clearPortalBackTarget() {
+        portalState.backTarget = null;
     }
 
     function pushPortalView(label, fn, args) {
@@ -210,8 +220,9 @@
 
 
     function portalBack() {
-        if (!portalState.navStack.length) return;
-        var prev = portalState.navStack.pop();
+        var prev = portalState.backTarget || (portalState.navStack.length ? portalState.navStack.pop() : null);
+        if (!prev) return;
+        portalState.backTarget = null;
         portalState.isNavigatingBack = true;
         try {
             if (typeof prev.fn === 'function') prev.fn.apply(null, prev.args || []);
@@ -855,8 +866,8 @@
     }
 
     function renderBackButton() {
-        if (!portalState.navStack.length) return '';
-        var target = portalState.navStack[portalState.navStack.length - 1];
+        var target = portalState.backTarget || portalState.navStack[portalState.navStack.length - 1];
+        if (!target) return '';
         return '<button onclick="portalBack()" class="portal-btn portal-btn-ghost portal-btn-sm portal-back-button">&larr; Back to ' + esc(target.label || 'Previous') + '</button>';
     }
 
@@ -1171,7 +1182,7 @@
     }
 
     window.showAdminSalesRepDetail = async function (sid) {
-        pushPortalView('Sales Reps', showAdminTab, ['sales-reps']);
+        setPortalBackTarget('Sales Reps', showAdminTab, ['sales-reps']); pushPortalView('Sales Reps', showAdminTab, ['sales-reps']);
         refreshAdminHeader('Sales representative detail.');
         var d = await api('/api/portal/admin/sales-reps/' + sid);
         var r = d.rep; var cxs = d.customers || []; var ords = d.orders || []; var logs = d.recent_logs || [];
@@ -1206,7 +1217,7 @@
     }
 
     window.showAdminCustomerDetail = async function (cid) {
-        pushPortalView('Customers', showAdminTab, ['customers']);
+        setPortalBackTarget('Customers', showAdminTab, ['customers']); pushPortalView('Customers', showAdminTab, ['customers']);
         refreshAdminHeader('Customer detail.');
         var d = await api('/api/portal/admin/customers/' + cid);
         var c = d.customer; var ords = d.orders || [];
@@ -1238,7 +1249,10 @@
 
     window.showAdminOrderDetail = async function (orderId, backLabel, backFn, backArgs, opts) {
         opts = opts || {};
-        if (!opts.skipPush) pushPortalView(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
+        if (!opts.skipPush) {
+            setPortalBackTarget(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
+            pushPortalView(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
+        }
         refreshAdminHeader('Order detail.');
         var d = await api('/api/portal/admin/orders/' + orderId + '/full');
         var o = d.order;
@@ -1304,7 +1318,7 @@
     var adminSalesRepsCache = [];
 
     function showAdminCreateUser() {
-        pushPortalView('Dashboard', showAdminDashboard, []);
+        setPortalBackTarget('Dashboard', showAdminDashboard, []); pushPortalView('Dashboard', showAdminDashboard, []);
         stopAutoRefresh();
         var me = user();
         selectedAdminSalesRep = null;
@@ -1554,40 +1568,50 @@
     window.showSalesOrderDetail = showSalesOrderDetail;
 
     async function showCustomerOrderDetail(orderId) {
-        pushPortalView('My Orders', showCustomerDashboard, []);
+        setPortalBackTarget('My Orders', showCustomerDashboard, []);
         main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
             var orderResp = await api('/api/portal/orders/' + orderId);
             var o = orderResp.order;
-            var parts = await Promise.allSettled([
+            var updates = [], messages = [], media = [];
+            var detailErrors = { updates: false, messages: false, media: false };
+            renderOrderDetail(o, updates, messages, media, false, detailErrors);
+            Promise.allSettled([
                 api('/api/portal/orders/' + orderId + '/updates'),
                 api('/api/portal/orders/' + orderId + '/messages'),
                 api('/api/portal/orders/' + orderId + '/media')
-            ]);
-            var updates = parts[0].status === 'fulfilled' ? (parts[0].value.updates || []) : [];
-            var messages = parts[1].status === 'fulfilled' ? (parts[1].value.messages || []) : [];
-            var media = parts[2].status === 'fulfilled' ? (parts[2].value.media || []) : [];
-            var detailErrors = { updates: parts[0].status === 'rejected', messages: parts[1].status === 'rejected', media: parts[2].status === 'rejected' };
-            renderOrderDetail(o, updates, messages, media, false, detailErrors);
+            ]).then(function(parts) {
+                if (parts[0].status === 'fulfilled') { patchTimeline(orderId, parts[0].value.updates || []); }
+                else { var elU = document.getElementById('order-timeline'); if (elU) elU.innerHTML = '<div class="portal-note-card">Updates unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderUpdates(' + orderId + ')">Retry</a></div>'; }
+                if (parts[1].status === 'fulfilled') { patchMessages(orderId, parts[1].value.messages || [], false); }
+                else { var elM = document.getElementById('order-messages'); if (elM) elM.innerHTML = '<div class="portal-note-card">Messages unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMessages(' + orderId + ')">Retry</a></div>'; }
+                if (parts[2].status === 'fulfilled') { patchMedia(orderId, parts[2].value.media || []); }
+                else { var elD = document.getElementById('order-media'); if (elD) elD.innerHTML = '<div class="portal-note-card">Attachments unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMedia(' + orderId + ')">Retry</a></div>'; }
+            });
         } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to My Orders', 'showCustomerDashboard()'); }
     }
 
     async function showSalesOrderDetail(orderId) {
-        pushPortalView('Orders', showSalesOrders, []);
+        setPortalBackTarget('Orders', showSalesOrders, []);
         main.innerHTML = renderRoleHeader('Order Detail', userDisplayName(user()), '') + renderOrderDetailSkeleton();
         try {
             var orderResp = await api('/api/portal/orders/' + orderId);
             var o = orderResp.order;
-            var parts = await Promise.allSettled([
+            var updates = [], messages = [], media = [];
+            var detailErrors = { updates: false, messages: false, media: false };
+            renderOrderDetail(o, updates, messages, media, true, detailErrors);
+            Promise.allSettled([
                 api('/api/portal/orders/' + orderId + '/updates'),
                 api('/api/portal/orders/' + orderId + '/messages'),
                 api('/api/portal/orders/' + orderId + '/media')
-            ]);
-            var updates = parts[0].status === 'fulfilled' ? (parts[0].value.updates || []) : [];
-            var messages = parts[1].status === 'fulfilled' ? (parts[1].value.messages || []) : [];
-            var media = parts[2].status === 'fulfilled' ? (parts[2].value.media || []) : [];
-            var detailErrors = { updates: parts[0].status === 'rejected', messages: parts[1].status === 'rejected', media: parts[2].status === 'rejected' };
-            renderOrderDetail(o, updates, messages, media, true, detailErrors);
+            ]).then(function(parts) {
+                if (parts[0].status === 'fulfilled') { patchTimeline(orderId, parts[0].value.updates || []); }
+                else { var elU = document.getElementById('order-timeline'); if (elU) elU.innerHTML = '<div class="portal-note-card">Updates unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderUpdates(' + orderId + ')">Retry</a></div>'; }
+                if (parts[1].status === 'fulfilled') { patchMessages(orderId, parts[1].value.messages || [], true); }
+                else { var elM = document.getElementById('order-messages'); if (elM) elM.innerHTML = '<div class="portal-note-card">Messages unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMessages(' + orderId + ')">Retry</a></div>'; }
+                if (parts[2].status === 'fulfilled') { patchMedia(orderId, parts[2].value.media || []); }
+                else { var elD = document.getElementById('order-media'); if (elD) elD.innerHTML = '<div class="portal-note-card">Attachments unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMedia(' + orderId + ')">Retry</a></div>'; }
+            });
         } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showSalesOrders()'); }
     }
 
@@ -1767,8 +1791,8 @@
             await api('/api/portal/sales/orders/' + orderId, { method: 'PATCH', body: JSON.stringify(body) });
             portalState.pendingStage = null;
             portalState.pendingStageLabel = null;
-            await refreshCurrentOrderSummary(orderId);
-            await refreshCurrentOrderUpdates(orderId);
+            refreshCurrentOrderSummary(orderId).catch(function(){});
+            refreshCurrentOrderUpdates(orderId).catch(function(){});
         } catch (e) { alert('Failed to update stage.'); }
     };
 
@@ -1785,7 +1809,7 @@
             document.getElementById('update-title').value = '';
             document.getElementById('update-msg').value = '';
             document.getElementById('update-pct').value = '';
-            await refreshCurrentOrderUpdates(orderId);
+            refreshCurrentOrderUpdates(orderId).catch(function(){});
         } catch (e) { alert('Failed to add update.'); }
     };
 
@@ -1992,7 +2016,7 @@
             input.disabled = true;
             await api('/api/portal/orders/' + orderId + '/messages', { method: 'POST', body: JSON.stringify({ message: text }) });
             input.value = '';
-            await refreshCurrentOrderMessages(orderId);
+            refreshCurrentOrderMessages(orderId).catch(function(){});
         } catch (e) { alert('Failed to send message.'); }
         finally { input.disabled = false; input.focus(); }
     };
@@ -2017,7 +2041,7 @@
             await api('/api/portal/sales/orders/' + orderId + '/messages/' + msgId + '/reply', { method: 'POST', body: JSON.stringify({ message: text }) });
             var form = document.getElementById('reply-form');
             if (form) form.remove();
-            await refreshCurrentOrderMessages(orderId);
+            refreshCurrentOrderMessages(orderId).catch(function(){});
         } catch (e) { alert('Failed to send reply.'); }
     };
 
