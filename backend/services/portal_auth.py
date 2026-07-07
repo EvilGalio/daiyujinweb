@@ -17,7 +17,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import SessionLocal
 from services.portal_audit import log_portal_action, list_portal_audit_logs
-from services.portal_events import emit_portal_event, query_visible_events
+from services.portal_events import (
+    emit_portal_event,
+    notify_portal_events,
+    query_visible_events,
+    wait_for_portal_events,
+)
 
 logger = logging.getLogger(__name__)
 from models import PortalSession, PortalUser, PortalOrder, PortalOrderUpdate, PortalOrderMedia, PortalMessage, PortalAuditLog, PortalEvent, PortalSecurityLog
@@ -172,6 +177,24 @@ def _portal_order_metrics(orders) -> dict:
         "on_time_rate": round(on_time / total, 3) if total > 0 else 0,
         "complaint_orders": complaint_count,
         "complaint_rate": round(complaint_count / total, 3) if total > 0 else 0,
+    }
+
+
+def _portal_message_json(msg, sender=None):
+    sender_name = "Unknown"
+    if sender is not None:
+        if isinstance(sender, dict):
+            sender_name = (sender.get("display_name") or sender.get("email") or "Unknown")
+        else:
+            sender_name = str(sender)
+    return {
+        "id": msg.id,
+        "sender_user_id": msg.sender_user_id,
+        "sender_name": sender_name,
+        "message": msg.message,
+        "status": msg.status,
+        "parent_message_id": msg.parent_message_id,
+        "created_at": msg.created_at.isoformat() if msg.created_at else None,
     }
 
 
@@ -649,6 +672,7 @@ def sales_create_order():
         log_portal_action(session, u, "sales_create_order", entity_type="portal_order", entity_label=f"#{o.order_no} {title}")
         emit_portal_event(session, "order_created", "order", entity_id=o.id, order_id=o.id, actor_user_id=u["id"], visibility="public", payload={"order_id": o.id, "order_no": o.order_no, "title": title, "current_stage": stage})
         session.commit()
+        notify_portal_events()
         return jsonify({"error": False, "order": {"id": o.id, "order_no": o.order_no, "title": o.title, "current_stage": o.current_stage}})
     finally:
         session.close()
@@ -717,6 +741,7 @@ def sales_add_update(order_id):
         v = "public" if data.get("visible_to_customer", True) else "internal"
         emit_portal_event(session, "order_update_created", "order_update", entity_id=upd.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "title": data.get("title", "Progress update"), "stage_key": sk, "progress_percent": data.get("progress_percent")})
         session.commit()
+        notify_portal_events()
         return jsonify({"error": False, "update_id": upd.id})
     finally:
         session.close()
@@ -820,6 +845,7 @@ def sales_update_order(order_id):
                 actor_user_id=u["id"], visibility="public",
                 payload={"order_id": order_id, "manual_status": o.manual_status, "complaint_status": o.complaint_status})
         session.commit()
+        notify_portal_events()
         return jsonify({"error": False, "message": "Order updated", "order_id": o.id,
                         "manual_status": o.manual_status, "display_status": _display_status(o)})
     finally:
@@ -905,6 +931,7 @@ def sales_upload_media(order_id):
     if err: return err
 
     from flask import current_app
+    import time
     current_app.logger.info("portal_upload_enter order_id=%s user_id=%s content_length=%s content_type=%s", order_id, u.get("id"), request.content_length, request.content_type)
 
     file = request.files.get("file")
@@ -921,23 +948,26 @@ def sales_upload_media(order_id):
 
     stored = f"{secrets.token_hex(16)}{ext}"
     tmp_path = MEDIA_DIR / f"{stored}.uploading"
-    path = MEDIA_DIR / stored
+    final_path = MEDIA_DIR / stored
+    session = None
+    media_id = None
+    upload_started_at = time.perf_counter()
+    upload_ok = False
 
-    current_app.logger.info("portal_upload_save_start order_id=%s filename=%s size=%s", order_id, Path(file.filename).name, getattr(file, 'content_length', 'unknown'))
-    file.save(str(tmp_path))
-    actual_size = tmp_path.stat().st_size
-    current_app.logger.info("portal_upload_save_done order_id=%s size=%s", order_id, actual_size)
-
-    if actual_size > size_limit:
-        tmp_path.unlink(missing_ok=True)
-        current_app.logger.warning("portal_upload_too_large order_id=%s size=%s limit=%s ext=%s", order_id, actual_size, size_limit, ext)
-        return jsonify({"error": True, "message": f"File too large (max {size_limit // (1024*1024)}MB for {ext})"}), 400
-
-    tmp_path.replace(path)
-
-    session = SessionLocal()
-    path = None
     try:
+        current_app.logger.info("portal_upload_save_start order_id=%s filename=%s size=%s", order_id, Path(file.filename).name, getattr(file, 'content_length', 'unknown'))
+        file.save(str(tmp_path))
+        actual_size = tmp_path.stat().st_size
+        current_app.logger.info("portal_upload_save_done order_id=%s size=%s", order_id, actual_size)
+
+        if actual_size > size_limit:
+            tmp_path.unlink(missing_ok=True)
+            current_app.logger.warning("portal_upload_too_large order_id=%s size=%s limit=%s ext=%s", order_id, actual_size, size_limit, ext)
+            return jsonify({"error": True, "message": f"File too large (max {size_limit // (1024*1024)}MB for {ext})"}), 400
+
+        tmp_path.replace(final_path)
+
+        session = SessionLocal()
         order, err = _load_order_for_user(session, u, order_id)
         if err:
             return err
@@ -946,7 +976,7 @@ def sales_upload_media(order_id):
         if count >= 100:
             return jsonify({"error": True, "message": "Maximum 100 attachments per order"}), 400
 
-        current_app.logger.info("portal_upload_file_written order_id=%s path=%s size=%s", order_id, path, actual_size)
+        current_app.logger.info("portal_upload_file_written order_id=%s path=%s size=%s", order_id, final_path, actual_size)
 
         visible_raw = (request.form.get("visible_to_customer", "1") or "1").strip().lower()
         visible = visible_raw not in {"0", "false", "no", "off"}
@@ -973,15 +1003,24 @@ def sales_upload_media(order_id):
         v = "public" if visible else "internal"
         emit_portal_event(session, "media_created", "media", entity_id=media.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "media_id": media.id, "visible_to_customer": visible})
         session.commit()
+        notify_portal_events()
+        media_id = media.id
+        upload_ok = True
         current_app.logger.info("portal_upload_saved order_id=%s media_id=%s filename=%s", order_id, media.id, media.original_filename)
         return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
     except Exception:
-        session.rollback()
-        if path:
-            path.unlink(missing_ok=True)
+        if session is not None:
+            session.rollback()
         raise
     finally:
-        session.close()
+        if session is not None:
+            session.close()
+        if not upload_ok:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+            if final_path.exists():
+                final_path.unlink(missing_ok=True)
+        current_app.logger.info("portal_upload_duration_ms order_id=%s media_id=%s ok=%s duration_ms=%s", order_id, media_id, upload_ok, int((time.perf_counter() - upload_started_at) * 1000))
 
 
 # ══════════════════════════════════════════════════
@@ -1005,12 +1044,7 @@ def portal_order_messages(order_id):
                 su = session.query(PortalUser).filter_by(id=m.sender_user_id).first()
                 senders[m.sender_user_id] = su.display_name or su.email if su else "Unknown"
 
-        return jsonify({"error": False, "messages": [{
-            "id": m.id, "sender_name": senders.get(m.sender_user_id, "Unknown"),
-            "message": m.message, "status": m.status,
-            "parent_message_id": m.parent_message_id,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        } for m in msgs]})
+        return jsonify({"error": False, "messages": [_portal_message_json(m, {"display_name": senders.get(m.sender_user_id, "Unknown")}) for m in msgs]})
     finally:
         session.close()
 
@@ -1034,8 +1068,10 @@ def portal_order_create_message(order_id):
         session.add(msg)
         session.flush()
         emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": msg.id})
+        message_payload = _portal_message_json(msg, u)
         session.commit()
-        return jsonify({"error": False, "message_id": msg.id})
+        notify_portal_events()
+        return jsonify({"error": False, "message": message_payload})
     finally:
         session.close()
 
@@ -1065,8 +1101,10 @@ def sales_reply_message(order_id, message_id):
         session.flush()
         log_portal_action(session, u, "sales_reply_message", entity_type="portal_message", entity_id=message_id, entity_label=f"order={order_id}")
         emit_portal_event(session, "message_created", "message", entity_id=reply.id, order_id=order.id, actor_user_id=u["id"], visibility="public", payload={"order_id": order.id, "message_id": reply.id})
+        message_payload = _portal_message_json(reply, u)
         session.commit()
-        return jsonify({"error": False, "message_id": reply.id})
+        notify_portal_events()
+        return jsonify({"error": False, "message": message_payload})
     finally:
         session.close()
 
@@ -1514,7 +1552,7 @@ def portal_events_stream():
                 except: pass
             hb = json.dumps({"ts": datetime.utcnow().isoformat()})
             yield f"event: heartbeat\ndata: {hb}\n\n"
-            import time; time.sleep(3)
+            wait_for_portal_events(timeout=1.0)
 
     return Response(stream(), mimetype="text/event-stream", headers={
         "Cache-Control": "no-cache",
@@ -1591,8 +1629,8 @@ def portal_media_ticket(order_id, media_id):
 
         serializer = _media_ticket_serializer()
         token = serializer.dumps({"o": order_id, "m": media_id, "u": u["id"], "r": u["role"]})
-        url = url_for("portal.portal_media_serve", token=token, _external=True)
-        return jsonify({"error": False, "url": url, "expires_in": 600})
+        url_path = url_for("portal.portal_media_serve", token=token, _external=False)
+        return jsonify({"error": False, "url": url_path, "url_path": url_path, "expires_in": 600})
     finally:
         session.close()
 
@@ -1600,7 +1638,8 @@ def portal_media_ticket(order_id, media_id):
 @portal_bp.get("/media-ticket/<token>")
 def portal_media_serve(token):
     from itsdangerous import BadData, SignatureExpired
-    from flask import send_file
+    from flask import send_file, current_app
+    import time
 
     serializer = _media_ticket_serializer()
     try:
@@ -1610,6 +1649,7 @@ def portal_media_serve(token):
     except BadData:
         return jsonify({"error": True, "message": "Invalid ticket"}), 400
 
+    serve_started_at = time.perf_counter()
     session = SessionLocal()
     try:
         media = session.query(PortalOrderMedia).filter_by(id=payload["m"], order_id=payload["o"]).first()
@@ -1624,9 +1664,17 @@ def portal_media_serve(token):
 
         file_path = MEDIA_DIR / media.stored_filename
         if not file_path.exists():
+            current_app.logger.warning(
+                "portal_media_file_missing media_id=%s order_id=%s stored=%s path=%s",
+                media.id,
+                media.order_id,
+                media.stored_filename,
+                file_path,
+            )
             return jsonify({"error": True, "message": "File not found"}), 404
 
         attachment = request.args.get("download") == "1"
+        current_app.logger.info("portal_media_serve media_id=%s order_id=%s duration_ms=%s", media.id, media.order_id, int((time.perf_counter() - serve_started_at) * 1000))
         return send_file(str(file_path), mimetype=media.mime_type or "application/octet-stream", conditional=True, as_attachment=attachment, download_name=media.original_filename)
     finally:
         session.close()
@@ -1669,6 +1717,7 @@ def portal_order_complaint(order_id):
         emit_portal_event(session, "message_created", "message", entity_id=msg.id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "message_id": msg.id})
         emit_portal_event(session, "complaint_changed", "order", entity_id=order_id, order_id=order_id, actor_user_id=u["id"], visibility="public", payload={"order_id": order_id, "manual_status": "complaint"})
         session.commit()
+        notify_portal_events()
         return jsonify({"error": False, "message_id": msg.id, "manual_status": o.manual_status, "display_status": _display_status(o)})
     finally:
         session.close()

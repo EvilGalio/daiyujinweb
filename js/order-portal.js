@@ -1,4 +1,4 @@
-/* Order Portal v4.5 — customer + sales workspace */
+/* Order Portal v4.5 / customer + sales workspace */
 (function () {
     window.DaiyujinAPI.checkHealth();
 
@@ -63,7 +63,7 @@
     function updatePortalWatermark() {
         var brand = portalWatermarkBrand();
         var u = user();
-        var text = brand + ' · ' + userDisplayName(u) + ' · ' + (u.email || '');
+        var text = brand + ' / ' + userDisplayName(u) + ' / ' + (u.email || '');
         var root = portalRoot !== document ? portalRoot : document.body;
         var existing = root.querySelector('.portal-watermark-layer');
         if (existing) existing.remove();
@@ -383,7 +383,7 @@
     var user = function () { return JSON.parse(localStorage.getItem('portal_user') || sessionStorage.getItem('portal_user') || '{}'); };
 
 
-    /* ── SSE event stream ── */
+    /* SSE event stream */
     function connectPortalEvents() {
         if (!token()) return;
         disconnectPortalEvents();
@@ -521,7 +521,7 @@
         var oid = evt.order_id || (evt.payload && evt.payload.order_id);
         console.info('[portal:sse:patch]', evt.event_type, oid);
         switch (evt.event_type) {
-            case 'message_created': refreshCurrentOrderMessages(oid); break;
+            case 'message_created': refreshCurrentOrderMessages(oid, { force: true }).catch(function() { refreshCurrentOrderMessages(oid); }); break;
             case 'order_update_created': refreshCurrentOrderUpdates(oid); break;
             case 'media_created': refreshCurrentOrderMedia(oid); break;
             case 'order_stage_changed': refreshCurrentOrderSummary(oid); refreshCurrentOrderUpdates(oid); break;
@@ -544,10 +544,11 @@
         setTimeout(function () { if (note.parentNode) note.remove(); }, 15000);
     }
 
-    async function refreshCurrentOrderMessages(orderId) {
+    async function refreshCurrentOrderMessages(orderId, opts) {
+        opts = opts || {};
         try {
             var resp = await api('/api/portal/orders/' + orderId + '/messages');
-            patchMessages(orderId, resp.messages || [], portalState.currentIsSales);
+            patchMessages(orderId, resp.messages || [], portalState.currentIsSales, opts);
         } catch (e) {
             console.warn('[portal:patch:messages:failed]', e);
             showInlineSyncNotice('Messages could not refresh automatically.', function () { refreshCurrentOrderMessages(orderId); });
@@ -621,7 +622,7 @@
         if (snap.latest_event_id !== undefined && snap.latest_event_id !== null) setLastEventId(snap.latest_event_id);
     }
 
-    /* ── Toast ── */
+    /* Toast */
     function enqueueEventToast(evt) {
         var msg = eventToastMessage(evt);
         if (!msg) return;
@@ -687,7 +688,7 @@
         portalState.activeToasts = portalState.activeToasts.filter(function (t) { return t !== entry; });
     }
 
-    /* ── Order card badge ── */
+    /* Order card badge */
     function patchOrderCardBadge(orderId) {
         var badge = document.querySelector('[data-order-unread-badge="' + orderId + '"]');
         if (!badge) {
@@ -709,7 +710,7 @@
         var banner = document.createElement('div');
         banner.id = 'list-refresh-banner';
         banner.className = 'portal-note-card portal-list-refresh-banner';
-        banner.innerHTML = '<span>Updates available — refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary portal-btn-auto">Refresh</button>';
+        banner.innerHTML = '<span>Updates available / refresh list</span><button class="portal-btn portal-btn-sm portal-btn-secondary portal-btn-auto">Refresh</button>';
         banner.querySelector('button').onclick = function () {
             banner.remove();
             var role = user().role;
@@ -722,7 +723,7 @@
 
     function refreshAdminOrderBadge() { }
 
-    /* ── Sync status ── */
+    /* Sync status */
     function setSyncStatus(status) {
         portalState.syncStatus = status;
         var dot = document.getElementById('sync-dot');
@@ -901,7 +902,7 @@
         refreshRoleHeader('Operations Console', me.display_name || me.email, subtitle || 'Manage reps, customers, orders, and portal activity.');
     }
 
-    /* ── Skeleton loaders ── */
+    /* Skeleton loaders */
     function renderSkeleton(className) {
         return '<div class="portal-skeleton ' + (className || '') + '"></div>';
     }
@@ -982,9 +983,9 @@
 
     var stageLabels = { order_confirmed: 'Order Confirmed', material_ready: 'Material Ready', machining: 'Machining', surface_treatment: 'Surface Treatment', quality_inspection: 'Quality Inspection', packing: 'Packing', shipped: 'Shipped', received: 'Received', on_hold: 'On Hold' };
 
-    /* ══════════════════════════════════════════════════
+    /* =========================================
        Customer Dashboard
-       ══════════════════════════════════════════════════ */
+       ========================================= */
 
     async function showCustomerDashboard() {
         setCurrentView('list'); resetPortalNav(); clearMediaUrls(); stopAutoRefresh();
@@ -1032,9 +1033,9 @@
         return renderOrderCard(order, 'showSalesOrderDetail');
     }
 
-    /* ══════════════════════════════════════════════════
-       Admin Workspace — Order Portal Operations Console
-       ══════════════════════════════════════════════════ */
+    /* =========================================
+       Admin Workspace / Order Portal Operations Console
+       ========================================= */
 
     function showAdminWorkspace() { clearMediaUrls(); showAdminDashboard(); }
     window.showAdminDashboard = showAdminDashboard;
@@ -1065,7 +1066,7 @@
     function renderDeliveryInfo(order) {
         if (!order || (order.current_stage !== 'shipped' && order.current_stage !== 'received')) return 'TBD';
         var method = order.shipping_method || 'Shipping';
-        var tracking = order.shipping_tracking_no ? ' · ' + esc(order.shipping_tracking_no) : '';
+        var tracking = order.shipping_tracking_no ? ' / ' + esc(order.shipping_tracking_no) : '';
         return method + tracking;
     }
 
@@ -1259,13 +1260,13 @@
         var content = document.getElementById('admin-content');
         content.innerHTML = '<h3>Order ' + esc(o.order_no) + ': ' + esc(o.title) + '</h3>' +
             '<div class="portal-admin-detail-layout">' +
-            '<div><strong>Customer:</strong> ' + esc((o.customer || {}).display_name || (o.customer || {}).email || '—') + '<br>' +
-            '<strong>Sales:</strong> ' + esc((o.sales || {}).display_name || (o.sales || {}).email || '—') + '<br>' +
+            '<div><strong>Customer:</strong> ' + esc((o.customer || {}).display_name || (o.customer || {}).email || '-') + '<br>' +
+            '<strong>Sales:</strong> ' + esc((o.sales || {}).display_name || (o.sales || {}).email || '-') + '<br>' +
             '<strong>Stage:</strong> ' + esc(o.current_stage || 'N/A') + ' | <strong>Status:</strong> ' + esc(o.display_status || o.status) + '<br>' +
             '<strong>Delivery:</strong> ' + esc(renderDeliveryInfo(o)) + '<br>' +
-            '<strong>PO:</strong> ' + esc(o.po_number || '—') + '</div>' +
+            '<strong>PO:</strong> ' + esc(o.po_number || '-') + '</div>' +
             '<div><button class="portal-btn portal-btn-secondary portal-btn-auto" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
-            '<h4>Timeline</h4>' + (o.updates || []).map(function (u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + formatPortalDateTime(u.created_at) + '</small><p>' + esc(u.message || '—') + '</p></div>'; }).join('') +
+            '<h4>Timeline</h4>' + (o.updates || []).map(function (u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + formatPortalDateTime(u.created_at) + '</small><p>' + esc(u.message || '-') + '</p></div>'; }).join('') +
             '<h4>Messages (' + (o.messages || []).length + ')</h4>' + (o.messages || []).map(function (m) {
                 return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + formatPortalDateTime(m.created_at) + '</small><p>' + esc(m.message) + '</p></div>';
             }).join('') +
@@ -1367,7 +1368,7 @@
             results.innerHTML = rows.map(function (r) {
                 return '<button type="button" class="portal-picker-option" onclick="window.selectAdminSalesRep(' + r.id + ')">' +
                     '<strong>' + esc(r.display_name || r.email) + '</strong>' +
-                    '<span>' + esc(r.email) + ' · ' + (r.customer_count || 0) + ' customers</span>' +
+                    '<span>' + esc(r.email) + ' / ' + (r.customer_count || 0) + ' customers</span>' +
                     '</button>';
             }).join('');
         };
@@ -1409,9 +1410,9 @@
         } catch (e) { alert('Failed to create user.'); }
     };
 
-    /* ══════════════════════════════════════════════════
+    /* =========================================
        Sales Workspace
-       ══════════════════════════════════════════════════ */
+       ========================================= */
 
     function showSalesWorkspace() { clearMediaUrls(); showSalesOrders(); }
 
@@ -1517,7 +1518,7 @@
             results.innerHTML = rows.map(function (c) {
                 return '<button type="button" class="portal-picker-option" onclick="window.selectOrderCustomer(' + c.id + ')">' +
                     '<strong>' + esc(c.display_name || c.company_name || c.email) + '</strong>' +
-                    '<span>' + esc(c.email) + (c.company_name ? ' · ' + esc(c.company_name) : '') + '</span>' +
+                    '<span>' + esc(c.email) + (c.company_name ? ' / ' + esc(c.company_name) : '') + '</span>' +
                     '</button>';
             }).join('');
         });
@@ -1560,9 +1561,9 @@
         } catch (e) { err.textContent = e.message; err.hidden = false; }
     };
 
-    /* ══════════════════════════════════════════════════
+    /* =========================================
        Order Detail (shared)
-       ══════════════════════════════════════════════════ */
+       ========================================= */
 
     window.showOrderDetail = showCustomerOrderDetail;
     window.showSalesOrderDetail = showSalesOrderDetail;
@@ -1684,19 +1685,26 @@
             : '<div class="portal-empty">No updates yet.</div>';
     }
 
-    function patchMessages(orderId, messages, isSales) {
+    function patchMessages(orderId, messages, isSales, opts) {
         var el = document.getElementById('order-messages');
         if (!el) return;
+        opts = opts || {};
         var mainActive = document.activeElement && document.activeElement.id === 'msg-text';
         var replyActive = document.activeElement && document.activeElement.id === 'reply-text';
+        var mainInput = document.getElementById('msg-text');
+        var replyInput = document.getElementById('reply-text');
+        var mainDraft = mainInput ? mainInput.value : '';
+        var replyDraft = replyInput ? replyInput.value : '';
+        var mainWasFocused = document.activeElement === mainInput;
+        var replyWasFocused = document.activeElement === replyInput;
         portalState.messagesByOrderId[orderId] = messages || [];
-        if (mainActive || replyActive) {
+        if ((mainActive || replyActive) && !opts.force) {
             var banner = document.getElementById('order-messages-banner');
             if (!banner) {
                 banner = document.createElement('div');
                 banner.id = 'order-messages-banner';
                 banner.className = 'portal-note-card portal-message-refresh-banner';
-                banner.textContent = 'New messages available — click to refresh';
+                banner.textContent = 'New messages available / click to refresh';
                 banner.onclick = function () { banner.remove(); patchMessages(orderId, portalState.messagesByOrderId[orderId], isSales); };
                 el.insertBefore(banner, el.firstChild);
             }
@@ -1704,12 +1712,14 @@
         }
         var banner = document.getElementById('order-messages-banner');
         if (banner) banner.remove();
-        var draft = document.getElementById('msg-text') ? document.getElementById('msg-text').value : '';
-        var wasFocused = document.activeElement && document.activeElement.id === 'msg-text';
         el.innerHTML = renderMessages(messages, isSales, orderId);
-        var input = document.getElementById('msg-text');
-        if (input && draft) input.value = draft;
-        if (input && wasFocused) input.focus();
+        var newInput = document.getElementById('msg-text');
+        if (newInput && typeof mainDraft === 'string') newInput.value = mainDraft;
+        if (newInput && mainWasFocused) newInput.focus();
+        var newReplyInput = document.getElementById('reply-text');
+        if (newReplyInput && typeof replyDraft === 'string') newReplyInput.value = replyDraft;
+        if (newReplyInput && replyWasFocused) newReplyInput.focus();
+        bindMessageRetryLinks(el, orderId);
     }
 
     function patchMedia(orderId, media) {
@@ -1870,7 +1880,7 @@
                 var fill = document.getElementById('upload-fill');
                 if (fill) fill.style.width = pct + '%';
                 var pctEl = document.getElementById('upload-pct');
-                if (pctEl) { pctEl.textContent = pct >= 100 ? '100% - Processing on server...' : pct + '%'; }
+                if (pctEl) { pctEl.textContent = pct >= 100 ? '100% - Finalizing upload on server...' : pct + '%'; }
             }
         };
         xhr.onload = function () {
@@ -1894,13 +1904,20 @@
         xhr.send(fd);
     };
 
-    /* ══════════════════════════════════════════════════
+    /* =========================================
        Media loading
-       ══════════════════════════════════════════════════ */
+       ========================================= */
+
+    function absoluteApiUrl(pathOrUrl) {
+        if (!pathOrUrl) return '';
+        if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+        var base = window.DaiyujinAPI && window.DaiyujinAPI.config && window.DaiyujinAPI.config.baseUrl ? window.DaiyujinAPI.config.baseUrl : '';
+        return base ? base + pathOrUrl : pathOrUrl;
+    }
 
     async function getMediaTicket(orderId, mediaId) {
         var resp = await api('/api/portal/orders/' + orderId + '/media/' + mediaId + '/ticket', { method: 'POST', body: JSON.stringify({ purpose: 'preview' }) });
-        return resp.url;
+        return absoluteApiUrl(resp.url_path || resp.url);
     }
 
     function groupMediaByStage(media) {
@@ -1920,45 +1937,59 @@
         return ordered;
     }
 
-    async function renderAttachmentItem(orderId, m) {
+        async function renderAttachmentItem(orderId, m) {
         var item = document.createElement('div');
         item.className = 'portal-media-item';
         var label = m.caption || m.original_filename || m.filename || 'Attachment';
         try {
             var ticketUrl = await getMediaTicket(orderId, m.id);
+            var preview = document.createElement('div');
+            preview.className = 'portal-media-preview';
             if (m.file_kind === 'video') {
                 var video = document.createElement('video');
                 video.controls = true;
                 video.preload = 'metadata';
                 video.src = ticketUrl;
                 video.className = 'portal-video-preview';
-                item.appendChild(video);
+                video.addEventListener('error', function () {
+                    preview.innerHTML = '<div class="portal-media-error">Preview unavailable</div>';
+                });
+                preview.appendChild(video);
             } else if (m.file_kind === 'pdf') {
                 var pdfLink = document.createElement('a');
                 pdfLink.href = ticketUrl + '?download=1';
                 pdfLink.className = 'portal-attachment-link';
                 pdfLink.target = '_blank';
                 pdfLink.textContent = label;
-                item.appendChild(pdfLink);
+                preview.appendChild(pdfLink);
             } else {
                 var button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'portal-media-open';
                 button.setAttribute('aria-label', 'View full size: ' + label);
-                button.innerHTML = '<img src="' + ticketUrl + '" alt="' + esc(label) + '">';
+                var img = document.createElement('img');
+                img.src = ticketUrl;
+                img.alt = label;
+                img.onerror = function () {
+                    preview.innerHTML = '<div class="portal-media-error">Preview unavailable</div>';
+                };
+                preview.appendChild(img);
+                button.appendChild(preview);
                 button.addEventListener('click', function () { openPortalLightbox(ticketUrl, label); });
                 item.appendChild(button);
             }
             var meta = document.createElement('small');
-            meta.textContent = [m.file_kind || 'file', stageLabels[m.stage_key] || m.stage_key || 'Unassigned', m.caption || m.original_filename || ''].filter(Boolean).join(' · ');
+            meta.textContent = [m.file_kind || 'file', stageLabels[m.stage_key] || m.stage_key || 'Unassigned', m.caption || m.original_filename || ''].filter(Boolean).join(' / ');
+            if (m.file_kind === 'video' || m.file_kind === 'pdf') {
+                item.appendChild(preview);
+            }
             item.appendChild(meta);
         } catch (e) {
             item.innerHTML = '<div class="portal-media-error">Attachment unavailable</div><small>' + esc(label) + '</small>';
         }
         return item;
     }
-
-    async function loadAuthorizedImages(orderId, media, gridId) {
+async function loadAuthorizedImages(orderId, media, gridId) {
         var grid = document.getElementById(gridId || 'media-grid');
         if (!grid) return;
         grid.innerHTML = '';
@@ -1973,7 +2004,7 @@
             section.className = 'portal-attachment-group';
             var title = document.createElement('div');
             title.className = 'portal-attachment-group-title';
-            title.textContent = (stageLabels[group.stage] || group.stage || 'Unassigned') + ' · ' + group.items.length + ' file(s)';
+            title.textContent = (stageLabels[group.stage] || group.stage || 'Unassigned') + ' / ' + group.items.length + ' file(s)';
             section.appendChild(title);
             var groupGrid = document.createElement('div');
             groupGrid.className = 'portal-media-grid';
@@ -1988,37 +2019,155 @@
 
     function clearMediaUrls() { mediaObjectUrls.forEach(function (u) { URL.revokeObjectURL(u); }); mediaObjectUrls = []; }
 
-    /* ── Messages UI ── */
-    function renderMessages(messages, isSales, orderId) {
+    /* Messages UI */
+function renderMessages(messages, isSales, orderId) {
         var h = "<h3 class=\"portal-section-title portal-section-title-spaced\">Messages</h3>";
         if (messages && messages.length) {
             h += "<div class=\"portal-messages\">" + messages.map(function (m) {
                 var rep = !!m.parent_message_id;
-                return "<div class=\"portal-msg" + (rep ? " portal-msg-reply" : "") + "\">" +
-                    "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (formatPortalDateTime(m.created_at)) + "</small></div>" +
-                    "<p>" + esc(m.message) + "</p>" +
-                    (isSales && !rep ? "<button class=\"portal-btn portal-btn-secondary portal-btn-sm portal-btn-auto\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
-                    "</div>";
-            }).join("") + "</div>";
-        } else {
-            h += "<div class=\"portal-empty\">No messages yet.</div>";
-        }
+                var statusBadge = "";
+                if (m._pending) {
+                    statusBadge = (m.status === 'failed')
+                        ? '<div class="portal-msg-meta portal-msg-meta-error">Failed to send / <a href="javascript:void(0)" class="portal-msg-retry-link" data-local-id="' + encodeURIComponent(String(m.id)) + '">Retry</a></div>'
+                        : '<div class="portal-msg-meta portal-msg-meta-sending">Sending...</div>';
+                }
+                  return "<div class=\"portal-msg" + (rep ? " portal-msg-reply" : "") + "\">" +
+                      "<div class=\"portal-msg-head\"><strong>" + esc(m.sender_name) + "</strong><small>" + (formatPortalDateTime(m.created_at)) + "</small></div>" +
+                      "<p>" + esc(m.message) + "</p>" +
+                      statusBadge +
+                      (isSales && !rep && !m._pending ? "<button class=\"portal-btn portal-btn-secondary portal-btn-sm portal-btn-auto\" onclick=\"window.showReplyForm(" + orderId + "," + m.id + ",event)\">Reply</button>" : "") +
+                      "</div>";
+              }).join("") + "</div>";
+          } else {
+              h += "<div class=\"portal-empty\">No messages yet.</div>";
+          }
         h += "<div class=\"portal-msg-form\"><textarea id=\"msg-text\" class=\"portal-input-full\" placeholder=\"Write a message...\" rows=\"2\"></textarea>" +
             "<button class=\"portal-btn portal-btn-primary portal-btn-sm portal-btn-auto portal-msg-send\" onclick=\"window.sendMessage(" + orderId + ")\">Send</button></div>";
         return h;
     }
 
+    function localMessage(orderId, text, parentId) {
+        return {
+            id: 'local-' + Date.now() + '-' + Math.random().toString(16).slice(2),
+            sender_user_id: user().id,
+            sender_name: userDisplayName(user()),
+            message: text,
+            status: 'sending',
+            parent_message_id: parentId || null,
+            created_at: new Date().toISOString(),
+            _pending: true
+        };
+    }
+
+    function appendPendingMessage(orderId, text, parentId) {
+        var msg = localMessage(orderId, text, parentId);
+        var next = (portalState.messagesByOrderId[orderId] || []).slice();
+        next.push(msg);
+        portalState.messagesByOrderId[orderId] = next;
+        return msg;
+    }
+
+    function replacePendingMessage(orderId, localId, serverMessage) {
+        var next = (portalState.messagesByOrderId[orderId] || []).slice();
+        var replaced = false;
+        for (var i = 0; i < next.length; i++) {
+            if (next[i] && next[i]._pending && String(next[i].id) === String(localId)) {
+                next[i] = serverMessage;
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            next.push(serverMessage);
+        }
+        portalState.messagesByOrderId[orderId] = next;
+        return next;
+    }
+
+    function setPendingMessageStatus(orderId, localId, status) {
+        var next = (portalState.messagesByOrderId[orderId] || []).slice();
+        var updated = false;
+        for (var i = 0; i < next.length; i++) {
+            if (next[i] && next[i]._pending && String(next[i].id) === String(localId)) {
+                next[i].status = status;
+                updated = true;
+                break;
+            }
+        }
+        if (updated) portalState.messagesByOrderId[orderId] = next;
+        return updated ? next : null;
+    }
+
+    function getPendingMessage(orderId, localId) {
+        var items = portalState.messagesByOrderId[orderId] || [];
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] && items[i]._pending && String(items[i].id) === String(localId)) return items[i];
+        }
+        return null;
+    }
+
+    function bindMessageRetryLinks(el, orderId) {
+        if (!el) return;
+        var links = el.querySelectorAll('.portal-msg-retry-link');
+        for (var i = 0; i < links.length; i++) {
+            links[i].onclick = function (evt) {
+                evt.preventDefault();
+                var localId = evt.currentTarget.getAttribute('data-local-id');
+                if (!localId) return;
+                window.retryPendingMessage(orderId, decodeURIComponent(localId));
+            };
+        }
+    }
+
+    async function submitLocalMessage(orderId, pendingMessage) {
+        setPendingMessageStatus(orderId, pendingMessage.id, 'sending');
+        patchMessages(orderId, portalState.messagesByOrderId[orderId], portalState.currentIsSales, { force: true });
+        try {
+            var endpoint = pendingMessage.parent_message_id
+                ? '/api/portal/sales/orders/' + orderId + '/messages/' + pendingMessage.parent_message_id + '/reply'
+                : '/api/portal/orders/' + orderId + '/messages';
+            var resp = await api(endpoint, { method: 'POST', body: JSON.stringify({ message: pendingMessage.message }) });
+            if (resp && !resp.error && resp.message) {
+                replacePendingMessage(orderId, pendingMessage.id, resp.message);
+                patchMessages(orderId, portalState.messagesByOrderId[orderId], portalState.currentIsSales, { force: true });
+                return;
+            }
+            throw new Error((resp && resp.message) || 'Message send failed');
+        } catch (e) {
+            var failed = setPendingMessageStatus(orderId, pendingMessage.id, 'failed');
+            if (failed) patchMessages(orderId, failed, portalState.currentIsSales, { force: true });
+            throw e;
+        }
+    }
+
+    window.retryPendingMessage = async function (orderId, localId) {
+        var pending = getPendingMessage(orderId, localId);
+        if (!pending) return;
+        if (pending.status === 'sending') return;
+        try {
+            await submitLocalMessage(orderId, pending);
+        } catch (e) {
+            console.warn('[portal:message:retry:failed]', e);
+        }
+    };
+
     window.sendMessage = async function (orderId) {
         var input = document.getElementById('msg-text');
+        if (!input) return;
         var text = input.value.trim();
         if (!text) { alert('Message cannot be empty.'); return; }
+
+        var pending = appendPendingMessage(orderId, text, null);
+        input.value = '';
+        patchMessages(orderId, portalState.messagesByOrderId[orderId], portalState.currentIsSales, { force: true });
+
         try {
-            input.disabled = true;
-            await api('/api/portal/orders/' + orderId + '/messages', { method: 'POST', body: JSON.stringify({ message: text }) });
-            input.value = '';
-            refreshCurrentOrderMessages(orderId).catch(function(){});
+            await submitLocalMessage(orderId, pending);
         } catch (e) { alert('Failed to send message.'); }
-        finally { input.disabled = false; input.focus(); }
+        finally {
+            var currentInput = document.getElementById('msg-text');
+            if (currentInput) currentInput.focus();
+        }
     };
 
     window.showReplyForm = function (orderId, msgId, evt) {
@@ -2034,15 +2183,22 @@
 
     window.sendReply = async function (orderId, msgId) {
         var input = document.getElementById('reply-text');
+        if (!input) return;
         var text = input.value.trim();
         if (!text) { alert('Reply cannot be empty.'); return; }
+        var form = document.getElementById('reply-form');
         try {
-            input.disabled = true;
-            await api('/api/portal/sales/orders/' + orderId + '/messages/' + msgId + '/reply', { method: 'POST', body: JSON.stringify({ message: text }) });
-            var form = document.getElementById('reply-form');
+            if (input) input.disabled = true;
             if (form) form.remove();
-            refreshCurrentOrderMessages(orderId).catch(function(){});
+            var pending = appendPendingMessage(orderId, text, msgId);
+            patchMessages(orderId, portalState.messagesByOrderId[orderId], portalState.currentIsSales, { force: true });
+            await submitLocalMessage(orderId, pending);
         } catch (e) { alert('Failed to send reply.'); }
+        finally {
+            if (input) {
+                input.disabled = false;
+            }
+        }
     };
 
 
@@ -2056,7 +2212,7 @@
             refreshCurrentOrderMessages(orderId);
         } catch (e) { alert('Failed to submit complaint. Please try again or contact your sales representative.'); }
     };
-    /* ═══ Helpers ═══ */
+    /* Helpers */
 
     function renderTimelineItem(u) {
         var label = stageLabels[u.stage_key] || u.stage_key || 'Update';

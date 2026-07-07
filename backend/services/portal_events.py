@@ -1,8 +1,21 @@
 """Portal event stream — emit events for real-time frontend sync."""
 import json
+import threading
 from datetime import datetime
 
 from models import PortalEvent, PortalUser
+
+_EVENT_CONDITION = threading.Condition()
+
+
+def notify_portal_events():
+    with _EVENT_CONDITION:
+        _EVENT_CONDITION.notify_all()
+
+
+def wait_for_portal_events(timeout=1.0):
+    with _EVENT_CONDITION:
+        _EVENT_CONDITION.wait(timeout)
 
 
 def emit_portal_event(session, event_type, entity_type, entity_id=None, order_id=None,
