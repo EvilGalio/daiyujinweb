@@ -890,18 +890,26 @@ def sales_upload_media(order_id):
     u, err = _require_role(("sales", "admin"))
     if err: return err
 
+    from flask import current_app
+    current_app.logger.info("portal_upload_enter order_id=%s user_id=%s content_length=%s content_type=%s", order_id, u.get("id"), request.content_length, request.content_type)
+
     file = request.files.get("file")
     if not file or not file.filename:
+        current_app.logger.warning("portal_upload_no_file order_id=%s", order_id)
         return jsonify({"error": True, "message": "No file uploaded"}), 400
 
     ext = Path(file.filename).suffix.lower()
+    current_app.logger.info("portal_upload_file order_id=%s filename=%s ext=%s mimetype=%s", order_id, Path(file.filename).name, ext, file.mimetype)
     spec = ALLOWED_ATTACHMENTS.get(ext)
     if not spec:
         return jsonify({"error": True, "message": "Only jpg/png/webp/pdf/mp4/webm/mov files allowed"}), 400
     mapped_mime, file_kind, size_limit = spec
 
+    current_app.logger.info("portal_upload_read_start order_id=%s filename=%s", order_id, Path(file.filename).name)
     data = file.read()
+    current_app.logger.info("portal_upload_read_done order_id=%s size=%s", order_id, len(data))
     if len(data) > size_limit:
+        current_app.logger.warning("portal_upload_too_large order_id=%s size=%s limit=%s ext=%s", order_id, len(data), size_limit, ext)
         return jsonify({"error": True, "message": f"File too large (max {size_limit // (1024*1024)}MB for {ext})"}), 400
 
     session = SessionLocal()
@@ -918,6 +926,7 @@ def sales_upload_media(order_id):
         stored = f"{secrets.token_hex(16)}{ext}"
         path = MEDIA_DIR / stored
         path.write_bytes(data)
+        current_app.logger.info("portal_upload_file_written order_id=%s path=%s size=%s", order_id, path, len(data))
 
         visible_raw = (request.form.get("visible_to_customer", "1") or "1").strip().lower()
         visible = visible_raw not in {"0", "false", "no", "off"}
@@ -944,6 +953,7 @@ def sales_upload_media(order_id):
         v = "public" if visible else "internal"
         emit_portal_event(session, "media_created", "media", entity_id=media.id, order_id=order_id, actor_user_id=u["id"], visibility=v, payload={"order_id": order_id, "media_id": media.id, "visible_to_customer": visible})
         session.commit()
+        current_app.logger.info("portal_upload_saved order_id=%s media_id=%s filename=%s", order_id, media.id, media.original_filename)
         return jsonify({"error": False, "media_id": media.id, "filename": media.original_filename})
     except Exception:
         session.rollback()

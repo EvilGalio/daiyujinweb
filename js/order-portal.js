@@ -87,7 +87,9 @@
     }
 
     function applyPortalBranding() {
-        var titleEl = document.querySelector('[data-portal-title]');
+        var titleEl = portalRoot.querySelector
+            ? portalRoot.querySelector('[data-portal-title]')
+            : document.querySelector('[data-portal-title]');
         if (titleEl) titleEl.textContent = portalFullTitle();
         if (document.title) document.title = portalFullTitle() || 'Order Portal';
     }
@@ -114,14 +116,14 @@
         try {
             portalChannel = new BroadcastChannel('daiyujin-portal');
             portalChannel.onmessage = function (msg) { handlePortalBroadcastMessage(msg); };
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function broadcastPortalMessage(type, payload) {
         if (!portalChannel) return;
         payload = payload || {};
         payload.userKey = currentUserKey();
-        try { portalChannel.postMessage({ type: type, payload: payload }); } catch (e) {}
+        try { portalChannel.postMessage({ type: type, payload: payload }); } catch (e) { }
     }
 
     function handlePortalBroadcastMessage(msg) {
@@ -678,7 +680,7 @@
         bar.parentNode.insertBefore(banner, bar.nextSibling);
     }
 
-    function refreshAdminOrderBadge() {}
+    function refreshAdminOrderBadge() { }
 
     /* ── Sync status ── */
     function setSyncStatus(status) {
@@ -737,23 +739,23 @@
                 renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
                 renderSalesCommandBar('customers') +
                 '<div class="portal-dashboard">' +
-                    (customers.length ? customers.map(function (c) {
-                        return '<div class="portal-order-card">' +
-                            '<h3>' + esc(c.display_name || c.email) + '</h3>' +
-                            '<div class="portal-order-meta">' +
-                                '<span>' + esc(c.email) + '</span>' +
-                                '<span>' + esc(c.company_name || '-') + '</span>' +
-                                '<span>' + esc(c.status || '-') + '</span>' +
-                            '</div>' +
-                        '</div>';
-                    }).join('') :
-                    '<div class="portal-empty-state">' +
-                        '<div class="portal-empty-state-icon">👥</div>' +
-                        '<h3>No customers yet</h3>' +
-                        '<p>Add a customer account before creating orders.</p>' +
-                        '<div class="portal-cta-row">' +
-                            '<button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button>' +
+                (customers.length ? customers.map(function (c) {
+                    return '<div class="portal-order-card">' +
+                        '<h3>' + esc(c.display_name || c.email) + '</h3>' +
+                        '<div class="portal-order-meta">' +
+                        '<span>' + esc(c.email) + '</span>' +
+                        '<span>' + esc(c.company_name || '-') + '</span>' +
+                        '<span>' + esc(c.status || '-') + '</span>' +
                         '</div>' +
+                        '</div>';
+                }).join('') :
+                    '<div class="portal-empty-state">' +
+                    '<div class="portal-empty-state-icon">👥</div>' +
+                    '<h3>No customers yet</h3>' +
+                    '<p>Add a customer account before creating orders.</p>' +
+                    '<div class="portal-cta-row">' +
+                    '<button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button>' +
+                    '</div>' +
                     '</div>') +
                 '</div>';
         } catch (e) {
@@ -763,7 +765,7 @@
         }
     }
 
-window.showCustomerDashboard = showCustomerDashboard;
+    window.showCustomerDashboard = showCustomerDashboard;
     window.showSalesWorkspace = showSalesWorkspace;
     window.showSalesOrders = showSalesOrders;
     window.showSalesCustomers = showSalesCustomers;
@@ -805,7 +807,7 @@ window.showCustomerDashboard = showCustomerDashboard;
     });
 
     window.portalLogout = async function () {
-        try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) {}
+        try { await api('/api/portal/auth/logout', { method: 'POST' }); } catch (e) { }
         broadcastPortalMessage('logout', {});
         removePortalWatermark();
         disconnectPortalEvents();
@@ -944,7 +946,8 @@ window.showCustomerDashboard = showCustomerDashboard;
        Customer Dashboard
        ══════════════════════════════════════════════════ */
 
-    async function showCustomerDashboard() { setCurrentView('list'); resetPortalNav(); clearMediaUrls(); stopAutoRefresh();
+    async function showCustomerDashboard() {
+        setCurrentView('list'); resetPortalNav(); clearMediaUrls(); stopAutoRefresh();
         var u = user();
         main.innerHTML = renderRoleHeader('My Orders', customerGreeting(u), 'Track your current production orders.') + renderCardGridSkeleton(3);
         try {
@@ -966,21 +969,21 @@ window.showCustomerDashboard = showCustomerDashboard;
 
         return '<article class="portal-order-card portal-order-card-large portal-clickable" id="portal-order-card-' + order.id + '" data-order-id="' + order.id + '" onclick="' + detailFn + '(' + order.id + ')">' +
             '<div class="portal-card-topline">' +
-                '<span class="portal-order-no">' + esc(order.order_no) + '</span>' +
-                '<span class="portal-badge portal-status-' + esc(status) + '">' + esc(status) + '</span>' +
-                '<span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span>' +
+            '<span class="portal-order-no">' + esc(order.order_no) + '</span>' +
+            '<span class="portal-badge portal-status-' + esc(status) + '">' + esc(status) + '</span>' +
+            '<span class="portal-live-badge" data-order-unread-badge="' + order.id + '" hidden></span>' +
             '</div>' +
             '<div class="portal-card-main">' +
-                '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
-                '<span class="portal-card-customer">' + esc(customerLabel) + '</span>' +
+            '<h3>' + esc(order.title || 'Part / Project') + '</h3>' +
+            '<span class="portal-card-customer">' + esc(customerLabel) + '</span>' +
             '</div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
             '<div class="portal-progress-track"><span class="portal-progress-fill" style="--progress:' + progress + '%"></span></div>' +
             '<div class="portal-card-meta-grid">' +
-                '<span>Due: ' + esc(formatPortalDate(order.estimated_delivery_date)) + '</span>' +
-                '<span>Created: ' + esc(formatPortalDate(order.created_at)) + '</span>' +
-                '<span>Shipping: ' + renderDeliveryInfo(order) + '</span>' +
-                '<span>Updated: ' + esc(formatPortalDate(order.updated_at)) + '</span>' +
+            '<span>Due: ' + esc(formatPortalDate(order.estimated_delivery_date)) + '</span>' +
+            '<span>Created: ' + esc(formatPortalDate(order.created_at)) + '</span>' +
+            '<span>Shipping: ' + renderDeliveryInfo(order) + '</span>' +
+            '<span>Updated: ' + esc(formatPortalDate(order.updated_at)) + '</span>' +
             '</div></article>';
     }
 
@@ -1005,8 +1008,8 @@ window.showCustomerDashboard = showCustomerDashboard;
         var me = user();
         main.innerHTML = renderRoleHeader('Operations Console', adminGreeting(me), 'Monitor reps, customers, orders, and activity.') +
             '<div class="portal-admin-tabs">' +
-            ['overview','sales-reps','customers','orders','activity'].map(function (t) {
-                return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard','Sales Reps','Customers','Orders','Activity Logs'][['overview','sales-reps','customers','orders','activity'].indexOf(t)] + '</button>';
+            ['overview', 'sales-reps', 'customers', 'orders', 'activity'].map(function (t) {
+                return '<button class="' + (t === tab ? 'active' : '') + '" onclick="showAdminTab(\'' + t + '\')">' + ['Dashboard', 'Sales Reps', 'Customers', 'Orders', 'Activity Logs'][['overview', 'sales-reps', 'customers', 'orders', 'activity'].indexOf(t)] + '</button>';
             }).join('') + '</div>' +
             '<div id="admin-content" class="portal-admin-content">' + renderTableSkeleton(4, 5) + '</div>';
         try {
@@ -1033,16 +1036,16 @@ window.showCustomerDashboard = showCustomerDashboard;
         var status = _searchState.status || '';
         var refreshFn = opts.refreshFn || '';
         return '<div class="portal-search-bar"><input id="search-q" type="text" placeholder="Search order #, PO, title..." value="' + esc(q) + '">' +
-            (opts.stages ? '<select id="search-stage"><option value="">All stages</option>' + opts.stages.map(function(s) { return '<option value="' + s + '"' + selectedAttr(stage, s) + '>' + (stageLabels[s] || s) + '</option>'; }).join('') + '</select>' : '') +
+            (opts.stages ? '<select id="search-stage"><option value="">All stages</option>' + opts.stages.map(function (s) { return '<option value="' + s + '"' + selectedAttr(stage, s) + '>' + (stageLabels[s] || s) + '</option>'; }).join('') + '</select>' : '') +
             '<select id="search-status"><option value="">All statuses</option>' +
-                '<option value="normal"' + selectedAttr(status, 'normal') + '>Normal</option>' +
-                '<option value="delayed"' + selectedAttr(status, 'delayed') + '>Delayed</option>' +
-                '<option value="complaint"' + selectedAttr(status, 'complaint') + '>Complaint</option>' +
-                '<option value="on_hold"' + selectedAttr(status, 'on_hold') + '>On Hold</option>' +
-                '<option value="cancelled"' + selectedAttr(status, 'cancelled') + '>Cancelled</option>' +
+            '<option value="normal"' + selectedAttr(status, 'normal') + '>Normal</option>' +
+            '<option value="delayed"' + selectedAttr(status, 'delayed') + '>Delayed</option>' +
+            '<option value="complaint"' + selectedAttr(status, 'complaint') + '>Complaint</option>' +
+            '<option value="on_hold"' + selectedAttr(status, 'on_hold') + '>On Hold</option>' +
+            '<option value="cancelled"' + selectedAttr(status, 'cancelled') + '>Cancelled</option>' +
             '</select>' +
             '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="applySearch(\'' + refreshFn + '\')">Search</button>' +
-        '</div>';
+            '</div>';
     }
 
     function renderStatusBadge(status) {
@@ -1094,9 +1097,9 @@ window.showCustomerDashboard = showCustomerDashboard;
         var crHelp = (ov.complaint_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders';
         document.getElementById('admin-content').innerHTML =
             '<div class="portal-admin-kpi-grid">' +
-            ['Active Sales Reps','Active Customers','Orders in Production','Updates Today','On-time Rate','Complaint Rate'].map(function (label, i) {
+            ['Active Sales Reps', 'Active Customers', 'Orders in Production', 'Updates Today', 'On-time Rate', 'Complaint Rate'].map(function (label, i) {
                 var val = [ov.sales_count, ov.customer_count, ov.active_orders, ov.updates_today, otr, cr][i];
-                var help = ['People responsible for customers','Assigned customer accounts','Orders currently in production','Progress entries today', otrHelp, crHelp][i];
+                var help = ['People responsible for customers', 'Assigned customer accounts', 'Orders currently in production', 'Progress entries today', otrHelp, crHelp][i];
                 return '<div class="portal-admin-kpi"><strong>' + val + '</strong><span>' + label + '</span><small>' + help + '</small></div>';
             }).join('') + '</div>' +
             '<div class="portal-admin-overview-grid">' +
@@ -1137,20 +1140,20 @@ window.showCustomerDashboard = showCustomerDashboard;
             });
     }
 
-    window.showAdminSalesRepDetail = async function(sid) {
+    window.showAdminSalesRepDetail = async function (sid) {
         pushPortalView('Sales Reps', showAdminTab, ['sales-reps']);
         refreshAdminHeader('Sales representative detail.');
         var d = await api('/api/portal/admin/sales-reps/' + sid);
         var r = d.rep; var cxs = d.customers || []; var ords = d.orders || []; var logs = d.recent_logs || [];
         document.getElementById('admin-content').innerHTML =
-            '<h3>' + esc(r.display_name || r.email) + ' <span class="portal-badge status-' + (r.status||'active') + '">' + esc(r.status||'active') + '</span></h3>' +
+            '<h3>' + esc(r.display_name || r.email) + ' <span class="portal-badge status-' + (r.status || 'active') + '">' + esc(r.status || 'active') + '</span></h3>' +
             '<p>Email: ' + esc(r.email) + '</p>' +
             '<h4>Customers (' + cxs.length + ')</h4>' +
             '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead><tbody>' +
-            cxs.map(function(c) { return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+            cxs.map(function (c) { return '<tr><td>' + esc(c.display_name || '-') + '</td><td>' + esc(c.email) + '</td><td>' + esc(c.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<h4>Orders (' + ords.length + ')</h4>' +
             '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th></tr></thead><tbody>' +
-            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Sales Rep\', showAdminSalesRepDetail, [' + sid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.display_status || o.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+            ords.map(function (o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Sales Rep\', showAdminSalesRepDetail, [' + sid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage || 'N/A') + '</td><td>' + esc(o.display_status || o.status) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<h4>Recent Activity</h4>' +
             renderActivityTable(logs);
     };
@@ -1172,17 +1175,17 @@ window.showCustomerDashboard = showCustomerDashboard;
             });
     }
 
-    window.showAdminCustomerDetail = async function(cid) {
+    window.showAdminCustomerDetail = async function (cid) {
         pushPortalView('Customers', showAdminTab, ['customers']);
         refreshAdminHeader('Customer detail.');
         var d = await api('/api/portal/admin/customers/' + cid);
         var c = d.customer; var ords = d.orders || [];
         document.getElementById('admin-content').innerHTML =
-            '<h3>' + esc(c.display_name || c.email) + ' <span class="portal-badge status-' + (c.status||'active') + '">' + esc(c.status||'active') + '</span></h3>' +
+            '<h3>' + esc(c.display_name || c.email) + ' <span class="portal-badge status-' + (c.status || 'active') + '">' + esc(c.status || 'active') + '</span></h3>' +
             '<p>Email: ' + esc(c.email) + ' | Sales: ' + esc(d.sales_name || 'Unassigned') + '</p>' +
             '<h4>Orders (' + ords.length + ')</h4>' +
             '<div class="portal-table-wrap"><table class="portal-admin-table"><thead><tr><th>Order</th><th>Stage</th><th>Status</th><th>Updated</th></tr></thead><tbody>' +
-            ords.map(function(o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Customer\', showAdminCustomerDetail, [' + cid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage||'N/A') + '</td><td>' + esc(o.display_status || o.status) + '</td><td>' + formatPortalDate(o.updated_at) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+            ords.map(function (o) { return '<tr onclick="showAdminOrderDetail(' + o.id + ', \'Customer\', showAdminCustomerDetail, [' + cid + '])" class="portal-clickable"><td>' + esc(o.order_no) + ' ' + esc(o.title) + '</td><td>' + esc(o.current_stage || 'N/A') + '</td><td>' + esc(o.display_status || o.status) + '</td><td>' + formatPortalDate(o.updated_at) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     };
 
     async function renderAdminOrders() {
@@ -1203,7 +1206,7 @@ window.showCustomerDashboard = showCustomerDashboard;
             });
     }
 
-    window.showAdminOrderDetail = async function(orderId, backLabel, backFn, backArgs, opts) {
+    window.showAdminOrderDetail = async function (orderId, backLabel, backFn, backArgs, opts) {
         opts = opts || {};
         if (!opts.skipPush) pushPortalView(backLabel || 'Orders', backFn || showAdminTab, backArgs || ['orders']);
         refreshAdminHeader('Order detail.');
@@ -1212,28 +1215,28 @@ window.showCustomerDashboard = showCustomerDashboard;
         var content = document.getElementById('admin-content');
         content.innerHTML = '<h3>Order ' + esc(o.order_no) + ': ' + esc(o.title) + '</h3>' +
             '<div class="portal-admin-detail-layout">' +
-            '<div><strong>Customer:</strong> ' + esc((o.customer||{}).display_name || (o.customer||{}).email || '—') + '<br>' +
-            '<strong>Sales:</strong> ' + esc((o.sales||{}).display_name || (o.sales||{}).email || '—') + '<br>' +
-            '<strong>Stage:</strong> ' + esc(o.current_stage||'N/A') + ' | <strong>Status:</strong> ' + esc(o.display_status || o.status) + '<br>' +
+            '<div><strong>Customer:</strong> ' + esc((o.customer || {}).display_name || (o.customer || {}).email || '—') + '<br>' +
+            '<strong>Sales:</strong> ' + esc((o.sales || {}).display_name || (o.sales || {}).email || '—') + '<br>' +
+            '<strong>Stage:</strong> ' + esc(o.current_stage || 'N/A') + ' | <strong>Status:</strong> ' + esc(o.display_status || o.status) + '<br>' +
             '<strong>Delivery:</strong> ' + esc(renderDeliveryInfo(o)) + '<br>' +
-            '<strong>PO:</strong> ' + esc(o.po_number||'—') + '</div>' +
+            '<strong>PO:</strong> ' + esc(o.po_number || '—') + '</div>' +
             '<div><button class="portal-btn portal-btn-secondary portal-btn-auto" onclick="showAdminAssignSales(' + o.id + ')">Transfer Sales Rep</button></div></div>' +
-            '<h4>Timeline</h4>' + (o.updates||[]).map(function(u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + formatPortalDateTime(u.created_at) + '</small><p>' + esc(u.message||'—') + '</p></div>'; }).join('') +
-            '<h4>Messages (' + (o.messages||[]).length + ')</h4>' + (o.messages||[]).map(function(m) {
+            '<h4>Timeline</h4>' + (o.updates || []).map(function (u) { return '<div class="portal-msg"><strong>' + esc(u.title) + '</strong><small> ' + formatPortalDateTime(u.created_at) + '</small><p>' + esc(u.message || '—') + '</p></div>'; }).join('') +
+            '<h4>Messages (' + (o.messages || []).length + ')</h4>' + (o.messages || []).map(function (m) {
                 return '<div class="portal-msg' + (m.parent_message_id ? ' portal-msg-reply' : '') + '"><strong>User #' + m.sender_user_id + '</strong><small> ' + formatPortalDateTime(m.created_at) + '</small><p>' + esc(m.message) + '</p></div>';
             }).join('') +
-            '<h4>Attachments (' + (o.media||[]).length + ')</h4>' +
-            '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media||[]).length ? renderMediaSkeleton(Math.min((o.media||[]).length, 6)) : '<div class="portal-empty">No attachments yet.</div>') + '</div>';
-        if ((o.media||[]).length) loadAuthorizedImages(o.id, o.media, 'admin-media-grid');
+            '<h4>Attachments (' + (o.media || []).length + ')</h4>' +
+            '<div class="portal-media-grid" id="admin-media-grid">' + ((o.media || []).length ? renderMediaSkeleton(Math.min((o.media || []).length, 6)) : '<div class="portal-empty">No attachments yet.</div>') + '</div>';
+        if ((o.media || []).length) loadAuthorizedImages(o.id, o.media, 'admin-media-grid');
     };
 
-    window.showAdminAssignSales = function(orderId) {
+    window.showAdminAssignSales = function (orderId) {
         var sid = prompt('Enter new sales user ID:');
         if (!sid) return;
         var parsed = parseInt(sid, 10);
         if (isNaN(parsed)) { alert('Must be a number.'); return; }
         api('/api/portal/admin/orders/' + orderId + '/assign-sales', { method: 'PATCH', body: JSON.stringify({ sales_user_id: parsed }) })
-            .then(function() { showAdminOrderDetail(orderId, null, null, null, { skipPush: true }); }).catch(function() { alert('Transfer failed. Check the sales user ID is valid and active.'); });
+            .then(function () { showAdminOrderDetail(orderId, null, null, null, { skipPush: true }); }).catch(function () { alert('Transfer failed. Check the sales user ID is valid and active.'); });
     };
 
     async function renderAdminActivity() {
@@ -1261,7 +1264,7 @@ window.showCustomerDashboard = showCustomerDashboard;
         });
     }
 
-    window.adminDisableUser = async function(userId) {
+    window.adminDisableUser = async function (userId) {
         if (!confirm('Disable this user?')) return;
         try { await api('/api/portal/admin/users/' + userId, { method: 'PATCH', body: JSON.stringify({ status: 'disabled' }) }); showAdminTab('sales-reps'); }
         catch (e) { alert('Failed to disable user.'); }
@@ -1283,10 +1286,10 @@ window.showCustomerDashboard = showCustomerDashboard;
             '<div class="portal-field"><label>Display name</label><input id="new-user-name" placeholder="Optional"></div>' +
             '<div class="portal-field"><label>Role</label><select id="new-user-role"><option value="sales">Sales</option><option value="admin">Admin</option><option value="customer">Customer</option></select></div>' +
             '<div id="admin-sales-picker" class="portal-field" hidden>' +
-                '<label>Bind Sales Rep</label>' +
-                '<input id="admin-sales-search" placeholder="Search sales name or email">' +
-                '<div id="admin-sales-selected"></div>' +
-                '<div id="admin-sales-results"></div>' +
+            '<label>Bind Sales Rep</label>' +
+            '<input id="admin-sales-search" placeholder="Search sales name or email">' +
+            '<div id="admin-sales-selected"></div>' +
+            '<div id="admin-sales-results"></div>' +
             '</div>' +
             '<button class="portal-btn portal-btn-primary portal-action-button" onclick="adminCreateUser()">Create User</button></div></div>';
         document.getElementById('new-user-role').addEventListener('change', function () {
@@ -1345,7 +1348,7 @@ window.showCustomerDashboard = showCustomerDashboard;
         document.getElementById('admin-sales-selected').innerHTML = '';
     };
 
-    window.adminCreateUser = async function() {
+    window.adminCreateUser = async function () {
         var email = document.getElementById('new-user-email').value.trim();
         var name = document.getElementById('new-user-name').value.trim();
         var role = document.getElementById('new-user-role').value;
@@ -1390,7 +1393,7 @@ window.showCustomerDashboard = showCustomerDashboard;
                 '<div class="portal-admin-kpi-grid" style="margin-bottom:1rem"><div class="portal-admin-kpi"><strong>' + otr + '</strong><span>On-time Rate</span><small>' + (ov.on_time_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div>' +
                 '<div class="portal-admin-kpi"><strong>' + cr + '</strong><span>Complaint Rate</span><small>' + (ov.complaint_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div></div>' +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
-                '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
+                    '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
         } catch (e) { main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') + renderErrorState('Unable to load orders.', e.message, 'Retry', 'showSalesOrders()'); }
     }
 
@@ -1439,9 +1442,9 @@ window.showCustomerDashboard = showCustomerDashboard;
         main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(user()), 'Create a new order.') +
             '<div class="portal-panel portal-panel-narrow"><h3>Create Order</h3>' +
             '<div class="portal-field"><label>Customer</label>' +
-                '<input id="order-customer-search" type="text" placeholder="Search customer name, company, or email">' +
-                '<div id="order-customer-selected"></div>' +
-                '<div id="order-customer-results"></div></div>' +
+            '<input id="order-customer-search" type="text" placeholder="Search customer name, company, or email">' +
+            '<div id="order-customer-selected"></div>' +
+            '<div id="order-customer-results"></div></div>' +
             '<div class="portal-field"><label>Title / Part Name</label><input id="new-order-title" type="text" placeholder="Widget Assembly"></div>' +
             '<div class="portal-field"><label>Estimated Delivery Date</label><input id="new-order-delivery-date" type="date"></div><div class="portal-field"><label>PO Number</label><input id="new-order-po" type="text" placeholder="Optional"></div>' +
             '<div class="portal-error" id="order-error" hidden></div>' +
@@ -1558,7 +1561,8 @@ window.showCustomerDashboard = showCustomerDashboard;
         } catch (e) { console.error('Order detail load failed:', e); main.innerHTML = renderErrorState('Unable to load order details.', e && e.message ? e.message : 'The order detail request or rendering failed.', 'Back to Orders', 'showSalesOrders()'); }
     }
 
-    function renderOrderDetail(o, updates, messages, media, isSales, detailErrors) { enterAppMode();
+    function renderOrderDetail(o, updates, messages, media, isSales, detailErrors) {
+        enterAppMode();
         detailErrors = detailErrors || {};
         setCurrentView('order-detail', { orderId: o.id, isSales: isSales });
         clearOrderChanged(o.id);
@@ -1576,16 +1580,16 @@ window.showCustomerDashboard = showCustomerDashboard;
             '<div id="order-stepper"></div>' +
             '<div class="portal-detail-grid">' +
             '<div>' +
-                '<div class="portal-section-title">Progress Timeline</div>' +
-                '<div id="order-timeline" class="portal-timeline"></div>' +
-                '<div id="order-messages"></div>' +
+            '<div class="portal-section-title">Progress Timeline</div>' +
+            '<div id="order-timeline" class="portal-timeline"></div>' +
+            '<div id="order-messages"></div>' +
             '</div>' +
             '<div>' +
-                '<div class="portal-section-title">Attachments</div>' +
-                '<div class="portal-media-grid" id="order-media"></div>' +
-                (isSales ? '<div class="portal-section-title">Actions</div><div class="portal-action-rail">' +
-                    '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpdate()">Go to Progress Form</button>' +
-                    '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpload()">Go to Attachment Upload</button></div>' : '') +
+            '<div class="portal-section-title">Attachments</div>' +
+            '<div class="portal-media-grid" id="order-media"></div>' +
+            (isSales ? '<div class="portal-section-title">Actions</div><div class="portal-action-rail">' +
+                '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpdate()">Go to Progress Form</button>' +
+                '<button class="portal-btn portal-btn-secondary" onclick="focusSalesUpload()">Go to Attachment Upload</button></div>' : '') +
             '</div></div>';
 
         patchOrderHeader(o, isSales);
@@ -1677,28 +1681,28 @@ window.showCustomerDashboard = showCustomerDashboard;
                 return '<button type="button" class="portal-stage-option' + cls + '" data-stage="' + k + '" onclick="selectStageOption(\'' + k + '\', \'' + stageLabels[k] + '\')">' + stageLabels[k] + '</button>';
             }).join('') + '</div>' +
             '<div id="stage-confirm" class="portal-stage-confirm" hidden>' +
-                '<p><span>Current</span><strong id="stage-confirm-current">' + esc(stageLabels[currentStage] || currentStage || 'N/A') + '</strong></p>' +
-                '<p><span>Switch to</span><strong id="stage-confirm-label"></strong></p>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm" onclick="updateOrderStage(' + orderId + ')">Update Stage</button>' +
-                '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button>' +
-                '<div id="stage-shipping-fields" class="portal-stage-shipping" hidden>' +
-                    '<p style="margin-top:.5rem"><select id="stage-shipping-method" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"><option value="">Method</option><option>DHL</option><option>FedEx</option><option>Sea</option><option>Other</option></select></p>' +
-                    '<p><input id="stage-shipping-tracking" placeholder="Tracking number" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"></p></div>' +
-                '</div></section>' +
+            '<p><span>Current</span><strong id="stage-confirm-current">' + esc(stageLabels[currentStage] || currentStage || 'N/A') + '</strong></p>' +
+            '<p><span>Switch to</span><strong id="stage-confirm-label"></strong></p>' +
+            '<button class="portal-btn portal-btn-primary portal-btn-sm" onclick="updateOrderStage(' + orderId + ')">Update Stage</button>' +
+            '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button>' +
+            '<div id="stage-shipping-fields" class="portal-stage-shipping" hidden>' +
+            '<p style="margin-top:.5rem"><select id="stage-shipping-method" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"><option value="">Method</option><option>DHL</option><option>FedEx</option><option>Sea</option><option>Other</option></select></p>' +
+            '<p><input id="stage-shipping-tracking" placeholder="Tracking number" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"></p></div>' +
+            '</div></section>' +
             '<section class="portal-action-card"><h4>Add Progress Update</h4>' +
             '<div class="portal-field"><input id="update-title" type="text" placeholder="Title" class="portal-input-full"></div>' +
             '<div class="portal-field"><input id="update-msg" type="text" placeholder="Message (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
-                '<input id="update-pct" class="portal-input-mini" type="number" min="0" max="100" placeholder="Progress %">' +
-                '<label class="portal-check"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div></section>' +
+            '<input id="update-pct" class="portal-input-mini" type="number" min="0" max="100" placeholder="Progress %">' +
+            '<label class="portal-check"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
+            '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div></section>' +
             '<section class="portal-action-card"><h4>Upload Attachment</h4>' +
-            '<div class="portal-field"><select id="upload-stage-key" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' + stageOrder.map(function(k) { return '<option value="' + k + '">' + (stageLabels[k] || k) + '</option>'; }).join('') + '</select></div>' +
+            '<div class="portal-field"><select id="upload-stage-key" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' + stageOrder.map(function (k) { return '<option value="' + k + '">' + (stageLabels[k] || k) + '</option>'; }).join('') + '</select></div>' +
             '<div class="portal-field"><input type="file" id="upload-file" accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"></div>' +
             '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
-                '<label class="portal-check"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
-                '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" id="upload-btn" onclick="uploadPhoto(' + orderId + ')">Upload</button></div></section>' +
+            '<label class="portal-check"><input type="checkbox" id="upload-public" checked> Visible to customer</label>' +
+            '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" id="upload-btn" onclick="uploadPhoto(' + orderId + ')">Upload</button></div></section>' +
             '</div>';
     }
 
@@ -1776,10 +1780,10 @@ window.showCustomerDashboard = showCustomerDashboard;
         var file = fileEl.files[0];
         if (!file) { alert('Select a file first.'); return; }
 
-        var maxSizes = { 'image/jpeg': 10*1024*1024, 'image/png': 10*1024*1024, 'image/webp': 10*1024*1024, 'application/pdf': 30*1024*1024, 'video/mp4': 100*1024*1024, 'video/webm': 100*1024*1024, 'video/quicktime': 100*1024*1024 };
-        var maxSize = 10*1024*1024;
-        for (var k in maxSizes) { if (file.type === k || (k === 'application/pdf' && file.name.toLowerCase().endsWith('.pdf')) || (k.indexOf('video/')===0 && file.name.toLowerCase().match(/\.(mp4|webm|mov)$/))) { maxSize = maxSizes[k]; break; } }
-        if (file.size > maxSize) { alert('File too large. Max ' + (maxSize/(1024*1024)) + 'MB for this type.'); return; }
+        var maxSizes = { 'image/jpeg': 10 * 1024 * 1024, 'image/png': 10 * 1024 * 1024, 'image/webp': 10 * 1024 * 1024, 'application/pdf': 30 * 1024 * 1024, 'video/mp4': 100 * 1024 * 1024, 'video/webm': 100 * 1024 * 1024, 'video/quicktime': 100 * 1024 * 1024 };
+        var maxSize = 10 * 1024 * 1024;
+        for (var k in maxSizes) { if (file.type === k || (k === 'application/pdf' && file.name.toLowerCase().endsWith('.pdf')) || (k.indexOf('video/') === 0 && file.name.toLowerCase().match(/\.(mp4|webm|mov)$/))) { maxSize = maxSizes[k]; break; } }
+        if (file.size > maxSize) { alert('File too large. Max ' + (maxSize / (1024 * 1024)) + 'MB for this type.'); return; }
 
         var caption = document.getElementById('upload-caption').value.trim();
         var pub = document.getElementById('upload-public').checked;
@@ -1792,9 +1796,9 @@ window.showCustomerDashboard = showCustomerDashboard;
 
         var statusEl = document.getElementById('upload-status');
         if (!statusEl) { statusEl = document.createElement('div'); statusEl.id = 'upload-status'; statusEl.className = 'portal-upload-status'; document.getElementById('upload-file').parentNode.appendChild(statusEl); }
-        statusEl.innerHTML = '<span>Uploading: ' + esc(file.name) + ' (' + (file.size/1024/1024).toFixed(1) + 'MB)</span><div class="portal-upload-bar"><div class="portal-upload-fill" id="upload-fill"></div></div><span id="upload-pct">0%</span>';
+        statusEl.innerHTML = '<span>Uploading: ' + esc(file.name) + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)</span><div class="portal-upload-bar"><div class="portal-upload-fill" id="upload-fill"></div></div><span id="upload-pct">0%</span>';
 
-        var controls = ['upload-btn','upload-file','upload-caption','upload-public','upload-stage-key'];
+        var controls = ['upload-btn', 'upload-file', 'upload-caption', 'upload-public', 'upload-stage-key'];
         controls.forEach(function (id) { var el = document.getElementById(id); if (el) el.disabled = true; });
 
         function unlockUpload() {
@@ -1807,11 +1811,11 @@ window.showCustomerDashboard = showCustomerDashboard;
         xhr.setRequestHeader('Authorization', 'Bearer ' + token());
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                var pct = Math.round(e.loaded/e.total*100);
+                var pct = Math.round(e.loaded / e.total * 100);
                 var fill = document.getElementById('upload-fill');
                 if (fill) fill.style.width = pct + '%';
                 var pctEl = document.getElementById('upload-pct');
-                if (pctEl) pctEl.textContent = pct + '%';
+                if (pctEl) { pctEl.textContent = pct >= 100 ? '100% - Processing on server...' : pct + '%'; }
             }
         };
         xhr.onload = function () {
@@ -1823,13 +1827,15 @@ window.showCustomerDashboard = showCustomerDashboard;
                 setTimeout(function () { if (statusEl) statusEl.innerHTML = ''; }, 2000);
                 refreshCurrentOrderMedia(orderId);
             } else {
-                var msg = 'Upload failed';
-                try { var r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch (e) {}
+                var msg = 'Upload failed with HTTP ' + xhr.status;
+                try { var r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch (e) { }
                 document.getElementById('upload-pct').textContent = msg;
                 unlockUpload();
             }
         };
-        xhr.onerror = function () { document.getElementById('upload-pct').textContent = 'Upload did not reach the server. Check network or file size.'; unlockUpload(); };
+        xhr.onerror = function () { document.getElementById('upload-pct').textContent = 'Network/CORS error. The API did not return a response. Check DevTools Network and server logs.'; unlockUpload(); };
+        xhr.ontimeout = function () { document.getElementById('upload-pct').textContent = 'Upload timed out after reaching the server. Please try again or use a smaller file.'; unlockUpload(); };
+        xhr.timeout = 180000;
         xhr.send(fd);
     };
 
@@ -1842,63 +1848,94 @@ window.showCustomerDashboard = showCustomerDashboard;
         return resp.url;
     }
 
+    function groupMediaByStage(media) {
+        var groups = {};
+        (media || []).forEach(function (m) {
+            var key = m.stage_key || 'unassigned';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(m);
+        });
+        var ordered = [];
+        stageOrder.forEach(function (stage) {
+            if (groups[stage] && groups[stage].length) ordered.push({ stage: stage, items: groups[stage] });
+        });
+        Object.keys(groups).forEach(function (stage) {
+            if (stageOrder.indexOf(stage) < 0) ordered.push({ stage: stage, items: groups[stage] });
+        });
+        return ordered;
+    }
+
+    async function renderAttachmentItem(orderId, m) {
+        var item = document.createElement('div');
+        item.className = 'portal-media-item';
+        var label = m.caption || m.original_filename || m.filename || 'Attachment';
+        try {
+            var ticketUrl = await getMediaTicket(orderId, m.id);
+            if (m.file_kind === 'video') {
+                var video = document.createElement('video');
+                video.controls = true;
+                video.preload = 'metadata';
+                video.src = ticketUrl;
+                video.className = 'portal-video-preview';
+                item.appendChild(video);
+            } else if (m.file_kind === 'pdf') {
+                var pdfLink = document.createElement('a');
+                pdfLink.href = ticketUrl + '?download=1';
+                pdfLink.className = 'portal-attachment-link';
+                pdfLink.target = '_blank';
+                pdfLink.textContent = label;
+                item.appendChild(pdfLink);
+            } else {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'portal-media-open';
+                button.setAttribute('aria-label', 'View full size: ' + label);
+                button.innerHTML = '<img src="' + ticketUrl + '" alt="' + esc(label) + '">';
+                button.addEventListener('click', function () { openPortalLightbox(ticketUrl, label); });
+                item.appendChild(button);
+            }
+            var meta = document.createElement('small');
+            meta.textContent = [m.file_kind || 'file', stageLabels[m.stage_key] || m.stage_key || 'Unassigned', m.caption || m.original_filename || ''].filter(Boolean).join(' · ');
+            item.appendChild(meta);
+        } catch (e) {
+            item.innerHTML = '<div class="portal-media-error">Attachment unavailable</div><small>' + esc(label) + '</small>';
+        }
+        return item;
+    }
+
     async function loadAuthorizedImages(orderId, media, gridId) {
         var grid = document.getElementById(gridId || 'media-grid');
         if (!grid) return;
-        var frag = document.createDocumentFragment();
-        for (var i = 0; i < media.length; i++) {
-            var m = media[i];
-            var item = document.createElement('div');
-            item.className = 'portal-media-item';
-            var label = m.caption || m.original_filename || m.filename || 'Attachment';
-            try {
-                var ticketUrl = await getMediaTicket(orderId, m.id);
-                if (m.file_kind === 'video') {
-                    var video = document.createElement('video');
-                    video.controls = true;
-                    video.preload = 'metadata';
-                    video.src = ticketUrl;
-                    video.style.cssText = 'width:100%;max-height:200px;display:block';
-                    item.appendChild(video);
-                } else if (m.file_kind === 'pdf') {
-                    var pdfLink = document.createElement('a');
-                    pdfLink.href = ticketUrl + '?download=1';
-                    pdfLink.className = 'portal-btn portal-btn-secondary portal-btn-sm';
-                    pdfLink.style.cssText = 'display:block;text-align:center;text-decoration:none;padding:1.5rem .5rem';
-                    pdfLink.innerHTML = '<div style="font-size:24px;margin-bottom:.25rem">📄</div><div>' + esc(label) + '</div>';
-                    pdfLink.target = '_blank';
-                    item.appendChild(pdfLink);
-                } else {
-                    var rawLabel = label;
-                    var safeLabel = esc(rawLabel);
-                    var button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'portal-media-open';
-                    button.setAttribute('aria-label', 'View full size: ' + rawLabel);
-                    button.innerHTML = '<img src="' + ticketUrl + '" alt="' + safeLabel + '">';
-                    button.addEventListener('click', (function (photoUrl, caption) {
-                        return function () { openPortalLightbox(photoUrl, caption); };
-                    })(ticketUrl, rawLabel));
-                    item.appendChild(button);
-                }
-                var captionEl = document.createElement('small');
-                captionEl.textContent = m.caption || '';
-                item.appendChild(captionEl);
-            } catch (e) {
-                item.innerHTML = '<div class="portal-media-error">Attachment unavailable</div><small>' + esc(m.caption || m.original_filename || m.filename || '') + '</small>';
-            }
-            frag.appendChild(item);
-        }
         grid.innerHTML = '';
-        grid.appendChild(frag);
-        if (!grid.children.length) { grid.innerHTML = '<div class="portal-empty">No attachments available.</div>'; }
+        if (!media || !media.length) {
+            grid.innerHTML = '<div class="portal-empty">No attachments available.</div>';
+            return;
+        }
+        var groups = groupMediaByStage(media);
+        for (var g = 0; g < groups.length; g++) {
+            var group = groups[g];
+            var section = document.createElement('section');
+            section.className = 'portal-attachment-group';
+            var title = document.createElement('div');
+            title.className = 'portal-attachment-group-title';
+            title.textContent = (stageLabels[group.stage] || group.stage || 'Unassigned') + ' · ' + group.items.length + ' file(s)';
+            section.appendChild(title);
+            var groupGrid = document.createElement('div');
+            groupGrid.className = 'portal-media-grid';
+            for (var i = 0; i < group.items.length; i++) {
+                var item = await renderAttachmentItem(orderId, group.items[i]);
+                groupGrid.appendChild(item);
+            }
+            section.appendChild(groupGrid);
+            grid.appendChild(section);
+        }
     }
 
     window.addEventListener('beforeunload', function () { mediaObjectUrls.forEach(function (u) { URL.revokeObjectURL(u); }); });
 
     function clearMediaUrls() { mediaObjectUrls.forEach(function (u) { URL.revokeObjectURL(u); }); mediaObjectUrls = []; }
 
-        /* ── Messages UI ── */
+    /* ── Messages UI ── */
     function renderMessages(messages, isSales, orderId) {
         var h = "<h3 class=\"portal-section-title portal-section-title-spaced\">Messages</h3>";
         if (messages && messages.length) {
@@ -1997,7 +2034,7 @@ window.showCustomerDashboard = showCustomerDashboard;
         }
     }
 
-    var stageOrder = ["order_confirmed","material_ready","machining","surface_treatment","quality_inspection","packing","shipped","received"];
+    var stageOrder = ["order_confirmed", "material_ready", "machining", "surface_treatment", "quality_inspection", "packing", "shipped", "received"];
 
 
     function selectedAttr(value, expected) {
@@ -2041,4 +2078,6 @@ window.showCustomerDashboard = showCustomerDashboard;
         }).join('') + '</div>';
     }
 
+    applyPortalBranding();
+    bootstrapPortal();
 })();

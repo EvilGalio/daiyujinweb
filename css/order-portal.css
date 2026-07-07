@@ -496,3 +496,8 @@ body.portal-authenticated .portal-login-layout { display: none; }
 .portal-upload-status span { display: block; margin-bottom: .25rem; color: var(--muted); }
 .portal-upload-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin: .25rem 0; }
 .portal-upload-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .2s; width: 0; }
+
+.portal-attachment-group { margin-bottom: 1rem; }
+.portal-attachment-group-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: .8rem 0 .5rem; padding: .35rem .55rem; background: #f8fafc; border-radius: var(--radius); }
+.portal-video-preview { width: 100%; max-height: 220px; display: block; background: #0f172a; }
+.portal-attachment-link { display: block; padding: 1.25rem .75rem; text-align: center; text-decoration: none; color: var(--ink); }
