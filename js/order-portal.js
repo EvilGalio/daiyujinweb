@@ -1840,10 +1840,13 @@
     function shouldUseR2Upload(file) {
         var mime = (file.type || '').toLowerCase();
         var name = (file.name || '').toLowerCase();
-        if (mime === 'application/pdf' || name.indexOf('.pdf') >= 0) return true;
+
+        if (mime.indexOf('image/') === 0) return true;
+        if (/\.(jpg|jpeg|png|webp)$/i.test(name)) return true;
+
+        if (mime === 'application/pdf' || name.endsWith('.pdf')) return true;
         if (mime.indexOf('video/') === 0) return true;
-        if ((file.size || 0) > 10 * 1024 * 1024) return true;
-        return /\.(mp4|webm|mov)$/.test(name);
+        return /\.(mp4|webm|mov)$/i.test(name);
     }
 
     function uploadToR2SignedUrl(uploadUrl, file, mime, onProgress) {
@@ -2034,7 +2037,8 @@
         item.className = 'portal-media-item';
         var label = m.caption || m.original_filename || m.filename || 'Attachment';
         try {
-            var ticketUrl = await getMediaTicket(orderId, m.id);
+            var ticketUrl = absoluteApiUrl(m.preview_url_path || m.url_path || '');
+            if (!ticketUrl) ticketUrl = await getMediaTicket(orderId, m.id);
             var preview = document.createElement('div');
             preview.className = 'portal-media-preview';
             if (m.file_kind === 'video') {

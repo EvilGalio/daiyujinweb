@@ -34,6 +34,7 @@ from services.r2_storage import (
 )
 
 logger = logging.getLogger(__name__)
+
 from models import (
     PortalSession,
     PortalUser,
@@ -134,6 +135,16 @@ ALLOWED_ATTACHMENTS = {
     ".mov":  ("video/quicktime",   "video", 100 * 1024 * 1024),
 }
 
+
+def _perf_start() -> float:
+    return time.perf_counter()
+
+
+def _perf_log(label: str, started_at: float, **fields):
+    duration_ms = int((time.perf_counter() - started_at) * 1000)
+    logger.info("portal_perf endpoint=%s duration_ms=%s fields=%s", label, duration_ms, fields)
+
+
 # Kept for backward compat — upload validation uses ALLOWED_ATTACHMENTS now
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_EXT  = {".jpg", ".jpeg", ".png", ".webp"}
@@ -186,7 +197,12 @@ def _portal_r2_soft_quota_bytes() -> int | None:
     return int(q * 1024 * 1024 * 1024)
 
 
-def _portal_r2_media_payload(media: PortalOrderMedia) -> dict:
+def _portal_r2_media_payload(media: PortalOrderMedia, user: dict | None = None, *, expires_in: int = 600) -> dict:
+    preview_url_path = ""
+    download_url_path = ""
+    if user is not None and media and media.id:
+        preview_url_path = _media_ticket_url_path(media.order_id, media, user, download=False)
+        download_url_path = _media_ticket_url_path(media.order_id, media, user, download=True)
     return {
         "id": media.id,
         "original_filename": media.original_filename,
@@ -198,8 +214,20 @@ def _portal_r2_media_payload(media: PortalOrderMedia) -> dict:
         "caption": media.caption,
         "visible_to_customer": bool(media.visible_to_customer),
         "storage_backend": media.storage_backend,
+        "preview_url_path": preview_url_path,
+        "download_url_path": download_url_path,
+        "expires_in": expires_in,
         "created_at": media.created_at.isoformat() if media.created_at else None,
     }
+
+
+def _media_ticket_url_path(order_id: int, media: PortalOrderMedia, user: dict, *, download: bool = False) -> str:
+    serializer = _media_ticket_serializer()
+    token = serializer.dumps({"o": order_id, "m": media.id, "u": user["id"], "r": user["role"]})
+    path = url_for("portal.portal_media_serve", token=token, _external=False)
+    if download:
+        return f"{path}?download=1"
+    return path
 
 
 def _validate_progress(val):
@@ -645,6 +673,7 @@ def sales_create_customer():
 
 @portal_bp.get("/orders")
 def portal_orders_list():
+    t0 = _perf_start()
     u, err = _require_authenticated()
     if err: return err
 
@@ -675,6 +704,7 @@ def portal_orders_list():
         results = [_order_summary(o, customer=customers.get(o.customer_user_id)) for o in rows]
         if d_stat:
             results = [r for r in results if r["display_status"] == d_stat]
+        _perf_log("orders", t0, user_id=u.get("id"), role=u.get("role"), rows=len(results))
         return jsonify({"error": False, "orders": results})
     finally:
         session.close()
@@ -965,13 +995,8 @@ def portal_order_media_list(order_id):
         if u["role"] == "customer":
             q = q.filter(PortalOrderMedia.visible_to_customer == True)
         rows = q.all()
-        return jsonify({"error": False, "media": [{
-            "id": m.id, "caption": m.caption, "filename": m.original_filename,
-            "original_filename": m.original_filename, "file_kind": m.file_kind or "image",
-            "mime_type": m.mime_type, "stage_key": m.stage_key,
-            "file_size": m.file_size, "visible_to_customer": bool(m.visible_to_customer),
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        } for m in rows]})
+        media_payloads = [_portal_r2_media_payload(m, u) for m in rows]
+        return jsonify({"error": False, "media": media_payloads})
     finally:
         session.close()
 
@@ -1280,7 +1305,7 @@ def sales_upload_media_r2_complete(order_id):
             media = session.query(PortalOrderMedia).filter_by(id=pending.media_id, order_id=order.id).first()
             if not media:
                 return _fail_complete("Completed media record not found", 404)
-            return jsonify({"error": False, "media": _portal_r2_media_payload(media), "media_id": media.id, "filename": media.original_filename})
+            return jsonify({"error": False, "media": _portal_r2_media_payload(media, u), "media_id": media.id, "filename": media.original_filename})
 
         if pending.status not in {"pending", "failed"}:
             return _fail_complete("Upload session is not active", 409)
@@ -1347,7 +1372,7 @@ def sales_upload_media_r2_complete(order_id):
         session.commit()
         notify_portal_events()
         current_app.logger.info("portal_r2_upload_complete order_id=%s media_id=%s filename=%s", order.id, media.id, media.original_filename)
-        return jsonify({"error": False, "media": _portal_r2_media_payload(media), "media_id": media.id, "filename": media.original_filename})
+        return jsonify({"error": False, "media": _portal_r2_media_payload(media, u), "media_id": media.id, "filename": media.original_filename})
     except Exception:
         if session is not None:
             session.rollback()
@@ -1890,7 +1915,7 @@ def portal_events_stream():
                 except: pass
             hb = json.dumps({"ts": datetime.utcnow().isoformat()})
             yield f"event: heartbeat\ndata: {hb}\n\n"
-            wait_for_portal_events(timeout=1.0)
+            wait_for_portal_events(timeout=15.0)
 
     return Response(stream(), mimetype="text/event-stream", headers={
         "Cache-Control": "no-cache",
@@ -1904,6 +1929,7 @@ def portal_events_stream():
 
 @portal_bp.get("/snapshot")
 def portal_snapshot():
+    t0 = _perf_start()
     u, err = _require_authenticated()
     if err: return err
 
@@ -1924,22 +1950,13 @@ def portal_snapshot():
 
         result = []
         for o in orders:
-            updates_q = session.query(PortalOrderUpdate).filter_by(order_id=o.id)
-            media_q = session.query(PortalOrderMedia).filter_by(order_id=o.id)
-            if u["role"] == "customer":
-                updates_q = updates_q.filter(PortalOrderUpdate.visible_to_customer == True)
-                media_q = media_q.filter(PortalOrderMedia.visible_to_customer == True)
             result.append({
                 "id": o.id, "order_no": o.order_no, "title": o.title,
                 "status": o.status, "current_stage": o.current_stage,
                 "estimated_delivery_date": o.estimated_delivery_date,
                 "updated_at": o.updated_at.isoformat() if o.updated_at else None,
-                "counts": {
-                    "updates": updates_q.count(),
-                    "messages": session.query(PortalMessage).filter_by(order_id=o.id).count(),
-                    "media": media_q.count(),
-                }
             })
+        _perf_log("snapshot", t0, user_id=u.get("id"), rows=len(result))
         return jsonify({"error": False, "server_time": datetime.utcnow().isoformat(), "latest_event_id": latest_event_id, "orders": result})
     finally:
         session.close()
@@ -1965,10 +1982,16 @@ def portal_media_ticket(order_id, media_id):
         if u["role"] == "customer" and not media.visible_to_customer:
             return jsonify({"error": True, "message": "Not found"}), 404
 
-        serializer = _media_ticket_serializer()
-        token = serializer.dumps({"o": order_id, "m": media_id, "u": u["id"], "r": u["role"]})
-        url_path = url_for("portal.portal_media_serve", token=token, _external=False)
-        return jsonify({"error": False, "url": url_path, "url_path": url_path, "expires_in": 600})
+        preview_url_path = _media_ticket_url_path(order.id, media, u, download=False)
+        download_url_path = _media_ticket_url_path(order.id, media, u, download=True)
+        return jsonify({
+            "error": False,
+            "url": preview_url_path,
+            "url_path": preview_url_path,
+            "preview_url_path": preview_url_path,
+            "download_url_path": download_url_path,
+            "expires_in": 600,
+        })
     finally:
         session.close()
 

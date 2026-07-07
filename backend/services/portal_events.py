@@ -13,7 +13,7 @@ def notify_portal_events():
         _EVENT_CONDITION.notify_all()
 
 
-def wait_for_portal_events(timeout=1.0):
+def wait_for_portal_events(timeout=15.0):
     with _EVENT_CONDITION:
         _EVENT_CONDITION.wait(timeout)
 
