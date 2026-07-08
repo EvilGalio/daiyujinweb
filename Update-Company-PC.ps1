@@ -4,12 +4,9 @@ Pull framework/code changes on the company PC while preserving local data.
 Usage:
   .\Update-Company-PC.ps1
 
-This script keeps local application data untouched:
-- backend/data
-- backend/uploads
-- backend/static/thumbnails
-- backend/static/stl
-- backend/.env
+Before pulling code, this script creates one unified Order Portal backup via
+Backup-OrderPortal.ps1. Backup packages live under:
+  local_backups/order_portal
 #>
 
 [CmdletBinding()]
@@ -34,7 +31,8 @@ $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $BackendRoot = Join-Path $ProjectRoot "backend"
 $LogPath = Join-Path $ProjectRoot "company-update.log"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$RuntimeBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "runtime-$Stamp"
+$OrderPortalBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "order_portal"
+$UpdatePatchBackupRoot = Join-Path $OrderPortalBackupRoot "update_patches"
 $Script:GitProxyResolved = $false
 $Script:ResolvedGitProxy = ""
 
@@ -198,7 +196,7 @@ function Save-TrackedLocalChanges {
     Write-Warn "Tracked local code changes found. They will be stashed before pull and not automatically reapplied."
     $trackedChanges | ForEach-Object { Write-Note $_ }
 
-    $backupDir = Join-Path $ProjectRoot "local_backups"
+    $backupDir = $UpdatePatchBackupRoot
     New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
     $patchPath = Join-Path $backupDir "tracked-code-changes-$Stamp.patch"
@@ -234,6 +232,7 @@ function Ensure-RuntimeDirectories {
     Write-Step "Ensuring runtime directories"
     $dirs = @(
         (Join-Path $BackendRoot "data"),
+        (Join-Path $BackendRoot "private\order_media"),
         (Join-Path $BackendRoot "uploads"),
         (Join-Path $BackendRoot "static\thumbnails"),
         (Join-Path $BackendRoot "static\stl")
@@ -241,69 +240,6 @@ function Ensure-RuntimeDirectories {
     foreach ($dir in $dirs) {
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
         Write-Note "Directory ready: $dir"
-    }
-}
-
-function Backup-LocalRuntimeState {
-    Write-Step "Backing up local runtime state before git pull"
-    New-Item -ItemType Directory -Force -Path $RuntimeBackupRoot | Out-Null
-
-    $items = @(
-        @{ Source = (Join-Path $BackendRoot "data"); Relative = "backend\data" },
-        @{ Source = (Join-Path $BackendRoot "uploads"); Relative = "backend\uploads" },
-        @{ Source = (Join-Path $BackendRoot "static\thumbnails"); Relative = "backend\static\thumbnails" },
-        @{ Source = (Join-Path $BackendRoot "static\stl"); Relative = "backend\static\stl" },
-        @{ Source = (Join-Path $BackendRoot ".env"); Relative = "backend\.env" }
-    )
-
-    foreach ($item in $items) {
-        $src = $item.Source
-        if (-not (Test-Path -LiteralPath $src)) {
-            Write-Note "Runtime item not present, skipping backup: $src"
-            continue
-        }
-
-        $dst = Join-Path $RuntimeBackupRoot $item.Relative
-        $dstParent = Split-Path -Parent $dst
-        New-Item -ItemType Directory -Force -Path $dstParent | Out-Null
-        Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force
-        Write-Note "Backed up runtime item: $src"
-    }
-
-    Write-Note "Runtime backup root: $RuntimeBackupRoot"
-}
-
-function Restore-LocalRuntimeState {
-    Write-Step "Restoring local runtime state after git pull"
-    if (-not (Test-Path -LiteralPath $RuntimeBackupRoot)) {
-        Write-Warn "Runtime backup root not found: $RuntimeBackupRoot"
-        return
-    }
-
-    $items = @(
-        @{ Source = (Join-Path $RuntimeBackupRoot "backend\data"); Target = (Join-Path $BackendRoot "data") },
-        @{ Source = (Join-Path $RuntimeBackupRoot "backend\uploads"); Target = (Join-Path $BackendRoot "uploads") },
-        @{ Source = (Join-Path $RuntimeBackupRoot "backend\static\thumbnails"); Target = (Join-Path $BackendRoot "static\thumbnails") },
-        @{ Source = (Join-Path $RuntimeBackupRoot "backend\static\stl"); Target = (Join-Path $BackendRoot "static\stl") }
-    )
-
-    foreach ($item in $items) {
-        $src = $item.Source
-        $target = $item.Target
-        if (-not (Test-Path -LiteralPath $src)) {
-            continue
-        }
-        New-Item -ItemType Directory -Force -Path $target | Out-Null
-        Get-ChildItem -LiteralPath $src -Force | ForEach-Object {
-            Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
-        }
-        Write-Note "Restored runtime folder: $target"
-    }
-
-    $envBackup = Join-Path $RuntimeBackupRoot "backend\.env"
-    if (Test-Path -LiteralPath $envBackup) {
-        Copy-Item -LiteralPath $envBackup -Destination (Join-Path $BackendRoot ".env") -Force
-        Write-Note "Restored backend .env"
     }
 }
 
@@ -326,23 +262,27 @@ function Test-LocalDataPresence {
     }
 }
 
-function Backup-Database {
+function Backup-OrderPortalBeforeUpdate {
     if ($SkipDatabaseBackup) {
-        Write-Warn "Skipping database backup."
+        Write-Warn "Skipping unified Order Portal backup before update."
         return
     }
 
-    $db = Join-Path $BackendRoot "data\daiyujin.db"
-    if (-not (Test-Path -LiteralPath $db)) {
-        Write-Warn "Database not found at $db. Skipping backup."
-        return
+    $backupScript = Join-Path $ProjectRoot "Backup-OrderPortal.ps1"
+    if (-not (Test-Path -LiteralPath $backupScript)) {
+        throw "Backup-OrderPortal.ps1 not found. Refusing to update without a unified production backup."
     }
 
-    $backupDir = Join-Path $ProjectRoot "local_backups"
-    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-    $backupPath = Join-Path $backupDir "daiyujin-$Stamp.db"
-    Copy-Item -LiteralPath $db -Destination $backupPath -Force
-    Write-Note "Database backup created: $backupPath"
+    New-Item -ItemType Directory -Force -Path $OrderPortalBackupRoot | Out-Null
+    $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Run-Native -FilePath $ps -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $backupScript,
+        "-ProjectRoot", $ProjectRoot,
+        "-BackupRoot", $OrderPortalBackupRoot,
+        "-Mode", "Daily"
+    ) -Name "Creating unified Order Portal backup before update"
 }
 
 function Pull-FrameworkChanges {
@@ -461,10 +401,8 @@ try {
     Write-Note "ProjectRoot: $ProjectRoot"
 
     Ensure-RuntimeDirectories
-    Backup-LocalRuntimeState
-    Backup-Database
+    Backup-OrderPortalBeforeUpdate
     Pull-FrameworkChanges
-    Restore-LocalRuntimeState
     Ensure-RuntimeDirectories
     Test-LocalDataPresence
     Install-Dependencies

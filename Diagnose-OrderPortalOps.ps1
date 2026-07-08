@@ -204,7 +204,8 @@ function Add-TaskReport {
     Add-Section "Scheduled Tasks"
     $taskNames = @(
         "Daiyujin Order Portal Daily Backup",
-        "Daiyujin Order Portal Weekly Backup"
+        "Daiyujin Order Portal Weekly Backup",
+        "Daiyujin Order Portal Monthly Backup"
     )
     foreach ($name in $taskNames) {
         $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
@@ -386,8 +387,11 @@ function Add-ScriptReport {
     $updateScript = Join-Path $ProjectRoot "Update-Company-PC.ps1"
     if (Test-Path -LiteralPath $updateScript) {
         $content = Get-Content -LiteralPath $updateScript -Raw -Encoding UTF8
-        if ($content -match 'Join-Path \$ProjectRoot "local_backups"') {
-            Add-Warn "Update-Company-PC.ps1 still writes update backups to root local_backups, separate from order_portal backup root."
+        if ($content -match 'Backup-LocalRuntimeState|Restore-LocalRuntimeState|function\s+Backup-Database') {
+            Add-Warn "Update-Company-PC.ps1 still contains legacy runtime/database backup functions. It should use Backup-OrderPortal.ps1 before git pull."
+        }
+        if ($content -notmatch 'Backup-OrderPortalBeforeUpdate') {
+            Add-Warn "Update-Company-PC.ps1 does not call the unified Order Portal backup before git pull."
         }
     }
 }

@@ -8,7 +8,7 @@ Examples:
   $env:ORDER_PORTAL_BACKUP_PASSWORD = "your-strong-password"
   .\Backup-OrderPortal.ps1 -Mode Daily
   .\Backup-OrderPortal.ps1 -CleanLegacyBackups -DryRun
-  .\Backup-OrderPortal.ps1 -InstallTask
+  .\Backup-OrderPortal.ps1 -InstallTask   # installs daily, weekly, and monthly tasks
 #>
 
 [CmdletBinding()]
@@ -25,6 +25,7 @@ param(
     [switch]$DryRun,
     [switch]$InstallTask,
     [switch]$InstallWeeklyTask,
+    [switch]$InstallMonthlyTask,
 
     [int]$DailyKeep = 14,
     [int]$WeeklyKeep = 8,
@@ -458,12 +459,22 @@ function Install-BackupTasks {
     Register-ScheduledTask -TaskName "Daiyujin Order Portal Daily Backup" -Action $dailyAction -Trigger $dailyTrigger -Description "Create encrypted Order Portal daily backup for Syncthing." -Force | Out-Null
     Write-Log "Installed scheduled task: Daiyujin Order Portal Daily Backup"
 
-    if ($InstallWeeklyTask) {
-        $weeklyAction = New-ScheduledTaskAction -Execute $ps -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Mode Weekly"
-        $weeklyTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 3:00AM
-        Register-ScheduledTask -TaskName "Daiyujin Order Portal Weekly Backup" -Action $weeklyAction -Trigger $weeklyTrigger -Description "Create encrypted Order Portal weekly backup for Syncthing." -Force | Out-Null
-        Write-Log "Installed scheduled task: Daiyujin Order Portal Weekly Backup"
+    $weeklyAction = New-ScheduledTaskAction -Execute $ps -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Mode Weekly"
+    $weeklyTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 3:00AM
+    Register-ScheduledTask -TaskName "Daiyujin Order Portal Weekly Backup" -Action $weeklyAction -Trigger $weeklyTrigger -Description "Create encrypted Order Portal weekly backup for Syncthing." -Force | Out-Null
+    Write-Log "Installed scheduled task: Daiyujin Order Portal Weekly Backup"
+
+    $schtasks = "$env:SystemRoot\System32\schtasks.exe"
+    if (-not (Test-Path -LiteralPath $schtasks)) {
+        throw "Cannot install monthly task because schtasks.exe is not found: $schtasks"
     }
+    $monthlyTaskName = "Daiyujin Order Portal Monthly Backup"
+    $monthlyCommand = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Mode Monthly"
+    & $schtasks /Create /TN $monthlyTaskName /TR $monthlyCommand /SC MONTHLY /D 1 /ST 03:30 /F | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to install scheduled task: $monthlyTaskName"
+    }
+    Write-Log "Installed scheduled task: $monthlyTaskName"
 }
 
 try {
