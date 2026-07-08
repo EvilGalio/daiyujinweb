@@ -37,13 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const singleGradeSelect = $("[data-single-grade]");
 
     let currentResult = null;
-    const singleClassRegex = /^[A-Za-z]{1,2}\d{1,2}$/;
 
     drawPlaceholderFitmap();
 
-    hydratePresets();
-    hydrateCapabilities();
-    setMode("common");
+    initControls();
 
     fitModeGroup.addEventListener("change", () => {
         const mode = fitModeGroup.querySelector("input:checked")?.value || "common";
@@ -183,35 +180,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return payload;
         }
 
-        const combination = String(fitInput.value || "").trim();
         const holeFromSelectors = composeTolerance(holeZoneSelect?.value, holeGradeSelect?.value);
         const shaftFromSelectors = composeTolerance(shaftZoneSelect?.value, shaftGradeSelect?.value);
 
         if (mode === "common") {
+            const combination = String(presetSelect?.value || fitInput.value || "").trim();
             if (!combination) {
-                showValidation("Enter a fit combination like H7/g6.");
+                showValidation("Choose a common fit.");
                 return null;
             }
             if (!combination.includes("/")) {
-                showValidation("Common mode expects a fit combination like H7/g6.");
+                showValidation("Common mode expects a hole-shaft fit like H7/g6.");
                 return null;
             }
-            payload.fit_combination = combination;
-            return payload;
-        }
-
-        if (combination && singleClassRegex.test(combination)) {
-            if (holeFromSelectors && shaftFromSelectors) {
-                payload.hole_tolerance = holeFromSelectors;
-                payload.shaft_tolerance = shaftFromSelectors;
-                return payload;
-            }
-            payload.hole_tolerance = combination;
-            payload.mode = "hole";
-            return payload;
-        }
-
-        if (combination && combination.includes("/")) {
             payload.fit_combination = combination;
             return payload;
         }
@@ -235,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return payload;
         }
 
-        showValidation("Fill hole basis, shaft basis, or enter a fit combination.");
+        showValidation("Choose hole basis and/or shaft basis.");
         return null;
     }
 
@@ -248,24 +229,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const isCustom = mode === "custom";
         const isSingle = mode === "single";
 
-        presetGroup.style.display = isCommon ? "" : "none";
-        customGroup.style.display = isCommon || isCustom ? "" : "none";
-        customBasisGroup.style.display = isCustom ? "" : "none";
-        singleGroup.style.display = isSingle ? "" : "none";
+        presetGroup.hidden = !isCommon;
+        customGroup.hidden = true;
+        customBasisGroup.hidden = !isCustom;
+        singleGroup.hidden = !isSingle;
 
         fitModeGroup.querySelectorAll("label").forEach((l) => l.classList.remove("active"));
         const active = fitModeGroup.querySelector(`input[value="${mode}"]`);
         active?.closest("label")?.classList.add("active");
         if (isCustom) {
             fitInput.value = "";
-            fitInput.placeholder = "H7/g6 or leave blank to use selectors";
         } else if (isCommon) {
             fitInput.value = presetSelect.value || "H7/g6";
-            fitInput.placeholder = "e.g. H7/g6";
         } else if (isSingle) {
             const basis = getSingleBasis();
             fitInput.value = basis === "hole" ? "H7" : "h6";
-            fitInput.placeholder = "Single zone will be built from selectors";
         }
     }
 
@@ -365,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <text x="586" y="124" fill="#94a3b8" font-size="11" font-weight="600">0</text>
             <text x="586" y="112" fill="#94a3b8" font-size="9">Basic size</text>
             <rect x="185" y="116" width="230" height="4" rx="2" fill="#e2e8f0" opacity="0.6"/>
-            <text x="300" y="150" text-anchor="middle" fill="#94a3b8" font-size="11">Enter basic size and fit input above</text>
+            <text x="300" y="150" text-anchor="middle" fill="#94a3b8" font-size="11">Choose a fit mode and calculate</text>
         </svg>`;
     }
 
@@ -582,10 +560,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                         presetSelect.appendChild(optgroup);
                     }
+                    if (!presetSelect.value && presetSelect.options.length > 0) {
+                        presetSelect.value = presetSelect.options[0].value;
+                    }
+                    if (presetSelect.value) fitInput.value = presetSelect.value;
                 }
             } else {
                 if (datalist) datalist.innerHTML = presets.map((p) => `<option value="${esc(p)}"></option>`).join("");
-                if (presetSelect) presetSelect.innerHTML = presets.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("");
+                if (presetSelect) {
+                    presetSelect.innerHTML = presets.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("");
+                    if (presetSelect.value) fitInput.value = presetSelect.value;
+                }
             }
         } catch (e) {
             // silently fail
@@ -646,6 +631,12 @@ document.addEventListener("DOMContentLoaded", () => {
             select.appendChild(option);
         }
         if (select.children.length > 0) select.value = select.children[0].value;
+    }
+
+    async function initControls() {
+        await hydrateCapabilities();
+        await hydratePresets();
+        setMode("common");
     }
 
     function syncSingleSelectors() {

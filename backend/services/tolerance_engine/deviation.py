@@ -77,8 +77,8 @@ def _table_lookup(kind: str, zone: str, size_range: str, it: float, lo_sym: str,
     it_int = int(it) if isinstance(it, float) and it == int(it) else int(it)
 
     if kind == "hole":
-        if zone in ("G",):
-            # G: EI = +fd, ES = EI + IT  (fd is absolute positive)
+        if zone in ("B", "C", "D", "E", "F", "G"):
+            # A-G holes: EI = +fd, ES = EI + IT  (fd is absolute positive)
             ei = fd
             es = ei + it_int
         else:
@@ -88,8 +88,8 @@ def _table_lookup(kind: str, zone: str, size_range: str, it: float, lo_sym: str,
         return {"lower_um": ei, "upper_um": es, "lower_sym": lo_sym, "upper_sym": up_sym}
     else:
         # Shaft
-        if zone in ("f", "g"):
-            # f, g: es = fd (direct negative), ei = es - IT
+        if zone in ("b", "c", "d", "e", "f", "g"):
+            # a-g shafts: es = fd (direct negative), ei = es - IT
             es = fd
             ei = es - it_int
         else:

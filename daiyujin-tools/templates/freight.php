@@ -30,9 +30,6 @@
                             <label>
                                 <input type="radio" id="currency-eur" name="currency" value="EUR"> EUR
                             </label>
-                            <label>
-                                <input type="radio" id="currency-cny" name="currency" value="CNY"> CNY
-                            </label>
                         </div>
                     </div>
                     <button class="tool-button" type="submit">Get Estimate</button>
@@ -42,7 +39,7 @@
                     <h2>DHL Freight</h2>
                     <section class="tool-result dhl-result" data-freight-result data-state="idle" aria-live="polite">
                         <div class="carrier-card">
-                            <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight</div>
+                            <div class="freight-receipt-title">DHL Freight</div>
                             <div class="metric-row">
                                 <span>Freight total</span>
                                 <strong>USD 0.00</strong>

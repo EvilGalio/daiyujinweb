@@ -483,10 +483,10 @@ body.tool-page {
 .tol-controls { margin-top: 1.5rem; }
 
 .tol-control-strip {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(120px, .65fr) minmax(260px, auto) minmax(320px, 1.35fr) minmax(150px, auto);
     align-items: flex-end;
     gap: 1rem;
-    flex-wrap: wrap;
     padding: 1.25rem;
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -673,6 +673,16 @@ body.tool-page {
     border-radius: 2px;
 }
 
+.tol-control-field[hidden] {
+    display: none;
+}
+
+.tol-control-field[data-preset-group],
+.tol-control-field[data-custom-basis-group],
+.tol-control-field[data-single-group] {
+    min-width: 280px;
+}
+
 .tol-legend-bore { background: #0066cc; }
 .tol-legend-shaft { background: #dc5c26; }
 .tol-legend-clearance { background: #22c55e; }
@@ -763,8 +773,8 @@ body.tool-page {
     50% { opacity: 0.7; }
 }
 
-@media (max-width: 720px) {
-    .tol-control-strip { flex-direction: column; align-items: stretch; }
+@media (max-width: 920px) {
+    .tol-control-strip { grid-template-columns: 1fr; align-items: stretch; }
     .tol-detail-cards { grid-template-columns: 1fr; }
     .tol-summary { flex-direction: column; gap: 0.75rem; }
 }
@@ -1722,4 +1732,52 @@ footer {
     color: var(--muted);
     font-size: 0.82rem;
 }
-`r`n
+
+/* Freight receipt refinement */
+.freight-receipt-title {
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+    color: var(--ink);
+}
+
+.freight-total {
+    font-family: var(--font-display, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0;
+    margin: 0.75rem 0 1rem;
+}
+
+.freight-destination-row {
+    border-top: 1px solid var(--line);
+    padding-top: 0.75rem;
+}
+
+.freight-loading-copy,
+.freight-note {
+    margin-top: 0.5rem;
+    color: var(--muted);
+}
+
+.freight-progress {
+    position: relative;
+    inset: auto;
+    padding: 0.85rem 0 0.25rem;
+}
+
+.freight-progress-bar,
+.freight-progress-text {
+    max-width: 280px;
+}
+
+.freight-progress-text {
+    gap: 0.65rem;
+}
+
+.freight-progress-phase {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -6,14 +6,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultsArea = document.querySelector("[data-results-area]");
     const familyFilter = document.querySelector("[data-filter-family]");
     const standardFilter = document.querySelector("[data-filter-standard]");
-    const confidenceFilter = document.querySelector("[data-filter-confidence]");
     if (!input || !btn || !resultsArea) return;
 
     function getFilters() {
         return {
             family: (familyFilter && familyFilter.value) || "",
             standard: (standardFilter && standardFilter.value) || "",
-            minConfidence: (confidenceFilter && confidenceFilter.value) || "",
         };
     }
 
@@ -26,7 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
         params.set("limit", "10");
         if (filters.family) params.set("family", filters.family);
         if (filters.standard) params.set("standard", filters.standard);
-        if (filters.minConfidence) params.set("min_confidence", filters.minConfidence);
 
         resultsArea.innerHTML = '<div class="tool-note">Searching&hellip;</div>';
         try {
@@ -57,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const disclaimer = results[0].equivalence_disclaimer || "";
         resultsArea.innerHTML = results.map(r => {
             const s = r.standards || {};
             const cols = [
@@ -66,22 +62,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 ["GB", s.GB_CN], ["BS", s.BS_GB], ["AFNOR", s.AFNOR_FR], ["UNE", s.UNE_ES],
                 ["UNI", s.UNI_IT], ["CSA", s.CSA_CA], ["SIS", s.SIS_SE], ["WNr", s.WNr],
             ].filter(c => c[1]);
-            const confidenceText = typeof r.confidence === "number" ? r.confidence.toFixed(2) : "N/A";
-            const sourceText = (r.source_ids || []).length ? `Sources: ${r.source_ids.join(", ")}` : "Sources: N/A";
-            const badge = r.review_status === "verified" ? "<span class=\"mat-badge ok\">Verified</span>" : "<span class=\"mat-badge warn\">Needs Review</span>";
             return `<div class=\"mat-result-card\">
                 <div class=\"mat-result-header\">
                     <span class=\"mat-result-name\">${esc(r.common_name)}</span>
                     <span class=\"mat-result-family\">${esc(r.material_family)}</span>
-                    ${badge}
-                    <span class=\"mat-badge ${r.confidence_label === "high" ? "ok" : "warn"}\">${esc((r.confidence_label || "").toUpperCase())}</span>
                 </div>
-                <div class=\"tool-note mat-result-meta\">Confidence ${esc(confidenceText)} &middot; ${esc(sourceText)}</div>
                 <div class=\"mat-standards-grid\">${cols.map(
                     c => `<div class=\"mat-std-item\"><span class=\"mat-std-key\">${esc(c[0])}</span><span class=\"mat-std-val\">${esc(c[1])}</span></div>`
                 ).join("")}</div>
                 ${r.notes ? `<div class=\"tool-note\">${esc(r.notes)}</div>` : ""}
-                ${disclaimer ? `<div class=\"tool-note\">${esc(disclaimer)}</div>` : ""}
             </div>`;
         }).join("");
     }
@@ -111,22 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ).join("");
     }
 
-    function initConfidenceFilter() {
-        if (!confidenceFilter) return;
-        if (!confidenceFilter.options || !confidenceFilter.options.length) {
-            confidenceFilter.innerHTML = `
-                <option value="">Any confidence</option>
-                <option value="high">High (0.90+)</option>
-                <option value="medium">Medium (0.75+)</option>
-                <option value="low">Low</option>
-            `;
-        }
-    }
-
     btn.addEventListener("click", doSearch);
     input.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
     initStandardFilter();
-    initConfidenceFilter();
     loadFamilies();
 
     function esc(v) { return String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"})[c]); }

@@ -17,12 +17,6 @@
         <select class="mat-search-filter" data-filter-standard>
             <option value="">All Standards</option>
         </select>
-        <select class="mat-search-filter" data-filter-confidence>
-            <option value="">Any confidence</option>
-            <option value="high">High (0.90+)</option>
-            <option value="medium">Medium (0.75+)</option>
-            <option value="low">Low</option>
-        </select>
     </div>
     <div class="mat-results" data-results-area>
         <div class="tool-note">Enter a material designation above to find equivalent standards.</div>

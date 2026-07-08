@@ -46,26 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${escapeHtml((currency || "USD").toUpperCase())} ${n.toFixed(2)}`;
     }
 
-    function formatWeight(value) {
-        return `${parseNumber(value, 0).toFixed(2)} kg`;
-    }
-
-    function validUntilDate(days = 14) {
-        const d = new Date();
-        d.setDate(d.getDate() + days);
-        return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" });
-    }
-
     function setState(state) {
         resultEl.dataset.state = state;
-    }
-
-    function formalShippingUrl() {
-        return CONFIG.formalShippingUrl || CONFIG.formalQuoteUrl || CONFIG.engineerContactUrl || "https://mfg-solution.com/request-quote/";
-    }
-
-    function formalShippingLabel() {
-        return CONFIG.formalShippingLabel || CONFIG.formalQuoteLabel || "Request Formal Shipping Confirmation";
     }
 
     function selectedCurrency() {
@@ -147,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setState("idle");
         resultEl.innerHTML = `
             <div class="carrier-card">
-                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight</div>
+                <div class="freight-receipt-title">DHL Freight</div>
                 <div class="metric-row">
                     <span>Freight total</span>
                     <strong>USD 0.00</strong>
@@ -165,41 +147,24 @@ document.addEventListener("DOMContentLoaded", () => {
         setState("error");
         resultEl.innerHTML = `
             <div class="carrier-card">
-                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">Freight estimate failed</div>
+                <div class="freight-receipt-title">Freight estimate failed</div>
                 <div class="tool-note error">${escapeHtml(message || "We are temporarily unable to fetch freight estimate.")}</div>
-                <div class="tool-note" style="margin-top:.5rem;">Please verify destination and weight, then retry.</div>
+                <div class="tool-note freight-note">Please verify destination and weight, then retry.</div>
             </div>
         `;
     }
 
     function renderDoneState(payload, response) {
         const amount = formatMoney(response.amount, response.currency || payload.currency || "USD");
-        const chargeable = response.charge_weight_kg || response.chargeable_weight_kg || response.chargeable_weight || payload.weight_kg;
-        const ctaUrl = formalShippingUrl();
-        const ctaLabel = formalShippingLabel();
-        const validDate = response.valid_until || validUntilDate(14);
         setState("done");
         resultEl.innerHTML = `
             <div class="carrier-card">
-                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight Receipt</div>
-                <div class="metric-row">
-                    <span>Freight total</span>
-                    <strong>${amount}</strong>
-                </div>
-                <div class="metric-row">
-                    <span>Chargeable weight</span>
-                    <strong>${formatWeight(chargeable)}</strong>
-                </div>
-                <div class="metric-row">
+                <div class="freight-receipt-title">DHL Freight Receipt</div>
+                <div class="freight-total">${amount}</div>
+                <div class="metric-row freight-destination-row">
                     <span>Destination</span>
                     <strong>${escapeHtml(response.country || payload.country)}</strong>
                 </div>
-                <div class="metric-row">
-                    <span>Valid date</span>
-                    <strong>${escapeHtml(validDate)}</strong>
-                </div>
-                <div class="tool-note" style="margin-top:.5rem;">Includes applicable surcharge assumptions.</div>
-                <a class="tool-button" href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener">${escapeHtml(ctaLabel)}</a>
             </div>
         `;
     }
@@ -208,8 +173,8 @@ document.addEventListener("DOMContentLoaded", () => {
         setState("loading");
         resultEl.innerHTML = `
             <div class="carrier-card">
-                <div class="quote-result-title" style="font-weight:700;margin-bottom:.4rem;">DHL Freight Receipt</div>
-                <div class="tool-note" style="margin-bottom:.7rem;">Calculating a professional estimate...</div>
+                <div class="freight-receipt-title">DHL Freight Receipt</div>
+                <div class="freight-loading-copy">Calculating DHL estimate</div>
                 <div class="freight-progress" data-progress-bar>
                     <div class="freight-progress-bar">
                         <div class="freight-progress-fill" data-progress-fill></div>
