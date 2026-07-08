@@ -43,10 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
         customer_name_required: true,
         customer_email_required: true,
     };
-
-    /* ══════════════════════════════════════════════════
-       State
-       ══════════════════════════════════════════════════ */
+    /* State */
     const state = {
         batchId: "",
         activePartId: "",
@@ -92,10 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function shortFileName(name) {
         return String(name || "").split(/[\\/]/).pop() || String(name || "CAD part");
     }
-
-    /* ══════════════════════════════════════════════════
-       Hydrate options
-       ══════════════════════════════════════════════════ */
+    /* Hydrate options */
     async function hydrateOptions() {
         try {
             state.options = await window.DaiyujinAPI.request("/api/public/quote/options");
@@ -111,10 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currencySelect) currencySelect.innerHTML = (state.options.currencies || ["USD"]).map(c => `<option value="${esc(c)}"${c==="USD"?" selected":""}>${esc(c)}</option>`).join("");
         } catch (e) { /* silent */ }
     }
-
-    /* ══════════════════════════════════════════════════
-       Material picker
-       ══════════════════════════════════════════════════ */
+    /* Material picker */
     const materialPicker = document.querySelector("[data-material-picker]");
 
     function getCurrentMaterialContext() {
@@ -156,10 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         materialPicker.innerHTML = `<div class="quote-material-categories">${cats.map(c=>`<button type="button" class="quote-material-cat-btn${c.id===state.defaults.material_category?' active':''}" data-cat-id="${esc(c.id)}" aria-pressed="${c.id===state.defaults.material_category?'true':'false'}">${esc(c.label)}</button>`).join("")}</div><div class="quote-material-grades"><input type="text" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div></div>`;
         bindMaterialPickerEvents();
     }
-
-    /* ══════════════════════════════════════════════════
-       Batch upload
-       ══════════════════════════════════════════════════ */
+    /* Batch upload */
     fileInput.addEventListener("change", () => {
         const files = Array.from(fileInput.files || []);
         addFilesToBatch(files);
@@ -322,10 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
         workspace.dataset.partCount = String(count);
         if (batchParts) batchParts.hidden = count <= 1;
     }
-
-    /* ══════════════════════════════════════════════════
-       Part list UI
-       ══════════════════════════════════════════════════ */
+    /* Part list UI */
     function renderPartList() {
         updateWorkspaceMode();
         if (!batchParts || !partList) return;
@@ -407,10 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
         form.querySelector('[name="quantity"]').value = s.quantity || state.defaults.quantity;
         if (currencySelect) currencySelect.value = s.currency || state.defaults.currency;
     }
-
-    /* ══════════════════════════════════════════════════
-       Calculate current part
-       ══════════════════════════════════════════════════ */
+    /* Calculate current part */
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         await calculateCurrentPart();
@@ -504,10 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setInterval(updateEstimateProgress, 300);
-
-    /* ══════════════════════════════════════════════════
-       Render
-       ══════════════════════════════════════════════════ */
+    /* Render */
     function render() {
         renderPartList();
         result.innerHTML = `${previewCard()}${estimateCard()}`;
@@ -643,7 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
             <div class="metric-row"><span>Valid Until</span><strong>${esc(e.valid_until)}</strong></div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
-                <div class="metric-row"><span>Material</span><strong>${esc(sel.material_category||'-')}${sel.material?' · '+esc(sel.material):''}</strong></div>
+                <div class="metric-row"><span>Material</span><strong>${esc(sel.material_category||'-')}${sel.material?' &middot; '+esc(sel.material):''}</strong></div>
                 <div class="metric-row"><span>Process</span><strong>${esc(sel.process)}</strong></div>
                 <div class="metric-row"><span>Postprocess</span><strong>${esc(sel.postprocess_group)}</strong></div>
                 <div class="metric-row"><span>Tolerance</span><strong>${esc(sel.tolerance_grade)}</strong></div>
@@ -704,10 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const est = result.querySelector('.quote-estimate');
         if (est) est.innerHTML = `<h2>Reference Estimate</h2><div class="tool-note error">${esc(msg)}</div>`;
     }
-
-    /* ══════════════════════════════════════════════════
-       Helpers
-       ══════════════════════════════════════════════════ */
+    /* Helpers */
     function formatNum(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
     function esc(v) { return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
     function estimateDisclaimer(customerName) {
@@ -761,7 +737,6 @@ document.addEventListener("DOMContentLoaded", () => {
             // Re-render to pick up new CTA text in results
             const part = getActivePart();
             if (part && part.estimate) render();
-            console.log('Live settings loaded for', site);
         } catch (e) {
             console.warn('Live settings failed', e);
         }

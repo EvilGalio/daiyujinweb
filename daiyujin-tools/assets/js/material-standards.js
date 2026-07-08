@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ${badge}
                     <span class=\"mat-badge ${r.confidence_label === "high" ? "ok" : "warn"}\">${esc((r.confidence_label || "").toUpperCase())}</span>
                 </div>
-                <div class=\"tool-note mat-result-meta\">Confidence ${esc(confidenceText)} · ${esc(sourceText)}</div>
+                <div class=\"tool-note mat-result-meta\">Confidence ${esc(confidenceText)} &middot; ${esc(sourceText)}</div>
                 <div class=\"mat-standards-grid\">${cols.map(
                     c => `<div class=\"mat-std-item\"><span class=\"mat-std-key\">${esc(c[0])}</span><span class=\"mat-std-val\">${esc(c[1])}</span></div>`
                 ).join("")}</div>

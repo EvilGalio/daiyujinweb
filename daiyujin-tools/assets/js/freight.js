@@ -94,10 +94,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = await window.DaiyujinAPI.request("/api/public/freight/countries");
             if (Array.isArray(payload.countries)) {
                 countries = sanitizeCountries(payload.countries);
-                countryInput.placeholder = `Search ${countries.length} destinations…`;
+                countryInput.placeholder = `Search ${countries.length} destinations...`;
             }
         } catch (error) {
-            countryInput.placeholder = "Type to search destinations…";
+            countryInput.placeholder = "Type to search destinations...";
         }
     }
 

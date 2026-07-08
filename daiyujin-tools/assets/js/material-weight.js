@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="dhl-result-amount">${esc(r.total_weight.display)}</div>
                 <div class="dhl-result-meta">Piece weight: ${esc(r.piece_weight.display)}${pieceRange} &middot; ${esc(r.material.label)} ${esc(r.shape.label)}</div>
                 <div class="dhl-result-meta">Total: ${esc(r.total_weight.display)}${totalRange}</div>
-                <div class="tool-note">${densityRange}${confidenceText ? ` ¡¤ ${confidenceText}` : ""}</div>
+                <div class="tool-note">${densityRange}${confidenceText ? ` &middot; ${confidenceText}` : ""}</div>
                 <div class="tool-note">${esc(r.note)}</div>`;
         } catch (err) {
             resultEl.innerHTML = `<div class="tool-note error">${esc(err.message)}</div>`;

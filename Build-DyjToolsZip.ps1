@@ -1,4 +1,4 @@
-# Build-DyjToolsZip.ps1 — Package themed Daiyujin Tools plugin
+# Build-DyjToolsZip.ps1 - Package themed Daiyujin Tools plugin
 param(
     [ValidateSet("default","mfg","gcindus","gcnov")]
     [string]$Theme = "default"
