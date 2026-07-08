@@ -172,6 +172,34 @@ function Add-ManifestSummary {
     }
 }
 
+function Get-ObjectPropertyText($Object, [string]$Name) {
+    if ($null -eq $Object) { return "" }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -and $null -ne $prop.Value) {
+        return [string]$prop.Value
+    }
+    return ""
+}
+
+function Get-TaskActionText($Action) {
+    $execute = Get-ObjectPropertyText $Action "Execute"
+    $arguments = Get-ObjectPropertyText $Action "Arguments"
+    $workingDirectory = Get-ObjectPropertyText $Action "WorkingDirectory"
+    $text = ("$execute $arguments $workingDirectory").Trim()
+    if ($text) { return $text }
+
+    $parts = New-Object System.Collections.Generic.List[string]
+    foreach ($prop in $Action.PSObject.Properties) {
+        if ($prop.Name -match "Execute|Argument|Path|Command|WorkingDirectory|Program" -and $null -ne $prop.Value) {
+            $parts.Add("$($prop.Name)=$($prop.Value)") | Out-Null
+        }
+    }
+    if ($parts.Count -gt 0) {
+        return ($parts -join " ")
+    }
+    return [string]$Action
+}
+
 function Add-TaskReport {
     Add-Section "Scheduled Tasks"
     $taskNames = @(
@@ -189,8 +217,9 @@ function Add-TaskReport {
             Add-Line "  Trigger: $($trigger.ToString())"
         }
         foreach ($action in $task.Actions) {
-            Add-Line "  Action: $($action.Execute) $($action.Arguments)"
-            if ($action.Arguments -notmatch "ExecutionPolicy\s+Bypass") {
+            $actionText = Get-TaskActionText $action
+            Add-Line "  Action: $actionText"
+            if ($actionText -notmatch "ExecutionPolicy\s+Bypass") {
                 Add-Warn "$name action does not include ExecutionPolicy Bypass."
             }
         }
@@ -204,7 +233,7 @@ function Add-TaskReport {
     Add-Line "Related scheduled tasks containing daiyujin/cloudflared/syncthing:"
     $related = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
         $_.TaskName -match "daiyujin|cloudflared|syncthing|portal|backup" -or
-        ($_.Actions | Where-Object { ($_.Execute + " " + $_.Arguments) -match "daiyujin|cloudflared|syncthing|portal|backup" })
+        ($_.Actions | Where-Object { (Get-TaskActionText $_) -match "daiyujin|cloudflared|syncthing|portal|backup" })
     } | Sort-Object TaskName)
     if ($related.Count -eq 0) {
         Add-Line "  none"
