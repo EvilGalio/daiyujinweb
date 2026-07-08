@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 import hashlib
 import random
 from typing import Any
@@ -126,13 +127,18 @@ def calculate_dhl(country: str, weight_kg: float, currency: str = DEFAULT_CURREN
         # Apply dynamic perturbation (always hidden from users)
         factor = _dynamic_factor(resolved_country, weight_kg)
         amount = round(amount * factor, 2)
+        valid_until = (date.today() + timedelta(days=14)).isoformat()
 
         return {
             "country": resolved_country,
             "carrier": "DHL",
             "weight_kg": weight_kg,
+            "charge_weight_kg": round(charge_weight, 2),
+            "chargeable_weight_kg": round(charge_weight, 2),
+            "chargeable_weight": round(charge_weight, 2),
             "currency": currency,
             "amount": amount,
+            "valid_until": valid_until,
         }
     finally:
         session.close()

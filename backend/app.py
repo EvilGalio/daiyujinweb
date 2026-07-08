@@ -300,9 +300,9 @@ def create_app() -> Flask:
         except TolError as exc:
             return jsonify({
                 "error": True,
-                "code": exc.code,
+                "code": "invalid_tolerance_request",
                 "message": str(exc),
-                "details": exc.details,
+                "details": {"reason_code": exc.code, **(exc.details or {})},
             }), 400
         except ValueError as exc:
             return api_error("invalid_tolerance_request", str(exc), 400)
@@ -313,7 +313,16 @@ def create_app() -> Flask:
     def material_standards_search_route():
         q = request.args.get("q", "")
         limit = int(request.args.get("limit", 10))
-        return api_ok(material_standards_search(q, limit))
+        family = request.args.get("family")
+        standard = request.args.get("standard")
+        min_confidence = request.args.get("min_confidence") or request.args.get("confidence")
+        return api_ok(material_standards_search(
+            q,
+            limit=limit,
+            family=family,
+            standard=standard,
+            min_confidence=min_confidence,
+        ))
 
     @app.get("/api/public/material-standards/families")
     def material_standards_families_route():

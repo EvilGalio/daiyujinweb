@@ -61,7 +61,7 @@ def calculate_fit_result(basic_mm: float, fit_raw: str) -> dict:
     elif max_clr <= 0:
         fit_type = "interference"
         label = "Interference fit"
-        max_int = abs(max_clr)
+        max_clr = 0
     else:
         fit_type = "transition"
         label = "Transition fit"

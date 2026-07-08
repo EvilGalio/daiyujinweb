@@ -52,6 +52,10 @@
         return raw;
     }
 
+    function appModeRoot() {
+        return portalRoot !== document ? portalRoot : document.body;
+    }
+
     function portalWatermarkBrand() {
         var site = currentPortalSite();
         if (site === 'mfg') return 'MFG SOLUTION CO., LIMITED';
@@ -64,24 +68,28 @@
         var brand = portalWatermarkBrand();
         var u = user();
         var text = brand + ' / ' + userDisplayName(u) + ' / ' + (u.email || '');
-        var root = portalRoot !== document ? portalRoot : document.body;
+        var root = appModeRoot();
         var existing = root.querySelector('.portal-watermark-layer');
         if (existing) existing.remove();
         var layer = document.createElement('div');
         layer.className = 'portal-watermark-layer';
-        layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden';
-        var html = '';
+        var fragment = document.createDocumentFragment();
         for (var y = 0; y < 2000; y += 180) {
             for (var x = 0; x < 2500; x += 400) {
-                html += '<span style="position:absolute;left:' + x + 'px;top:' + y + 'px;transform:rotate(-45deg);font-size:14px;color:#000;opacity:0.06;white-space:nowrap;font-family:monospace">' + esc(text) + '</span>';
+                var item = document.createElement('span');
+                item.className = 'portal-watermark-item';
+                item.style.left = x + 'px';
+                item.style.top = y + 'px';
+                item.textContent = text;
+                fragment.appendChild(item);
             }
         }
-        layer.innerHTML = html;
+        layer.appendChild(fragment);
         root.appendChild(layer);
     }
 
     function removePortalWatermark() {
-        var root = portalRoot !== document ? portalRoot : document.body;
+        var root = appModeRoot();
         var existing = root.querySelector('.portal-watermark-layer');
         if (existing) existing.remove();
     }
@@ -303,9 +311,9 @@
 
     function showError(msg) { error.textContent = msg; error.hidden = false; }
     var token = function () { return localStorage.getItem('portal_token') || sessionStorage.getItem('portal_token'); };
-    function enterAppMode() { document.body.classList.add('portal-authenticated'); }
+    function enterAppMode() { appModeRoot().classList.add('portal-authenticated'); }
 
-    function leaveAppMode() { document.body.classList.remove('portal-authenticated'); }
+    function leaveAppMode() { appModeRoot().classList.remove('portal-authenticated'); }
 
     function saveSession(t, u) {
         localStorage.setItem('portal_token', t);
@@ -1000,6 +1008,21 @@
 
     var stageProgress = { order_confirmed: 10, material_ready: 22, machining: 38, surface_treatment: 55, quality_inspection: 70, packing: 82, shipped: 92, received: 100, on_hold: 40 };
     var stageDefaultProgress = 10;
+    function orderProgressClass(value) {
+        var p = parseInt(value, 10);
+        var map = {
+            10: 'portal-progress-10',
+            22: 'portal-progress-22',
+            38: 'portal-progress-38',
+            40: 'portal-progress-40',
+            55: 'portal-progress-55',
+            70: 'portal-progress-70',
+            82: 'portal-progress-82',
+            92: 'portal-progress-92',
+            100: 'portal-progress-100'
+        };
+        return map[p] || 'portal-progress-10';
+    }
 
     function renderOrderCard(order, detailFn) {
         if (typeof detailFn !== 'string') detailFn = 'showOrderDetail';
@@ -1020,7 +1043,7 @@
             '<span class="portal-card-customer">' + esc(customerLabel) + '</span>' +
             '</div>' +
             '<div class="portal-stage-summary"><span>Current stage</span><strong>' + esc(stageLabel) + '</strong></div>' +
-            '<div class="portal-progress-track"><span class="portal-progress-fill" style="--progress:' + progress + '%"></span></div>' +
+            '<div class="portal-progress-track"><span class="portal-progress-fill ' + orderProgressClass(progress) + '"></span></div>' +
             '<div class="portal-card-meta-grid">' +
             '<span>Due: ' + esc(formatPortalDate(order.estimated_delivery_date)) + '</span>' +
             '<span>Created: ' + esc(formatPortalDate(order.created_at)) + '</span>' +
@@ -1435,7 +1458,7 @@
             var cr = Math.round((ov.complaint_rate || 0) * 100) + '%';
             main.innerHTML = renderRoleHeader('Sales Workspace', salesGreeting(u), 'Ready to move orders forward today.') +
                 renderSalesCommandBar('orders') + renderSearchBar({ stages: stageOrder, refreshFn: 'showSalesOrders' }) +
-                '<div class="portal-admin-kpi-grid" style="margin-bottom:1rem"><div class="portal-admin-kpi"><strong>' + otr + '</strong><span>On-time Rate</span><small>' + (ov.on_time_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div>' +
+                '<div class="portal-admin-kpi-grid portal-admin-kpi-grid-spaced"><div class="portal-admin-kpi"><strong>' + otr + '</strong><span>On-time Rate</span><small>' + (ov.on_time_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div>' +
                 '<div class="portal-admin-kpi"><strong>' + cr + '</strong><span>Complaint Rate</span><small>' + (ov.complaint_orders || 0) + ' / ' + (ov.total_orders || 0) + ' orders</small></div></div>' +
                 '<div class="portal-dashboard">' + (orders.length ? orders.map(renderSalesOrderCard).join('') :
                     '<div class="portal-empty-state"><div class="portal-empty-state-icon">📋</div><h3>No orders yet</h3><p>Create a customer first, then create the first order.</p><div class="portal-cta-row"><button class="portal-btn" onclick="showCreateCustomer()">Create Customer</button><button class="portal-btn portal-btn-secondary" onclick="showCreateOrder()">Create Order</button></div></div>') + '</div>';
@@ -1653,9 +1676,9 @@
         patchMessages(o.id, messages, isSales);
         patchMedia(o.id, media);
 
-        if (detailErrors.updates) { var elU = document.getElementById('order-timeline'); if (elU) elU.innerHTML += '<div class="portal-note-card" style="cursor:pointer">Updates unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderUpdates(' + o.id + ')">Retry</a></div>'; }
-        if (detailErrors.messages) { var elM = document.getElementById('order-messages'); if (elM) elM.innerHTML = '<div class="portal-note-card" style="cursor:pointer">Messages unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMessages(' + o.id + ')">Retry</a></div>'; }
-        if (detailErrors.media) { var elD = document.getElementById('order-media'); if (elD) elD.innerHTML = '<div class="portal-note-card" style="cursor:pointer">Attachments unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMedia(' + o.id + ')">Retry</a></div>'; }
+        if (detailErrors.updates) { var elU = document.getElementById('order-timeline'); if (elU) elU.innerHTML += '<div class="portal-note-card portal-note-card-clickable">Updates unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderUpdates(' + o.id + ')">Retry</a></div>'; }
+        if (detailErrors.messages) { var elM = document.getElementById('order-messages'); if (elM) elM.innerHTML = '<div class="portal-note-card portal-note-card-clickable">Messages unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMessages(' + o.id + ')">Retry</a></div>'; }
+        if (detailErrors.media) { var elD = document.getElementById('order-media'); if (elD) elD.innerHTML = '<div class="portal-note-card portal-note-card-clickable">Attachments unavailable - <a href="javascript:void(0)" onclick="refreshCurrentOrderMedia(' + o.id + ')">Retry</a></div>'; }
     }
 
     function patchOrderHeader(o, isSalesView) {
@@ -1750,8 +1773,8 @@
             '<button class="portal-btn portal-btn-primary portal-btn-sm" onclick="updateOrderStage(' + orderId + ')">Update Stage</button>' +
             '<button class="portal-btn portal-btn-ghost portal-btn-sm" onclick="cancelStageSelect()">Cancel</button>' +
             '<div id="stage-shipping-fields" class="portal-stage-shipping" hidden>' +
-            '<p style="margin-top:.5rem"><select id="stage-shipping-method" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"><option value="">Method</option><option>DHL</option><option>FedEx</option><option>Sea</option><option>Other</option></select></p>' +
-            '<p><input id="stage-shipping-tracking" placeholder="Tracking number" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit"></p></div>' +
+            '<p class="portal-stage-shipping-row"><select id="stage-shipping-method" class="portal-stage-select"><option value="">Method</option><option>DHL</option><option>FedEx</option><option>Sea</option><option>Other</option></select></p>' +
+            '<p><input id="stage-shipping-tracking" placeholder="Tracking number" class="portal-stage-input"></p></div>' +
             '</div></section>' +
             '<section class="portal-action-card"><h4>Add Progress Update</h4>' +
             '<div class="portal-field"><input id="update-title" type="text" placeholder="Title" class="portal-input-full"></div>' +
@@ -1761,7 +1784,7 @@
             '<label class="portal-check"><input type="checkbox" id="update-public" checked> Visible to customer</label>' +
             '<button class="portal-btn portal-btn-primary portal-btn-sm portal-btn-auto" onclick="addProgressUpdate(' + orderId + ')">Add Update</button></div></section>' +
             '<section class="portal-action-card"><h4>Upload Attachment</h4>' +
-            '<div class="portal-field"><select id="upload-stage-key" style="width:100%;padding:.35rem;border:1px solid var(--line);border-radius:4px;font:inherit">' + stageOrder.map(function (k) { return '<option value="' + k + '">' + (stageLabels[k] || k) + '</option>'; }).join('') + '</select></div>' +
+            '<div class="portal-field"><select id="upload-stage-key" class="portal-stage-select">' + stageOrder.map(function (k) { return '<option value="' + k + '">' + (stageLabels[k] || k) + '</option>'; }).join('') + '</select></div>' +
             '<div class="portal-field"><input type="file" id="upload-file" accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime,.mov,video/mov"></div>' +
             '<div class="portal-field"><input id="upload-caption" type="text" placeholder="Caption (optional)" class="portal-input-full"></div>' +
             '<div class="portal-form-inline">' +
@@ -2032,25 +2055,46 @@
         return ordered;
     }
 
-        async function renderAttachmentItem(orderId, m) {
+    function formatAttachmentMeta(m) {
+        var parts = [];
+        if (m.file_kind) parts.push(m.file_kind);
+        parts.push(stageLabels[m.stage_key] || m.stage_key || 'Unassigned');
+        if (m.caption) parts.push(m.caption);
+        else if (m.original_filename) parts.push(m.original_filename);
+        return parts.filter(Boolean).join(' / ');
+    }
+
+    function renderMediaError(preview, message) {
+        preview.innerHTML = '';
+        var err = document.createElement('div');
+        err.className = 'portal-media-error';
+        err.textContent = message || 'Preview unavailable';
+        preview.appendChild(err);
+    }
+
+    async function renderAttachmentItem(orderId, m) {
         var item = document.createElement('div');
         item.className = 'portal-media-item';
         var label = m.caption || m.original_filename || m.filename || 'Attachment';
+        var preview = document.createElement('div');
+        preview.className = 'portal-media-preview';
+        var meta = document.createElement('small');
+        meta.className = 'portal-media-meta';
+        meta.textContent = formatAttachmentMeta(m);
+        var attachmentNode = null;
         try {
             var ticketUrl = absoluteApiUrl(m.preview_url_path || m.url_path || '');
             if (!ticketUrl) ticketUrl = await getMediaTicket(orderId, m.id);
-            var preview = document.createElement('div');
-            preview.className = 'portal-media-preview';
             if (m.file_kind === 'video') {
                 var video = document.createElement('video');
                 video.controls = true;
                 video.preload = 'metadata';
+                video.playsInline = true;
                 video.src = ticketUrl;
                 video.className = 'portal-video-preview';
-                video.addEventListener('error', function () {
-                    preview.innerHTML = '<div class="portal-media-error">Preview unavailable</div>';
-                });
+                video.onerror = function () { renderMediaError(preview, 'Preview unavailable'); };
                 preview.appendChild(video);
+                attachmentNode = preview;
             } else if (m.file_kind === 'pdf') {
                 var pdfLink = document.createElement('a');
                 pdfLink.href = ticketUrl + '?download=1';
@@ -2058,30 +2102,29 @@
                 pdfLink.target = '_blank';
                 pdfLink.textContent = label;
                 preview.appendChild(pdfLink);
+                attachmentNode = preview;
             } else {
                 var button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'portal-media-open';
                 button.setAttribute('aria-label', 'View full size: ' + label);
                 var img = document.createElement('img');
+                img.loading = 'lazy';
+                img.decoding = 'async';
                 img.src = ticketUrl;
                 img.alt = label;
-                img.onerror = function () {
-                    preview.innerHTML = '<div class="portal-media-error">Preview unavailable</div>';
-                };
+                img.onerror = function () { renderMediaError(preview, 'Preview unavailable'); };
                 preview.appendChild(img);
                 button.appendChild(preview);
                 button.addEventListener('click', function () { openPortalLightbox(ticketUrl, label); });
-                item.appendChild(button);
+                attachmentNode = button;
             }
-            var meta = document.createElement('small');
-            meta.textContent = [m.file_kind || 'file', stageLabels[m.stage_key] || m.stage_key || 'Unassigned', m.caption || m.original_filename || ''].filter(Boolean).join(' / ');
-            if (m.file_kind === 'video' || m.file_kind === 'pdf') {
-                item.appendChild(preview);
-            }
+            if (attachmentNode) item.appendChild(attachmentNode);
             item.appendChild(meta);
         } catch (e) {
-            item.innerHTML = '<div class="portal-media-error">Attachment unavailable</div><small>' + esc(label) + '</small>';
+            renderMediaError(preview, 'Attachment preview unavailable');
+            item.appendChild(preview);
+            item.appendChild(meta);
         }
         return item;
     }

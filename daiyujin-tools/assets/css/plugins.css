@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════
    Daiyujin Precision Tools · Industrial Design System
    ═══════════════════════════════════════════════════ */
 
@@ -45,7 +45,7 @@ body.tool-page {
 /* ── Shell ──────────────────────────────────── */
 
 .tool-shell {
-    max-width: 1040px;
+    max-width: min(calc(100% - 48px), 1480px);
     margin: 0 auto;
     padding: 0 1.5rem 3rem;
 }
@@ -676,6 +676,8 @@ body.tool-page {
     border-radius: 2px;
 }
 
+.tol-legend-bore { background: #0066cc; }
+.tol-legend-shaft { background: #dc5c26; }
 .tol-legend-clearance { background: #22c55e; }
 .tol-legend-interference { background: #ef4444; }
 
@@ -828,6 +830,24 @@ body.tool-page {
     display: flex;
     gap: 0.75rem;
     margin-top: 1.5rem;
+}
+
+.mat-search-filters {
+    margin-top: 0.8rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.65rem;
+}
+
+.mat-search-filter {
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 0.5rem 0.65rem;
+    font-family: var(--font-mono, "SF Mono", monospace);
+    font-size: 0.88rem;
 }
 
 .mat-search-input {
@@ -1705,3 +1725,4 @@ footer {
     color: var(--muted);
     font-size: 0.82rem;
 }
+`r`n

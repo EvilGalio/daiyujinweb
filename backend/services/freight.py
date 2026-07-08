@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -55,8 +56,11 @@ def calculate_freight(
     **kwargs,
 ) -> dict[str, Any]:
     """DHL-only freight estimate.  Only country, weight_kg, currency are used."""
-    return calculate_dhl(
+    result = calculate_dhl(
         country=country.strip(),
         weight_kg=float(weight_kg),
         currency=str(currency).upper() if currency else DEFAULT_CURRENCY,
     )
+    if "valid_until" not in result:
+        result["valid_until"] = (date.today() + timedelta(days=14)).isoformat()
+    return result

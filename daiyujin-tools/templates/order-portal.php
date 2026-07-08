@@ -6,7 +6,7 @@
 ?><div class="dyj-tool-embed dyj-order-portal-embed"
      data-dyj-theme="<?php echo esc_attr($theme); ?>"
      data-portal-site="<?php echo esc_attr($theme); ?>">
-    <div class="portal-shell" data-portal-shell>
+    <div class="portal-shell" data-portal-shell data-wide="true">
         <header class="portal-header">
             <div>
                 <h1 data-portal-title>Order Portal</h1>

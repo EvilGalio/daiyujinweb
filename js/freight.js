@@ -3,59 +3,132 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const form = document.querySelector("[data-freight-form]");
     const resultEl = document.querySelector("[data-freight-result]");
-    const amountEl = resultEl?.querySelector(".dhl-result-amount");
-    const metaEl = resultEl?.querySelector(".dhl-result-meta");
-    const resultMain = resultEl?.querySelector(".dhl-result-main");
-    const progressBar = document.querySelector("[data-progress-bar]");
-    const progressFill = document.querySelector("[data-progress-fill]");
-    const progressPhase = document.querySelector("[data-progress-phase]");
-    const progressPct = document.querySelector("[data-progress-pct]");
     const searchRoot = document.querySelector("[data-country-search]");
-    const input = document.querySelector("#country");
+    const countryInput = document.querySelector("#country");
     const dropdown = document.querySelector("[data-country-dropdown]");
-    if (!form || !resultEl || !input || !dropdown) return;
+    const weightInput = document.querySelector('[name="weight"]');
+    const currencySegment = document.querySelector("[data-currency-segment]");
+    const CONFIG = window.DAIYUJIN_TOOLS_CONFIG || {};
+    if (!form || !resultEl || !searchRoot || !countryInput || !dropdown || !weightInput || !currencySegment) return;
+
+    const loadingPhases = [
+        "Checking DHL route",
+        "Applying fuel and infrastructure surcharge",
+        "Preparing freight estimate",
+    ];
 
     let countries = [];
-    let selected = null;
+    let selectedCountry = null;
+    let progressTimer = null;
+
+    function randomMs(minMs, maxMs) {
+        return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, c => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[c]);
+    }
+
+    function parseNumber(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+    }
+
+    function formatMoney(amount, currency) {
+        const n = parseNumber(amount, NaN);
+        if (!Number.isFinite(n)) return "-";
+        return `${escapeHtml((currency || "USD").toUpperCase())} ${n.toFixed(2)}`;
+    }
+
+    function formatWeight(value) {
+        return `${parseNumber(value, 0).toFixed(2)} kg`;
+    }
+
+    function validUntilDate(days = 14) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" });
+    }
+
+    function setState(state) {
+        resultEl.dataset.state = state;
+    }
+
+    function formalShippingUrl() {
+        return CONFIG.formalShippingUrl || CONFIG.formalQuoteUrl || CONFIG.engineerContactUrl || "https://mfg-solution.com/request-quote/";
+    }
+
+    function formalShippingLabel() {
+        return CONFIG.formalShippingLabel || CONFIG.formalQuoteLabel || "Request Formal Shipping Confirmation";
+    }
+
+    function selectedCurrency() {
+        const checked = currencySegment.querySelector('input[name="currency"]:checked');
+        return (checked && checked.value) || "USD";
+    }
+
+    function syncCurrencySegmentState() {
+        const checked = currencySegment.querySelector('input[name="currency"]:checked');
+        const checkedValue = checked ? checked.value : "USD";
+        currencySegment.querySelectorAll("label").forEach((label, idx) => {
+            const input = label.querySelector("input");
+            const active = input && input.value === checkedValue;
+            label.classList.toggle("active", !!active);
+            if (active) label.setAttribute("aria-checked", "true");
+            else label.removeAttribute("aria-checked");
+        });
+    }
+
+    function sanitizeCountries(items) {
+        return (Array.isArray(items) ? items : []).filter(item => item && item.en);
+    }
 
     async function hydrateCountries() {
         try {
             const payload = await window.DaiyujinAPI.request("/api/public/freight/countries");
             if (Array.isArray(payload.countries)) {
-                countries = payload.countries;
-                input.placeholder = `Search ${countries.length} destinations\u2026`;
+                countries = sanitizeCountries(payload.countries);
+                countryInput.placeholder = `Search ${countries.length} destinations…`;
             }
-        } catch (e) {
-            input.placeholder = "Type to search destinations\u2026";
+        } catch (error) {
+            countryInput.placeholder = "Type to search destinations…";
         }
     }
 
-    function filter(query) {
-        const q = query.toLowerCase().trim();
-        if (!q) return countries.slice(0, 30);
-        return countries.filter(c => {
-            const en = (c.en || "").toLowerCase();
-            const cn = (c.cn || "").toLowerCase();
-            return en.includes(q) || cn.includes(q);
-        }).slice(0, 15);
+    function filterCountries(query) {
+        const text = query.toLowerCase().trim();
+        if (!text) return countries.slice(0, 30);
+        return countries
+            .filter(item => {
+                const en = (item.en || "").toLowerCase();
+                const cn = (item.cn || "").toLowerCase();
+                return en.includes(text) || cn.includes(text);
+            })
+            .slice(0, 15);
     }
 
     function renderDropdown(items, total) {
         if (!items.length) {
-            dropdown.innerHTML = input.value.trim()
+            dropdown.innerHTML = countryInput.value.trim()
                 ? '<div class="country-item muted">No matching destination</div>'
-                : '';
+                : "";
             dropdown.classList.remove("open");
             return;
         }
-        let html = items.map((c, i) => `
-            <div class="country-item" data-index="${i}" data-en="${escapeHtml(c.en)}">
-                <span class="country-en">${escapeHtml(c.en)}</span>
-                ${c.cn && c.cn !== c.en ? `<span class="country-cn">${escapeHtml(c.cn)}</span>` : ""}
+        let html = items.map((item, index) => `
+            <div class="country-item" data-index="${index}" data-country="${escapeHtml(item.en)}">
+                <span class="country-en">${escapeHtml(item.en)}</span>
+                ${item.cn && item.cn !== item.en ? `<span class="country-cn">${escapeHtml(item.cn)}</span>` : ""}
             </div>
         `).join("");
         if (total > items.length) {
-            html += `<div class="country-item muted">${total - items.length} more — type to refine</div>`;
+            html += `<div class="country-item muted">${total - items.length} more - type to refine</div>`;
         }
         dropdown.innerHTML = html;
         dropdown.classList.add("open");
@@ -63,149 +136,215 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function selectCountry(item) {
         if (!item) return;
-        input.value = item.dataset.en;
-        selected = item.dataset.en;
+        const country = item.dataset.country;
+        countryInput.value = country;
+        selectedCountry = country;
         dropdown.classList.remove("open");
+        countryInput.focus();
     }
 
-    input.addEventListener("input", () => { selected = null; renderDropdown(filter(input.value.trim()), countries.length); });
-    input.addEventListener("focus", () => {
-        if (input.value && !selected) { const m = filter(input.value.trim()); if (m.length) renderDropdown(m, countries.length); }
-        else if (!input.value) renderDropdown(countries.slice(0, 30), countries.length);
+    function renderEmptyState() {
+        setState("idle");
+        resultEl.innerHTML = `
+            <div class="carrier-card">
+                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight</div>
+                <div class="metric-row">
+                    <span>Freight total</span>
+                    <strong>USD 0.00</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Status</span>
+                    <strong>Ready for shipment estimate</strong>
+                </div>
+                <div class="tool-note">Select destination and weight, then request DHL freight estimate.</div>
+            </div>
+        `;
+    }
+
+    function renderErrorState(message) {
+        setState("error");
+        resultEl.innerHTML = `
+            <div class="carrier-card">
+                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">Freight estimate failed</div>
+                <div class="tool-note error">${escapeHtml(message || "We are temporarily unable to fetch freight estimate.")}</div>
+                <div class="tool-note" style="margin-top:.5rem;">Please verify destination and weight, then retry.</div>
+            </div>
+        `;
+    }
+
+    function renderDoneState(payload, response) {
+        const amount = formatMoney(response.amount, response.currency || payload.currency || "USD");
+        const chargeable = response.charge_weight_kg || response.chargeable_weight_kg || response.chargeable_weight || payload.weight_kg;
+        const ctaUrl = formalShippingUrl();
+        const ctaLabel = formalShippingLabel();
+        const validDate = response.valid_until || validUntilDate(14);
+        setState("done");
+        resultEl.innerHTML = `
+            <div class="carrier-card">
+                <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight Receipt</div>
+                <div class="metric-row">
+                    <span>Freight total</span>
+                    <strong>${amount}</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Chargeable weight</span>
+                    <strong>${formatWeight(chargeable)}</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Destination</span>
+                    <strong>${escapeHtml(response.country || payload.country)}</strong>
+                </div>
+                <div class="metric-row">
+                    <span>Valid date</span>
+                    <strong>${escapeHtml(validDate)}</strong>
+                </div>
+                <div class="tool-note" style="margin-top:.5rem;">Includes applicable surcharge assumptions.</div>
+                <a class="tool-button" href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener">${escapeHtml(ctaLabel)}</a>
+            </div>
+        `;
+    }
+
+    function renderLoadingState() {
+        setState("loading");
+        resultEl.innerHTML = `
+            <div class="carrier-card">
+                <div class="quote-result-title" style="font-weight:700;margin-bottom:.4rem;">DHL Freight Receipt</div>
+                <div class="tool-note" style="margin-bottom:.7rem;">Calculating a professional estimate...</div>
+                <div class="freight-progress" data-progress-bar>
+                    <div class="freight-progress-bar">
+                        <div class="freight-progress-fill" data-progress-fill></div>
+                    </div>
+                    <div class="freight-progress-text">
+                        <span class="freight-progress-phase" data-progress-phase>${loadingPhases[0]}</span>
+                        <span class="freight-progress-pct" data-progress-pct>0%</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const fillEl = resultEl.querySelector("[data-progress-fill]");
+        const phaseEl = resultEl.querySelector("[data-progress-phase]");
+        const pctEl = resultEl.querySelector("[data-progress-pct]");
+        const totalMs = randomMs(3200, 5600);
+        const start = performance.now();
+
+        progressTimer = setInterval(() => {
+            const elapsed = performance.now() - start;
+            const ratio = Math.min(elapsed / totalMs, 0.995);
+            const pct = Math.round(ratio * 100);
+            const phaseIdx = Math.min(
+                loadingPhases.length - 1,
+                Math.floor(ratio * loadingPhases.length)
+            );
+            if (fillEl) fillEl.style.width = `${Math.min(pct, 99)}%`;
+            if (pctEl) pctEl.textContent = `${Math.min(pct, 99)}%`;
+            if (phaseEl) phaseEl.textContent = loadingPhases[phaseIdx];
+        }, 160);
+    }
+
+    function stopLoadingState() {
+        if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+        }
+    }
+
+    function normalizeError(error) {
+        const msg = String(error && error.message ? error.message : error || "Freight estimate request failed.");
+        if (msg.includes("Destination is not supported")) {
+            return "Destination is currently not supported. Please try another destination.";
+        }
+        if (msg.includes("NetworkError") || msg.includes("Failed to fetch")) {
+            return "Freight API is temporarily unavailable. Please retry in a moment.";
+        }
+        return msg;
+    }
+
+    currencySegment.addEventListener("change", () => syncCurrencySegmentState());
+
+    countryInput.addEventListener("input", () => {
+        selectedCountry = null;
+        renderDropdown(filterCountries(countryInput.value.trim()), countries.length);
     });
-    input.addEventListener("keydown", (e) => {
+    countryInput.addEventListener("focus", () => {
+        if (countryInput.value && !selectedCountry) {
+            renderDropdown(filterCountries(countryInput.value), countries.length);
+        } else if (!countryInput.value) {
+            renderDropdown(countries.slice(0, 30), countries.length);
+        }
+    });
+    countryInput.addEventListener("keydown", (event) => {
         const items = dropdown.querySelectorAll(".country-item:not(.muted)");
         if (!items.length) return;
-        const current = dropdown.querySelector(".country-item.active");
-        let idx = -1;
-        if (e.key === "ArrowDown") { e.preventDefault(); idx = current ? [...items].indexOf(current) + 1 : 0; if (idx >= items.length) idx = 0; }
-        else if (e.key === "ArrowUp") { e.preventDefault(); idx = current ? [...items].indexOf(current) - 1 : items.length - 1; if (idx < 0) idx = items.length - 1; }
-        else if (e.key === "Enter") { e.preventDefault(); if (current) { selectCountry(current); return; } if (items.length === 1) { selectCountry(items[0]); return; } }
-        else if (e.key === "Escape") { dropdown.classList.remove("open"); return; }
-        if (idx >= 0 && items[idx]) { items.forEach(el => el.classList.remove("active")); items[idx].classList.add("active"); items[idx].scrollIntoView({ block: "nearest" }); }
-    });
-    document.addEventListener("click", (e) => { if (!searchRoot.contains(e.target)) dropdown.classList.remove("open"); });
-    dropdown.addEventListener("mousedown", (e) => {
-        const item = e.target.closest(".country-item");
-        if (item && !item.classList.contains("muted")) { e.preventDefault(); selectCountry(item); }
-    });
-
-    // ── State machine ──
-    function setState(state) {
-        resultEl.dataset.state = state;
-    }
-
-    function resetResult() {
-        if (amountEl) amountEl.textContent = "USD $0.00";
-        if (metaEl) metaEl.textContent = "Ready for estimate";
-        if (progressBar) progressBar.hidden = true;
-        if (resultMain) resultMain.hidden = false;
-        setState("idle");
-    }
-
-    // ── Progress bar (inside result panel) ──
-    function startProgress() {
-        if (!progressBar || !progressFill || !progressPhase) return () => {};
-
-        setState("loading");
-        if (resultMain) resultMain.hidden = true;
-        progressBar.hidden = false;
-        progressFill.style.width = "0%";
-        progressFill.classList.remove("done");
-
-        const phases = [
-            "Routing network analyzing",
-            "Carrier rate matching",
-            "Zone classification verifying",
-            "Dynamic quotation generating",
-        ];
-        let pct = 0;
-        let phaseIdx = 1;
-        let stopped = false;
-        let timer = null;
-
-        function render(p, text) {
-            progressFill.style.width = p + "%";
-            progressFill.classList.toggle("done", p >= 100);
-            progressPhase.textContent = text;
-            if (progressPct) progressPct.textContent = Math.round(p) + "%";
-        }
-
-        function tick() {
-            if (stopped) return;
-            if (pct < 70) { pct += 12 + Math.random() * 10; phaseIdx = Math.min(Math.floor(pct / 20), phases.length - 2); }
-            else if (pct < 92) { pct += 2 + Math.random() * 3; phaseIdx = phases.length - 1; }
-            else { pct += Math.random() * 0.5; pct = Math.min(pct, 96); }
-            render(pct, phases[phaseIdx]);
-            timer = setTimeout(tick, 600 + Math.random() * 900);
-        }
-
-        render(0, phases[0]);
-        timer = setTimeout(tick, 400);
-
-        return function finish(success) {
-            stopped = true;
-            clearTimeout(timer);
-            if (success) {
-                render(100, "Assessment complete", true);
-                setTimeout(() => {
-                    progressBar.hidden = true;
-                    if (resultMain) resultMain.hidden = false;
-                    setState("done");
-                }, 800);
-            } else {
-                progressBar.hidden = true;
-                if (resultMain) resultMain.hidden = false;
-                setState("error");
+        const active = dropdown.querySelector(".country-item.active");
+        let index = -1;
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            index = active ? [...items].indexOf(active) + 1 : 0;
+            if (index >= items.length) index = 0;
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            index = active ? [...items].indexOf(active) - 1 : items.length - 1;
+            if (index < 0) index = items.length - 1;
+        } else if (event.key === "Enter") {
+            event.preventDefault();
+            if (active) {
+                selectCountry(active);
+            } else if (items.length === 1) {
+                selectCountry(items[0]);
             }
-        };
-    }
+            return;
+        } else if (event.key === "Escape") {
+            dropdown.classList.remove("open");
+            return;
+        }
+        if (index >= 0 && items[index]) {
+            items.forEach(item => item.classList.remove("active"));
+            items[index].classList.add("active");
+            items[index].scrollIntoView({ block: "nearest" });
+        }
+    });
+    document.addEventListener("click", (event) => {
+        if (!searchRoot.contains(event.target)) dropdown.classList.remove("open");
+    });
+    dropdown.addEventListener("mousedown", (event) => {
+        const item = event.target.closest(".country-item");
+        if (!item || item.classList.contains("muted")) return;
+        event.preventDefault();
+        selectCountry(item);
+    });
 
-    // ── Form submit ──
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const formData = new FormData(form);
-        const countryValue = selected || String(formData.get("country") || "").trim();
-        const weight = Number(formData.get("weight"));
-        const currency = String(formData.get("currency") || "USD");
-
-        if (!countryValue) {
-            if (amountEl) amountEl.textContent = "USD $0.00";
-            if (metaEl) metaEl.textContent = "Please select a destination.";
-            setState("error");
-            if (progressBar) progressBar.hidden = true;
-            if (resultMain) resultMain.hidden = false;
+        const country = selectedCountry || String(formData.get("country") || "").trim();
+        const weight = parseNumber(formData.get("weight"), NaN);
+        const currency = selectedCurrency();
+        if (!country) {
+            renderErrorState("Please choose a destination.");
             return;
         }
-        if (!weight || weight <= 0) {
-            if (amountEl) amountEl.textContent = "USD $0.00";
-            if (metaEl) metaEl.textContent = "Enter a valid cargo weight.";
-            setState("error");
-            if (progressBar) progressBar.hidden = true;
-            if (resultMain) resultMain.hidden = false;
+        if (!Number.isFinite(weight) || weight <= 0) {
+            renderErrorState("Please enter a valid cargo weight.");
             return;
         }
 
-        const finishProgress = startProgress();
-
+        const payload = { country, weight_kg: weight, currency };
+        renderLoadingState();
         try {
             const data = await window.DaiyujinAPI.request("/api/public/freight/calculate", {
                 method: "POST",
-                body: JSON.stringify({ country: countryValue, weight_kg: weight, currency }),
+                body: JSON.stringify(payload),
             });
-            finishProgress(true);
-            if (amountEl) amountEl.textContent = `${data.currency} $${data.amount.toFixed(2)}`;
-            if (metaEl) metaEl.textContent = `${data.country} \u00b7 ${data.weight_kg} kg`;
+            stopLoadingState();
+            renderDoneState(payload, data);
         } catch (error) {
-            finishProgress(false);
-            if (amountEl) amountEl.textContent = "USD $0.00";
-            if (metaEl) metaEl.textContent = (error.message || "Freight service is temporarily unavailable.");
+            stopLoadingState();
+            renderErrorState(normalizeError(error));
         }
     });
 
-    function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-    }
-
+    syncCurrencySegmentState();
     hydrateCountries();
+    renderEmptyState();
 });

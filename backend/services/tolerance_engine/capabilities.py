@@ -30,7 +30,7 @@ def get_capabilities() -> dict:
 
     return {
         "engine": {"version": "iso286-reference-v2", "coverage_mode": "public_minimal"},
-        "size_range_mm": {"min": 1, "max": 500},
+        "size_range_mm": {"min": 1, "max": 3150},
         "grades": [f"IT{i}" for i in range(0, 19)] + ["IT01"],
         "hole": {
             "zones": hole_zones,

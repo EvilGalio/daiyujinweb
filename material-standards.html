@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Material Standards — Daiyujin Precision</title>
+    <title>Material Standards - Daiyujin Precision</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/plugins.css">
 </head>
@@ -31,6 +31,20 @@
     <div class="mat-search-bar" data-search-area>
         <input type="text" class="mat-search-input" placeholder="e.g. 7075, AISI 304, EN AW-6061, POM, Delrin..." data-search-input autofocus>
         <button class="tool-button" data-search-btn>Search</button>
+    </div>
+    <div class="mat-search-filters">
+        <select class="mat-search-filter" data-filter-family>
+            <option value="">All Families</option>
+        </select>
+        <select class="mat-search-filter" data-filter-standard>
+            <option value="">All Standards</option>
+        </select>
+        <select class="mat-search-filter" data-filter-confidence>
+            <option value="">Any confidence</option>
+            <option value="high">High (0.90+)</option>
+            <option value="medium">Medium (0.75+)</option>
+            <option value="low">Low</option>
+        </select>
     </div>
 
     <div class="mat-results" data-results-area>

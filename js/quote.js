@@ -623,6 +623,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return estimateLoadingCard(part);
         }
 
+        if (part?.estimateStatus === "failed") {
+            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note error">Reference estimate failed. Please adjust inputs or retry. ${esc(part.error || "Please try again.")}</div></section>`;
+        }
+
         if (!part || !part.estimate) {
             return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload CAD files to begin."}</div></section>`;
         }

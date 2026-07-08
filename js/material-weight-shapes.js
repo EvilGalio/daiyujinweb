@@ -339,6 +339,269 @@ const SHAPE_SPECS = {
       `);
     },
   },
+
+  angle_bar: {
+    label: "Angle Bar",
+    dimensions: [
+      { key: "leg_a", label: "Leg A", unit: true },
+      { key: "leg_b", label: "Leg B", unit: true },
+      { key: "thickness", label: "Thickness", unit: true },
+      { key: "length", label: "Length", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const la = activeDimensionKey === "leg_a";
+      const lb = activeDimensionKey === "leg_b";
+      const tt = activeDimensionKey === "thickness";
+      const le = activeDimensionKey === "length";
+      return svg("angle-bar", "Angle bar with two legs and thickness", `
+        <path class="shape-body shape-face-front" d="M84 58 L84 164 L172 164 L172 128 L128 128 L128 58 Z"/>
+        <path class="shape-body shape-face-top" d="M84 58 L128 32 L216 32 L216 58 Z"/>
+        <path class="shape-body shape-face-side" d="M216 58 L216 154 L172 128 L172 58 Z"/>
+
+        ${ext(84, 170, 84, 194)}
+        ${ext(172, 170, 172, 194)}
+        ${dim(84, 188, 172, 188, "angle-bar", la)}
+        ${labelBox(98, 178, 64, 18)}
+        <text class="shape-label" x="128" y="192" text-anchor="middle">Leg A</text>
+
+        ${ext(176, 128, 212, 128)}
+        ${ext(176, 164, 212, 164)}
+        ${dim(194, 128, 194, 164, "angle-bar", lb)}
+        ${labelBox(214, 142, 80, 18)}
+        <text class="shape-label" x="254" y="156" text-anchor="middle">Leg B</text>
+
+        ${ext(176, 164, 176, 188)}
+        ${ext(216, 164, 216, 188)}
+        ${dim(176, 188, 216, 188, "angle-bar", tt)}
+        ${labelBox(180, 176, 92, 18)}
+        <text class="shape-label" x="222" y="190" text-anchor="middle">Thickness</text>
+
+        ${ext(84, 194, 216, 194)}
+        ${ext(216, 188, 216, 194)}
+        ${dim(84, 206, 216, 206, "angle-bar", le)}
+        ${labelBox(136, 196, 60, 18)}
+        <text class="shape-label" x="160" y="210" text-anchor="middle">Length</text>
+      `);
+    },
+  },
+
+  channel: {
+    label: "Channel",
+    dimensions: [
+      { key: "height", label: "Height", unit: true },
+      { key: "flange_width", label: "Flange Width", unit: true },
+      { key: "web_thickness", label: "Web Thickness", unit: true },
+      { key: "flange_thickness", label: "Flange Thickness", unit: true },
+      { key: "length", label: "Length", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const ho = activeDimensionKey === "height";
+      const fw = activeDimensionKey === "flange_width";
+      const wt = activeDimensionKey === "web_thickness";
+      const ft = activeDimensionKey === "flange_thickness";
+      const le = activeDimensionKey === "length";
+      return svg("channel", "Channel with Height, Flange Width, Web Thickness and Flange Thickness", `
+        <rect class="shape-body shape-face-front" x="76" y="54" width="172" height="112" rx="2"/>
+        <rect class="shape-cut" x="126" y="88" width="72" height="44"/>
+
+        ${ext(76, 174, 76, 204)}
+        ${ext(248, 174, 248, 204)}
+        ${dim(76, 198, 248, 198, "channel", le)}
+        ${labelBox(152, 188, 56, 18)}
+        <text class="shape-label" x="174" y="202" text-anchor="middle">Length</text>
+
+        ${ext(76, 54, 76, 166)}
+        ${ext(76, 166, 76, 186)}
+        ${dim(76, 70, 76, 166, "channel", ho)}
+        ${labelBox(8, 102, 62, 18)}
+        <text class="shape-label" x="39" y="120" text-anchor="middle">Height</text>
+
+        ${ext(248, 54, 284, 54)}
+        ${ext(248, 166, 284, 166)}
+        ${dim(248, 54, 248, 166, "channel", fw)}
+        ${labelBox(234, 106, 50, 18)}
+        <text class="shape-label" x="259" y="112" text-anchor="middle">Flange Width</text>
+
+        ${ext(126, 96, 126, 142)}
+        ${ext(198, 96, 198, 142)}
+        ${dim(126, 119, 198, 119, "channel", wt)}
+        ${labelBox(206, 112, 84, 18)}
+        <text class="shape-label" x="248" y="126" text-anchor="middle">Web Thickness</text>
+
+        ${ext(126, 54, 126, 94)}
+        ${ext(126, 54, 162, 54)}
+        ${dim(126, 54, 162, 54, "channel", ft)}
+        ${labelBox(165, 38, 94, 18)}
+        <text class="shape-label" x="217" y="52" text-anchor="middle">Flange Thickness</text>
+      `);
+    },
+  },
+
+  i_beam: {
+    label: "I Beam",
+    dimensions: [
+      { key: "height", label: "Height", unit: true },
+      { key: "flange_width", label: "Flange Width", unit: true },
+      { key: "web_thickness", label: "Web Thickness", unit: true },
+      { key: "flange_thickness", label: "Flange Thickness", unit: true },
+      { key: "length", label: "Length", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const ho = activeDimensionKey === "height";
+      const fw = activeDimensionKey === "flange_width";
+      const wt = activeDimensionKey === "web_thickness";
+      const ft = activeDimensionKey === "flange_thickness";
+      const le = activeDimensionKey === "length";
+      return svg("i-beam", "I beam with Height, Flange Width, Web Thickness and Flange Thickness", `
+        <rect class="shape-body shape-face-front" x="76" y="52" width="72" height="114" rx="2"/>
+        <rect class="shape-body shape-face-front" x="156" y="88" width="88" height="42" rx="2"/>
+        <rect class="shape-body shape-face-front" x="184" y="52" width="72" height="114" rx="2"/>
+
+        ${ext(70, 166, 70, 196)}
+        ${ext(262, 166, 262, 196)}
+        ${dim(70, 190, 262, 190, "i-beam", le)}
+        ${labelBox(156, 178, 50, 18)}
+        <text class="shape-label" x="166" y="192" text-anchor="middle">Length</text>
+
+        ${ext(76, 52, 262, 52)}
+        ${ext(76, 166, 262, 166)}
+        ${dim(76, 52, 262, 52, "i-beam", fw)}
+        ${labelBox(154, 36, 76, 18)}
+        <text class="shape-label" x="177" y="48" text-anchor="middle">Flange Width</text>
+
+        ${ext(158, 88, 158, 130)}
+        ${ext(244, 88, 244, 130)}
+        ${dim(158, 88, 244, 88, "i-beam", wt)}
+        ${labelBox(244, 100, 76, 18)}
+        <text class="shape-label" x="286" y="104" text-anchor="middle">Web Thickness</text>
+
+        ${ext(76, 52, 76, 88)}
+        ${ext(148, 52, 148, 88)}
+        ${dim(76, 70, 148, 70, "i-beam", ft)}
+        ${labelBox(128, 56, 54, 18)}
+        <text class="shape-label" x="120" y="80" text-anchor="middle" transform="rotate(-90 120 80)">Flange Thickness</text>
+
+        ${ext(76, 166, 76, 130)}
+        ${ext(148, 166, 148, 130)}
+        ${dim(76, 148, 148, 148, "i-beam", ho)}
+        ${labelBox(8, 120, 58, 18)}
+        <text class="shape-label" x="47" y="144" text-anchor="middle">Height</text>
+      `);
+    },
+  },
+
+  t_bar: {
+    label: "T Bar",
+    dimensions: [
+      { key: "flange_width", label: "Flange Width", unit: true },
+      { key: "flange_thickness", label: "Flange Thickness", unit: true },
+      { key: "web_height", label: "Web Height", unit: true },
+      { key: "web_thickness", label: "Web Thickness", unit: true },
+      { key: "length", label: "Length", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const fw = activeDimensionKey === "flange_width";
+      const ft = activeDimensionKey === "flange_thickness";
+      const wh = activeDimensionKey === "web_height";
+      const wt = activeDimensionKey === "web_thickness";
+      const le = activeDimensionKey === "length";
+      return svg("t-bar", "T bar with Flange Width, Flange Thickness, Web Height, and Web Thickness", `
+        <polygon class="shape-body shape-face-front" points="82,52 238,52 238,88 182,88 182,166 138,166 138,88 82,88"/>
+        <rect class="shape-body shape-face-top" x="138" y="88" width="44" height="78" rx="2"/>
+
+        ${ext(82, 178, 82, 204)}
+        ${ext(238, 178, 238, 204)}
+        ${dim(82, 198, 238, 198, "t-bar", le)}
+        ${labelBox(154, 188, 50, 18)}
+        <text class="shape-label" x="160" y="202" text-anchor="middle">Length</text>
+
+        ${ext(138, 52, 238, 52)}
+        ${ext(138, 88, 238, 88)}
+        ${dim(138, 70, 238, 70, "t-bar", fw)}
+        ${labelBox(178, 36, 80, 18)}
+        <text class="shape-label" x="198" y="48" text-anchor="middle">Flange Width</text>
+
+        ${ext(138, 88, 138, 128)}
+        ${ext(182, 88, 182, 128)}
+        ${dim(138, 108, 182, 108, "t-bar", ft)}
+        ${labelBox(186, 94, 102, 18)}
+        <text class="shape-label" x="236" y="112" text-anchor="middle">Flange Thickness</text>
+
+        ${ext(170, 128, 182, 128)}
+        ${ext(170, 166, 182, 166)}
+        ${dim(176, 166, 176, 128, "t-bar", wh)}
+        ${labelBox(188, 142, 78, 18)}
+        <text class="shape-label" x="236" y="144" text-anchor="middle">Web Height</text>
+
+        ${ext(182, 128, 182, 166)}
+        ${ext(238, 128, 238, 166)}
+        ${dim(210, 128, 210, 166, "t-bar", wt)}
+        ${labelBox(244, 140, 74, 18)}
+        <text class="shape-label" x="281" y="152" text-anchor="middle">Web Thickness</text>
+      `);
+    },
+  },
+
+  sphere: {
+    label: "Sphere",
+    dimensions: [
+      { key: "diameter", label: "Diameter", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const da = activeDimensionKey === "diameter";
+      return svg("sphere", "Sphere with Diameter", `
+        <ellipse class="shape-body shape-face-front" cx="160" cy="110" rx="66" ry="44"/>
+        <ellipse class="shape-face-top" cx="160" cy="110" rx="66" ry="18"/>
+        <line class="shape-face-side" x1="94" y1="110" x2="226" y2="110" />
+
+        ${ext(94, 162, 226, 162)}
+        ${ext(94, 162, 94, 190)}
+        ${ext(226, 162, 226, 190)}
+        ${dim(94, 182, 226, 182, "sphere", da)}
+        ${labelBox(142, 170, 66, 18)}
+        <text class="shape-label" x="160" y="183" text-anchor="middle">Diameter</text>
+      `);
+    },
+  },
+
+  frustum: {
+    label: "Frustum / Cone",
+    dimensions: [
+      { key: "top_diameter", label: "Top Diameter", unit: true },
+      { key: "bottom_diameter", label: "Bottom Diameter", unit: true },
+      { key: "height", label: "Height", unit: true },
+    ],
+    renderSvg({ activeDimensionKey = "" } = {}) {
+      const td = activeDimensionKey === "top_diameter";
+      const bd = activeDimensionKey === "bottom_diameter";
+      const he = activeDimensionKey === "height";
+      return svg("frustum", "Frustum with top and bottom diameters and height", `
+        <polygon class="shape-body shape-face-front" points="90 58 230 58 266 168 54 168"/>
+        <polygon class="shape-body shape-face-top" points="90 58 230 58 230 74 90 74"/>
+        <polygon class="shape-body shape-face-side" points="230 58 266 168 266 182 230 74"/>
+
+        ${ext(90, 64, 230, 64)}
+        ${ext(90, 58, 90, 32)}
+        ${ext(230, 58, 230, 32)}
+        ${dim(90, 46, 230, 46, "frustum", td)}
+        ${labelBox(142, 24, 76, 18)}
+        <text class="shape-label" x="160" y="38" text-anchor="middle">Top Diameter</text>
+
+        ${ext(54, 168, 266, 168)}
+        ${ext(54, 182, 54, 214)}
+        ${ext(266, 182, 266, 214)}
+        ${dim(54, 198, 266, 198, "frustum", bd)}
+        ${labelBox(156, 208, 90, 18)}
+        <text class="shape-label" x="156" y="204" text-anchor="middle" transform="rotate(0 156 204)">Bottom Diameter</text>
+
+        ${ext(54, 168, 266, 168)}
+        ${ext(54, 168, 54, 58)}
+        ${dim(30, 58, 30, 168, "frustum", he)}
+        ${labelBox(8, 96, 40, 54)}
+        <text class="shape-label" x="29" y="116" text-anchor="middle" transform="rotate(-90 29 116)">Height</text>
+      `);
+    },
+  },
 };
 
 function rectPrism(x, y, w, h, dx, dy) {

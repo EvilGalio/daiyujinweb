@@ -23,31 +23,37 @@
                     </div>
                     <div class="tool-field">
                         <label for="currency">Display Currency</label>
-                        <select id="currency" name="currency">
-                            <option value="USD" selected>USD</option>
-                            <option value="EUR">EUR</option>
-                        </select>
+                        <div class="tool-checks" data-currency-segment aria-label="Display Currency">
+                            <label class="active">
+                                <input type="radio" id="currency-usd" name="currency" value="USD" checked> USD
+                            </label>
+                            <label>
+                                <input type="radio" id="currency-eur" name="currency" value="EUR"> EUR
+                            </label>
+                            <label>
+                                <input type="radio" id="currency-cny" name="currency" value="CNY"> CNY
+                            </label>
+                        </div>
                     </div>
                     <button class="tool-button" type="submit">Get Estimate</button>
                 </form>
 
                 <aside class="tool-panel" data-result-panel>
                     <h2>DHL Freight</h2>
-                    <div class="dhl-result" data-freight-result data-state="idle">
-                        <div class="dhl-result-main">
-                            <div class="dhl-result-amount">USD $0.00</div>
-                            <div class="dhl-result-meta">Ready for estimate</div>
-                        </div>
-                        <div class="freight-progress" data-progress-bar hidden>
-                            <div class="freight-progress-bar">
-                                <div class="freight-progress-fill" data-progress-fill></div>
+                    <section class="tool-result dhl-result" data-freight-result data-state="idle" aria-live="polite">
+                        <div class="carrier-card">
+                            <div class="quote-result-title" style="font-weight:700;margin-bottom:0.45rem;">DHL Freight</div>
+                            <div class="metric-row">
+                                <span>Freight total</span>
+                                <strong>USD 0.00</strong>
                             </div>
-                            <div class="freight-progress-text">
-                                <span class="freight-progress-phase" data-progress-phase></span>
-                                <span class="freight-progress-pct" data-progress-pct>0%</span>
+                            <div class="metric-row">
+                                <span>Status</span>
+                                <strong>Ready for shipment estimate</strong>
                             </div>
+                            <div class="tool-note">Select destination and weight, then request DHL freight estimate.</div>
                         </div>
-                    </div>
+                    </section>
                 </aside>
             </section>
         </main>

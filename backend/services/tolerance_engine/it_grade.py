@@ -7,7 +7,10 @@ _SIZE_RANGES = [
     (1, 3, 1.732), (3, 6, 4.243), (6, 10, 7.746), (10, 18, 13.416),
     (18, 30, 23.238), (30, 50, 38.73), (50, 80, 63.25), (80, 120, 97.98),
     (120, 180, 146.97), (180, 250, 212.13), (250, 315, 280.6),
-    (315, 400, 355.0), (400, 500, 447.21),
+    (315, 400, 355.0), (400, 500, 447.21), (500, 630, 561.249),
+    (630, 800, 709.93), (800, 1000, 894.427), (1000, 1250, 1118.034),
+    (1250, 1600, 1414.214), (1600, 2000, 1788.854), (2000, 2500, 2236.068),
+    (2500, 3150, 2806.243),
 ]
 
 # IT grade factors (K values) for IT5-IT18
@@ -19,7 +22,7 @@ _IT_FACTORS = {
 
 # Special fine grades IT01-IT4 (simplified formula per ISO)
 # IT01: 0.3 + 0.008*D, IT0: 0.5 + 0.012*D, IT1: 0.8 + 0.020*D
-# IT2: (IT1)^(1/4) * (IT5)^(3/4) ≈ simplified
+# IT2: (IT1)^(1/4) * (IT5)^(3/4), simplified
 # IT3: (IT1)^(1/4) * (IT5)^(3/4) geometric
 # IT4: (IT1)^(2/4) * (IT5)^(2/4) geometric
 # For practical use, we approximate fine grades
@@ -28,11 +31,11 @@ def _find_range(basic_mm: float) -> tuple:
     for sr in _SIZE_RANGES:
         if sr[0] < basic_mm <= sr[1]:
             return sr
-    raise ValueError(f"Basic size {basic_mm} mm out of supported range (1-500)")
+    raise ValueError(f"Basic size {basic_mm} mm out of supported range (1-3150)")
 
 
 def _fundamental_tolerance_unit(D_mm: float) -> float:
-    """i = 0.45 * D^(1/3) + 0.001 * D  (for D up to 500mm)"""
+    """Return the fundamental tolerance unit used by this reference engine."""
     return 0.45 * (D_mm ** (1 / 3)) + 0.001 * D_mm
 
 
@@ -46,7 +49,7 @@ def it_width(basic_mm: float, grade: int) -> dict:
         K = _IT_FACTORS[grade]
         width_raw = K * i
     elif grade == 4:
-        # IT4 ≈ (IT1)^(1/2) * (IT5)^(1/2) — geometric midpoint
+        # IT4 approximates the geometric midpoint between IT1 and IT5.
         it1_raw = (0.8 + 0.020 * D)
         it5_raw = 7 * i
         width_raw = (it1_raw ** 0.5) * (it5_raw ** 0.5)
