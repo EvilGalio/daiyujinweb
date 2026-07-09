@@ -21,7 +21,14 @@ def _load_deviations():
             _rules = json.load(f)
 
 
-def resolve(basic_mm: float, size_range_label: str, kind: str, zone: str, it_um: float) -> dict:
+def resolve(
+    basic_mm: float,
+    size_range_label: str,
+    kind: str,
+    zone: str,
+    it_um: float,
+    grade: int | None = None,
+) -> dict:
     """Return lower/upper deviations and their symbols.
 
     Returns: {"lower_um": int, "upper_um": int, "lower_sym": str, "upper_sym": str}
@@ -42,6 +49,7 @@ def resolve(basic_mm: float, size_range_label: str, kind: str, zone: str, it_um:
 
     lo_sym = rule["lower"]
     up_sym = rule["upper"]
+    anchor = rule.get("anchor")
 
     if rule["method"] == "lower_zero":
         # H: EI = 0, ES = +IT
@@ -50,7 +58,7 @@ def resolve(basic_mm: float, size_range_label: str, kind: str, zone: str, it_um:
         # h: es = 0, ei = -IT
         return {"lower_um": -it, "upper_um": 0, "lower_sym": lo_sym, "upper_sym": up_sym}
     elif rule["method"] == "centered_on_zero":
-        # JS/js: ±IT/2, rounded per ISO convention
+        # JS/js: +/- IT/2, rounded per ISO convention
         half = it / 2
         lo = -round(half) if it >= 2 else round(-half, 1)
         up = round(half) if it >= 2 else round(half, 1)
@@ -58,10 +66,57 @@ def resolve(basic_mm: float, size_range_label: str, kind: str, zone: str, it_um:
         if isinstance(up, float) and up == int(up): up = int(up)
         return {"lower_um": lo, "upper_um": up, "lower_sym": lo_sym, "upper_sym": up_sym}
     elif rule["method"] == "table":
-        return _table_lookup(kind, zone, size_range_label, it, lo_sym, up_sym)
+        return _table_lookup(kind, zone, size_range_label, it, lo_sym, up_sym, anchor)
+    elif rule["method"] == "table_by_grade":
+        return _table_by_grade_lookup(kind, zone, grade, size_range_label, it, lo_sym, up_sym, anchor)
+
+    raise TolError("unsupported_tolerance_rule",
+        f"Unsupported deviation rule method '{rule['method']}'",
+        {"kind": kind, "zone": zone, "method": rule["method"]})
 
 
-def _table_lookup(kind: str, zone: str, size_range: str, it: float, lo_sym: str, up_sym: str) -> dict:
+def _table_by_grade_lookup(
+    kind: str,
+    zone: str,
+    grade: int | None,
+    size_range: str,
+    it: float,
+    lo_sym: str,
+    up_sym: str,
+    anchor: str | None,
+) -> dict:
+    table_group = _deviations.get(kind, {}).get(zone)
+    if table_group is None:
+        raise TolError("unsupported_tolerance_zone",
+            f"Deviation table not found for {kind} zone '{zone}'",
+            {"kind": kind, "zone": zone})
+
+    grade_tables = table_group.get("grades", {}) if isinstance(table_group, dict) else {}
+    grade_key = str(grade)
+    table = grade_tables.get(grade_key)
+    if table is None:
+        raise TolError("unsupported_tolerance_grade",
+            f"No deviation data for {kind}{zone} grade IT{grade}",
+            {"kind": kind, "zone": zone, "grade": grade})
+
+    fd = table.get(size_range)
+    if fd is None:
+        raise TolError("unsupported_tolerance_zone",
+            f"No deviation data for {kind}{zone}{grade} in size range {size_range}",
+            {"kind": kind, "zone": zone, "grade": grade, "size_range": size_range})
+
+    return _apply_table_deviation(kind, zone, fd, it, lo_sym, up_sym, anchor)
+
+
+def _table_lookup(
+    kind: str,
+    zone: str,
+    size_range: str,
+    it: float,
+    lo_sym: str,
+    up_sym: str,
+    anchor: str | None,
+) -> dict:
     table = _deviations.get(kind, {}).get(zone)
     if table is None:
         raise TolError("unsupported_tolerance_zone",
@@ -71,29 +126,32 @@ def _table_lookup(kind: str, zone: str, size_range: str, it: float, lo_sym: str,
     fd = table.get(size_range)
     if fd is None:
         raise TolError("unsupported_tolerance_zone",
-            f"No deviation data for {kind}{zone} in size range {size_range}",
+            f"No deviation data for {kind} {zone} in size range {size_range}",
             {"kind": kind, "zone": zone, "size_range": size_range})
 
+    return _apply_table_deviation(kind, zone, fd, it, lo_sym, up_sym, anchor)
+
+
+def _apply_table_deviation(
+    kind: str,
+    zone: str,
+    fd: float,
+    it: float,
+    lo_sym: str,
+    up_sym: str,
+    anchor: str | None,
+) -> dict:
     it_int = int(it) if isinstance(it, float) and it == int(it) else int(it)
 
-    if kind == "hole":
-        if zone in ("B", "C", "D", "E", "F", "G"):
-            # A-G holes: EI = +fd, ES = EI + IT  (fd is absolute positive)
-            ei = fd
-            es = ei + it_int
-        else:
-            # K, N, P: ES = fd (direct signed), EI = ES - IT
-            es = fd
-            ei = es - it_int
-        return {"lower_um": ei, "upper_um": es, "lower_sym": lo_sym, "upper_sym": up_sym}
+    if anchor == "lower":
+        lo = fd
+        up = lo + it_int
+    elif anchor == "upper":
+        up = fd
+        lo = up - it_int
     else:
-        # Shaft
-        if zone in ("b", "c", "d", "e", "f", "g"):
-            # a-g shafts: es = fd (direct negative), ei = es - IT
-            es = fd
-            ei = es - it_int
-        else:
-            # k, n, p, r, s: ei = fd (direct positive), es = ei + IT
-            ei = fd
-            es = ei + it_int
-        return {"lower_um": ei, "upper_um": es, "lower_sym": lo_sym, "upper_sym": up_sym}
+        raise TolError("invalid_tolerance_rule",
+            f"Deviation rule for {kind} zone '{zone}' must define anchor lower or upper",
+            {"kind": kind, "zone": zone, "anchor": anchor})
+
+    return {"lower_um": lo, "upper_um": up, "lower_sym": lo_sym, "upper_sym": up_sym}

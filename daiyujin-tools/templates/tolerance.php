@@ -23,13 +23,9 @@
                         <label><input type="radio" name="fit_mode" value="single">Single</label>
                     </div>
                 </div>
-                <div class="tol-control-field" data-custom-group hidden>
-                    <label for="fit-combination">Fit Combination</label>
-                    <input id="fit-combination" name="fit_combination" type="text" value="H7/g6" list="fit-presets" placeholder="e.g. H7/g6">
-                    <datalist id="fit-presets"></datalist>
-                    <p class="tol-hint">Built from the selected common fit.</p>
-                </div>
-                <div class="tol-control-field" data-custom-basis-group>
+                <input id="fit-combination" name="fit_combination" type="hidden" value="H7/g6">
+                <datalist id="fit-presets"></datalist>
+                <div class="tol-control-field" data-custom-basis-group hidden>
                     <span class="tol-seg-label">Custom Bases</span>
                     <div class="tol-basis-grid">
                         <div class="tol-control-field">
@@ -49,7 +45,7 @@
                     </div>
                     <p class="tol-hint">Custom mode calculates directly from these two bases.</p>
                 </div>
-                <div class="tol-control-field" data-single-group>
+                <div class="tol-control-field" data-single-group hidden>
                     <span class="tol-seg-label">Single Zone</span>
                     <div class="tol-segmented" data-single-basis>
                         <label class="active"><input type="radio" name="single_part" value="hole" checked>Hole</label>

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.4.6
+ * Version: 1.4.7
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,11 +11,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.4.6');
+define('DYJ_TOOLS_VERSION', '1.4.7');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
-/* ── Configurable API base ─────────────────── */
+/* Configurable API base */
 
 function dyj_tools_api_base() {
     return defined('DYJ_TOOLS_API_BASE')
@@ -23,7 +23,7 @@ function dyj_tools_api_base() {
         : 'https://api.daiyujin.dpdns.org';
 }
 
-/* ── Theme detection ────────────────────────── */
+/* Theme detection */
 
 function dyj_tools_available_themes() {
     return array('default', 'mfg', 'gcindus', 'gcnov');
@@ -89,7 +89,7 @@ function dyj_tools_order_prefix($theme = null) {
     return isset($prefixes[$theme]) ? $prefixes[$theme] : $prefixes['default'];
 }
 
-/* ── Asset loading ─────────────────────────── */
+/* Asset loading */
 
 function dyj_tools_enqueue_common($theme_override = null) {
     $theme = dyj_tools_normalize_theme($theme_override);
@@ -149,7 +149,7 @@ function dyj_tools_enqueue_common($theme_override = null) {
     );
 }
 
-/* ── Template renderer ─────────────────────── */
+/* Template renderer */
 
 function dyj_tools_render_template($template, $args = array()) {
     $path = DYJ_TOOLS_DIR . 'templates/' . $template . '.php';
@@ -163,7 +163,7 @@ function dyj_tools_render_template($template, $args = array()) {
     return ob_get_clean();
 }
 
-/* ── Shortcodes ────────────────────────────── */
+/* Shortcodes */
 
 function dyj_quote_tool_shortcode($atts = array()) {
     $atts = shortcode_atts(array('theme' => ''), $atts);

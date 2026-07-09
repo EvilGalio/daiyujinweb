@@ -1,69 +1,1190 @@
 {
   "hole_basis": {
     "clearance": [
-      {"code": "H11/b11", "label": "Loose running", "preferred": true, "level": "very_loose"},
-      {"code": "H11/c11", "label": "Loose running", "preferred": true, "level": "loose"},
-      {"code": "H9/d8",  "label": "Free running", "preferred": false, "level": "free"},
-      {"code": "H10/d9", "label": "Free running", "preferred": true, "level": "free"},
-      {"code": "H9/e8",  "label": "Easy running", "preferred": true, "level": "easy"},
-      {"code": "H8/e8",  "label": "Easy running", "preferred": true, "level": "easy"},
-      {"code": "H7/f6",  "label": "Close running", "preferred": false, "level": "close"},
-      {"code": "H8/f7",  "label": "Close running", "preferred": true, "level": "close"},
-      {"code": "H7/g6",  "label": "Sliding", "preferred": true, "level": "sliding"},
-      {"code": "H10/h9", "label": "Locational clearance", "preferred": true, "level": "locational"},
-      {"code": "H7/h6",  "label": "Locational clearance", "preferred": true, "level": "locational"},
-      {"code": "H8/h7",  "label": "Locational clearance", "preferred": true, "level": "locational"}
+      {
+        "code": "H11/b11",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H11/c11",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/d8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/d9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/e8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/e8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/e7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/f6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/f8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/f8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/f7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/g6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/g5",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H11/h10",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/h5",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/h6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/h7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ],
     "transition": [
-      {"code": "H6/js5", "label": "Light transition", "preferred": false, "level": "light"},
-      {"code": "H7/js6", "label": "Light transition", "preferred": true, "level": "light"},
-      {"code": "H8/k7",  "label": "Medium transition", "preferred": false, "level": "medium"},
-      {"code": "H6/k5",  "label": "Medium transition", "preferred": false, "level": "medium"},
-      {"code": "H7/k6",  "label": "Medium transition", "preferred": true, "level": "medium"},
-      {"code": "H7/m6",  "label": "Tight transition", "preferred": false, "level": "tight"},
-      {"code": "H8/m7",  "label": "Tight transition", "preferred": false, "level": "tight"},
-      {"code": "H7/n6",  "label": "Tight transition", "preferred": true, "level": "tight"}
+      {
+        "code": "H6/js5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/js6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/k7",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/k5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/k6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/m6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/m5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/m7",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/n6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/js7",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ],
     "interference": [
-      {"code": "H6/n5", "label": "Light press", "preferred": false, "level": "light_press"},
-      {"code": "H7/p6", "label": "Light press", "preferred": true, "level": "light_press"},
-      {"code": "H6/p5", "label": "Light press", "preferred": false, "level": "light_press"},
-      {"code": "H7/r6", "label": "Medium press", "preferred": true, "level": "medium_press"},
-      {"code": "H7/s6", "label": "Medium drive", "preferred": true, "level": "medium_drive"},
-      {"code": "H8/s7", "label": "Medium drive", "preferred": false, "level": "medium_drive"},
-      {"code": "H7/t6", "label": "Heavy press", "preferred": false, "level": "heavy_press"},
-      {"code": "H7/u6", "label": "Force fit", "preferred": false, "level": "force"},
-      {"code": "H8/u7", "label": "Force fit", "preferred": false, "level": "force"},
-      {"code": "H7/x6", "label": "Heavy force fit", "preferred": false, "level": "heavy_force"}
+      {
+        "code": "H6/n5",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/p6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/p5",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/r6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/s6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/s7",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/t6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/u6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/u7",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/x6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ]
   },
   "shaft_basis": {
     "clearance": [
-      {"code": "B11/h9", "label": "Loose running", "preferred": true, "level": "loose"},
-      {"code": "D10/h9", "label": "Free running", "preferred": true, "level": "free"},
-      {"code": "E9/h8",  "label": "Easy running", "preferred": true, "level": "easy"},
-      {"code": "E9/h9",  "label": "Easy running", "preferred": true, "level": "easy"},
-      {"code": "F8/h7",  "label": "Close running", "preferred": true, "level": "close"},
-      {"code": "F8/h9",  "label": "Close running", "preferred": true, "level": "close"},
-      {"code": "G7/h6",  "label": "Sliding", "preferred": true, "level": "sliding"},
-      {"code": "H8/h9",  "label": "Locational clearance", "preferred": true, "level": "locational"},
-      {"code": "H9/h9",  "label": "Locational clearance", "preferred": true, "level": "locational"},
-      {"code": "H8/h7",  "label": "Locational clearance", "preferred": true, "level": "locational"},
-      {"code": "H7/h6",  "label": "Locational clearance", "preferred": true, "level": "locational"}
+      {
+        "code": "B11/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "C10/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "D9/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "D10/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "D9/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "E8/h7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "E9/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "E8/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "E9/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F8/h7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F9/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F8/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F9/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F7/h6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "G7/h6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "G6/h5",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/h8",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/h9",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/h7",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/h5",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/h6",
+        "label": "Clearance fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ],
     "transition": [
-      {"code": "JS7/h6", "label": "Light transition", "preferred": true, "level": "light"},
-      {"code": "K7/h6",  "label": "Medium transition", "preferred": true, "level": "medium"},
-      {"code": "N7/h6",  "label": "Tight transition", "preferred": true, "level": "tight"}
+      {
+        "code": "JS7/h6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "JS6/h5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "K7/h6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "K6/h5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "M7/h6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "M6/h5",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "N7/h6",
+        "label": "Transition fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ],
     "interference": [
-      {"code": "P7/h6", "label": "Light press", "preferred": true, "level": "light_press"},
-      {"code": "R7/h6", "label": "Medium press", "preferred": true, "level": "medium_press"},
-      {"code": "S7/h6", "label": "Medium drive", "preferred": true, "level": "medium_drive"},
-      {"code": "T7/h6", "label": "Heavy press", "preferred": false, "level": "heavy_press"},
-      {"code": "U7/h6", "label": "Force fit", "preferred": false, "level": "force"},
-      {"code": "X7/h6", "label": "Heavy force fit", "preferred": false, "level": "heavy_force"}
+      {
+        "code": "N6/h5",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "P7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "P6/h5",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "R7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "S7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "T7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "U7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "X7/h6",
+        "label": "Interference fit",
+        "standard": "ISO 286",
+        "basis": "shaft",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      }
     ]
   },
-  "legacy": ["H7/g6", "H7/h6", "H8/f7", "H8/h7", "H9/e8", "H7/js6", "H7/k6", "H7/n6", "H7/p6", "H7/r6", "H7/s6"]
+  "ansi_b4_1": {
+    "clearance": [
+      {
+        "code": "H5/g4",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/g5",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/f6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/f7",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/e7",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/e8",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/d8",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/c9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H6/h5",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/h6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/h7",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/h9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/g6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/f8",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/e9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H10/d9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H11/c10",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ],
+    "transition": [
+      {
+        "code": "H7/js6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/js7",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/k6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/k7",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/n6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/n7",
+        "label": "Transition fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ],
+    "interference": [
+      {
+        "code": "H6/n5",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/p6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/r6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/s6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/t6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/u6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/x7",
+        "label": "Interference fit",
+        "standard": "ANSI B4.1 equivalent",
+        "basis": "hole",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ]
+  },
+  "ansi_b4_2": {
+    "clearance": [
+      {
+        "code": "H11/c11",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "C11/h11",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H9/d9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "D9/h9",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H8/f7",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "F8/h7",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/g6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "G7/h6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/h6",
+        "label": "Clearance fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "clearance",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ],
+    "transition": [
+      {
+        "code": "H7/k6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "K7/h6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/n6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "N7/h6",
+        "label": "Transition fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "transition",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ],
+    "interference": [
+      {
+        "code": "H7/p6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "P7/h6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/s6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "S7/h6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "H7/u6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      },
+      {
+        "code": "U7/h6",
+        "label": "Interference fit",
+        "standard": "ANSI B4.2 equivalent",
+        "basis": "mixed",
+        "fit_type": "interference",
+        "preferred": true,
+        "source": "curated_reference"
+      }
+    ]
+  },
+  "legacy": [
+    "H7/g6",
+    "H7/h6",
+    "H8/f7",
+    "H8/h7",
+    "H9/e8",
+    "H7/js6",
+    "H7/k6",
+    "H7/n6",
+    "H7/p6",
+    "H7/r6",
+    "H7/s6"
+  ]
 }

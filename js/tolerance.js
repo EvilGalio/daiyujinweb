@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const isSingle = mode === "single";
 
         presetGroup.hidden = !isCommon;
-        customGroup.hidden = true;
+        if (customGroup) customGroup.hidden = true;
         customBasisGroup.hidden = !isCustom;
         singleGroup.hidden = !isSingle;
 
@@ -504,61 +504,48 @@ document.addEventListener("DOMContentLoaded", () => {
             const presets = data.presets;
             if (!presets) return;
             const datalist = document.querySelector("#fit-presets");
-            const seenCodes = new Set();
+            if (datalist) datalist.innerHTML = "";
             if (!Array.isArray(presets)) {
-                const groupedSource = presets.hole_basis || presets;
-                const groups = {
-                    clearance: [],
-                    transition: [],
-                    interference: [],
-                    legacy: [],
+                const groupTitles = {
+                    hole_basis: "ISO Hole Basis",
+                    shaft_basis: "ISO Shaft Basis",
+                    ansi_b4_1: "ANSI B4.1 Equivalent",
+                    ansi_b4_2: "ANSI B4.2 Equivalent",
                 };
-                const addItem = (bucket, item, includeInSelect) => {
+                const bucketTitles = {
+                    clearance: "Clearance",
+                    transition: "Transition",
+                    interference: "Interference",
+                };
+                const addDatalistItem = (item) => {
                     const code = typeof item === "string" ? item : item.code;
                     if (!code) return;
-                    if (datalist && !seenCodes.has(code)) {
+                    if (datalist && !datalist.querySelector(`option[value="${cssEscape(code)}"]`)) {
                         datalist.innerHTML += `<option value="${esc(code)}"></option>`;
-                        seenCodes.add(code);
-                    }
-                    if (includeInSelect) {
-                        const label = typeof item === "string" ? code : `${code}: ${item.label || ""}`.trim();
-                        groups[bucket].push({ code, label, preferred: item?.preferred !== false });
                     }
                 };
-                const processGroup = (source, bucket) => {
-                    const list = source?.[bucket] || [];
-                    for (const item of list) addItem(bucket, item, true);
-                };
-                processGroup(groupedSource, "clearance");
-                processGroup(groupedSource, "transition");
-                processGroup(groupedSource, "interference");
-                if (Array.isArray(presets.legacy)) {
-                    presets.legacy.forEach((item) => addItem("legacy", item, true));
-                }
                 if (presetSelect) {
                     presetSelect.innerHTML = "";
-                    const orderedBuckets = ["clearance", "transition", "interference", "legacy"];
-                    const groupTitles = {
-                        clearance: "Clearance",
-                        transition: "Transition",
-                        interference: "Interference",
-                        legacy: "Legacy",
-                    };
-                    const seen = new Set();
-                    for (const bucket of orderedBuckets) {
-                        const items = (groups[bucket] || []).filter((it) => it.preferred !== false);
-                        if (items.length === 0) continue;
-                        const optgroup = document.createElement("optgroup");
-                        optgroup.label = groupTitles[bucket];
-                        for (const item of items) {
-                            if (seen.has(item.code)) continue;
-                            seen.add(item.code);
-                            const option = document.createElement("option");
-                            option.value = item.code;
-                            option.textContent = item.label || item.code;
-                            optgroup.appendChild(option);
+                    for (const groupName of ["hole_basis", "shaft_basis", "ansi_b4_1", "ansi_b4_2"]) {
+                        const group = presets[groupName];
+                        if (!group || typeof group !== "object") continue;
+                        for (const bucket of ["clearance", "transition", "interference"]) {
+                            const items = (group[bucket] || []).filter((it) => it?.preferred !== false);
+                            if (items.length === 0) continue;
+                            const optgroup = document.createElement("optgroup");
+                            optgroup.label = `${groupTitles[groupName]} - ${bucketTitles[bucket]}`;
+                            for (const item of items) {
+                                const code = typeof item === "string" ? item : item.code;
+                                if (!code) continue;
+                                addDatalistItem(item);
+                                const label = typeof item === "string" ? code : `${code}: ${item.label || ""}`.trim();
+                                const option = document.createElement("option");
+                                option.value = code;
+                                option.textContent = label;
+                                optgroup.appendChild(option);
+                            }
+                            presetSelect.appendChild(optgroup);
                         }
-                        presetSelect.appendChild(optgroup);
                     }
                     if (!presetSelect.value && presetSelect.options.length > 0) {
                         presetSelect.value = presetSelect.options[0].value;
@@ -577,6 +564,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === "function") {
+            return window.CSS.escape(value);
+        }
+        return String(value).replace(/"/g, '\\"');
+    }
+
     async function hydrateCapabilities() {
         try {
             const data = await window.DaiyujinAPI.request("/api/public/tolerance/capabilities");
@@ -591,6 +585,12 @@ document.addEventListener("DOMContentLoaded", () => {
             fillSelect(shaftGradeSelect, grades);
             fillSelect(singleZoneSelect, [...holes, ...shafts]);
             fillSelect(singleGradeSelect, grades);
+            setSelectValue(holeZoneSelect, "H");
+            setSelectValue(holeGradeSelect, "7");
+            setSelectValue(shaftZoneSelect, "g");
+            setSelectValue(shaftGradeSelect, "6");
+            setSelectValue(singleZoneSelect, "H");
+            setSelectValue(singleGradeSelect, "7");
             syncSingleSelectors();
         } catch (e) {
             if (holeZoneSelect && holeZoneSelect.children.length === 0) {
@@ -631,6 +631,12 @@ document.addEventListener("DOMContentLoaded", () => {
             select.appendChild(option);
         }
         if (select.children.length > 0) select.value = select.children[0].value;
+    }
+
+    function setSelectValue(select, value) {
+        if (!select) return;
+        const hasValue = [...select.options].some((option) => option.value === value);
+        if (hasValue) select.value = value;
     }
 
     async function initControls() {

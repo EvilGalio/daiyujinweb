@@ -1,21 +1,240 @@
 {
   "hole": [
-    {"code": "H6"}, {"code": "H7"}, {"code": "H8"}, {"code": "H9"}, {"code": "H11"},
-    {"code": "JS6"}, {"code": "JS7"}, {"code": "JS9"},
-    {"code": "G7"},
-    {"code": "K7"},
-    {"code": "N7"},
-    {"code": "P7"}
+    {
+      "code": "B11"
+    },
+    {
+      "code": "C10"
+    },
+    {
+      "code": "C11"
+    },
+    {
+      "code": "D9"
+    },
+    {
+      "code": "D10"
+    },
+    {
+      "code": "E8"
+    },
+    {
+      "code": "E9"
+    },
+    {
+      "code": "F7"
+    },
+    {
+      "code": "F8"
+    },
+    {
+      "code": "F9"
+    },
+    {
+      "code": "G6"
+    },
+    {
+      "code": "G7"
+    },
+    {
+      "code": "H5"
+    },
+    {
+      "code": "H6"
+    },
+    {
+      "code": "H7"
+    },
+    {
+      "code": "H8"
+    },
+    {
+      "code": "H9"
+    },
+    {
+      "code": "H10"
+    },
+    {
+      "code": "H11"
+    },
+    {
+      "code": "JS6"
+    },
+    {
+      "code": "JS7"
+    },
+    {
+      "code": "K6"
+    },
+    {
+      "code": "K7"
+    },
+    {
+      "code": "M6"
+    },
+    {
+      "code": "M7"
+    },
+    {
+      "code": "N6"
+    },
+    {
+      "code": "N7"
+    },
+    {
+      "code": "P6"
+    },
+    {
+      "code": "P7"
+    },
+    {
+      "code": "R7"
+    },
+    {
+      "code": "S7"
+    },
+    {
+      "code": "T7"
+    },
+    {
+      "code": "U7"
+    },
+    {
+      "code": "X7"
+    }
   ],
   "shaft": [
-    {"code": "f7"},
-    {"code": "g6"},
-    {"code": "h6"}, {"code": "h7"}, {"code": "h9"}, {"code": "h11"},
-    {"code": "js6"}, {"code": "js7"},
-    {"code": "k5"}, {"code": "k6"},
-    {"code": "n6"},
-    {"code": "p6"},
-    {"code": "r6"},
-    {"code": "s6"}
+    {
+      "code": "b11"
+    },
+    {
+      "code": "c9"
+    },
+    {
+      "code": "c10"
+    },
+    {
+      "code": "c11"
+    },
+    {
+      "code": "d8"
+    },
+    {
+      "code": "d9"
+    },
+    {
+      "code": "e7"
+    },
+    {
+      "code": "e8"
+    },
+    {
+      "code": "e9"
+    },
+    {
+      "code": "f6"
+    },
+    {
+      "code": "f7"
+    },
+    {
+      "code": "f8"
+    },
+    {
+      "code": "g4"
+    },
+    {
+      "code": "g5"
+    },
+    {
+      "code": "g6"
+    },
+    {
+      "code": "h5"
+    },
+    {
+      "code": "h6"
+    },
+    {
+      "code": "h7"
+    },
+    {
+      "code": "h8"
+    },
+    {
+      "code": "h9"
+    },
+    {
+      "code": "h10"
+    },
+    {
+      "code": "h11"
+    },
+    {
+      "code": "js5"
+    },
+    {
+      "code": "js6"
+    },
+    {
+      "code": "js7"
+    },
+    {
+      "code": "k5"
+    },
+    {
+      "code": "k6"
+    },
+    {
+      "code": "k7"
+    },
+    {
+      "code": "m5"
+    },
+    {
+      "code": "m6"
+    },
+    {
+      "code": "m7"
+    },
+    {
+      "code": "n5"
+    },
+    {
+      "code": "n6"
+    },
+    {
+      "code": "n7"
+    },
+    {
+      "code": "p5"
+    },
+    {
+      "code": "p6"
+    },
+    {
+      "code": "r6"
+    },
+    {
+      "code": "s6"
+    },
+    {
+      "code": "s7"
+    },
+    {
+      "code": "t6"
+    },
+    {
+      "code": "u6"
+    },
+    {
+      "code": "u7"
+    },
+    {
+      "code": "x6"
+    },
+    {
+      "code": "x7"
+    }
   ]
 }

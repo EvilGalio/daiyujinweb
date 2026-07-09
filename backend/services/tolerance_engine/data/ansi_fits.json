@@ -1,0 +1,238 @@
+{
+  "source": "curated_ansi_equivalent_aliases",
+  "warning": "ANSI names resolve to ISO 286 equivalent class pairs. Numeric ANSI table compliance is not claimed.",
+  "fits": [
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 1",
+      "combination": "H5/g4",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 2",
+      "combination": "H6/g5",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 3",
+      "combination": "H7/f6",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 4",
+      "combination": "H8/f7",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 5",
+      "combination": "H8/e7",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 6",
+      "combination": "H9/e8",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 7",
+      "combination": "H9/d8",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "RC",
+      "name": "RC 8",
+      "combination": "H10/c9",
+      "fit_type": "Running or Sliding Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 1",
+      "combination": "H6/h5",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 2",
+      "combination": "H7/h6",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 3",
+      "combination": "H8/h7",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 4",
+      "combination": "H10/h9",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 5",
+      "combination": "H7/g6",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 6",
+      "combination": "H9/f8",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 7",
+      "combination": "H10/e9",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 8",
+      "combination": "H10/d9",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LC",
+      "name": "LC 9",
+      "combination": "H11/c10",
+      "fit_type": "Locational Clearance Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LT",
+      "name": "LT 1",
+      "combination": "H7/js6",
+      "fit_type": "Locational Transition Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LT",
+      "name": "LT 2",
+      "combination": "H8/js7",
+      "fit_type": "Locational Transition Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LT",
+      "name": "LT 3",
+      "combination": "H7/k6",
+      "fit_type": "Locational Transition Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LT",
+      "name": "LT 4",
+      "combination": "H8/k7",
+      "fit_type": "Locational Transition Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LN",
+      "name": "LN 1",
+      "combination": "H7/n6",
+      "fit_type": "Locational Interference Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LN",
+      "name": "LN 2",
+      "combination": "H7/n7",
+      "fit_type": "Locational Interference Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "LN",
+      "name": "LN 3",
+      "combination": "H6/n5",
+      "fit_type": "Locational Interference Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "FN",
+      "name": "FN 1",
+      "combination": "H7/p6",
+      "fit_type": "Force or Shrink Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "FN",
+      "name": "FN 2",
+      "combination": "H7/r6",
+      "fit_type": "Force or Shrink Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "FN",
+      "name": "FN 3",
+      "combination": "H7/t6",
+      "fit_type": "Force or Shrink Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "FN",
+      "name": "FN 4",
+      "combination": "H7/u6",
+      "fit_type": "Force or Shrink Fit",
+      "calculation_basis": "iso286_equivalent"
+    },
+    {
+      "standard": "ANSI B4.1",
+      "family": "FN",
+      "name": "FN 5",
+      "combination": "H8/x7",
+      "fit_type": "Force or Shrink Fit",
+      "calculation_basis": "iso286_equivalent"
+    }
+  ]
+}

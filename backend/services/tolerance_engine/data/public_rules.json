@@ -1,30 +1,306 @@
 {
   "rules": [
-    {"kind": "hole", "zone": "H",  "method": "lower_zero",    "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "JS", "method": "centered_on_zero","lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "B",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "C",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "D",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "E",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "F",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "G",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "K",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "N",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "P",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "R",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "hole", "zone": "S",  "method": "table",          "lower": "EI", "upper": "ES", "verified": true},
-    {"kind": "shaft", "zone": "h",  "method": "upper_zero",    "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "js", "method": "centered_on_zero","lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "b",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "c",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "d",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "e",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "f",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "g",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "k",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "n",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "p",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "r",  "method": "table",         "lower": "ei", "upper": "es", "verified": true},
-    {"kind": "shaft", "zone": "s",  "method": "table",         "lower": "ei", "upper": "es", "verified": true}
+    {
+      "kind": "hole",
+      "zone": "H",
+      "method": "lower_zero",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true
+    },
+    {
+      "kind": "hole",
+      "zone": "JS",
+      "method": "centered_on_zero",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true
+    },
+    {
+      "kind": "hole",
+      "zone": "B",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "C",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "D",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "E",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "F",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "G",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "hole",
+      "zone": "K",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "M",
+      "method": "table_by_grade",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "N",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "P",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "R",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "S",
+      "method": "table",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "T",
+      "method": "table_by_grade",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "U",
+      "method": "table_by_grade",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "hole",
+      "zone": "X",
+      "method": "table_by_grade",
+      "lower": "EI",
+      "upper": "ES",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "h",
+      "method": "upper_zero",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true
+    },
+    {
+      "kind": "shaft",
+      "zone": "js",
+      "method": "centered_on_zero",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true
+    },
+    {
+      "kind": "shaft",
+      "zone": "b",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "c",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "d",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "e",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "f",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "g",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "upper"
+    },
+    {
+      "kind": "shaft",
+      "zone": "k",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "m",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "n",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "p",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "r",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "s",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "t",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "u",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    },
+    {
+      "kind": "shaft",
+      "zone": "x",
+      "method": "table",
+      "lower": "ei",
+      "upper": "es",
+      "verified": true,
+      "anchor": "lower"
+    }
   ]
 }

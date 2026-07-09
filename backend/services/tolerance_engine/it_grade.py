@@ -1,6 +1,13 @@
-"""IT Grade tolerance width calculator. ISO 286 formula-based."""
+"""IT Grade tolerance width calculator. Uses table data first."""
 
 from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+_DATA_DIR = Path(__file__).parent / "data"
+_WIDTH_TABLE = None
 
 # Size ranges: (lower, upper, D_geometric_mean)
 _SIZE_RANGES = [
@@ -34,13 +41,24 @@ def _find_range(basic_mm: float) -> tuple:
     raise ValueError(f"Basic size {basic_mm} mm out of supported range (1-3150)")
 
 
+def _load_width_table() -> dict:
+    global _WIDTH_TABLE
+    if _WIDTH_TABLE is None:
+        with open(_DATA_DIR / "standard_tolerance_widths.json", encoding="utf-8") as f:
+            _WIDTH_TABLE = json.load(f)
+    return _WIDTH_TABLE
+
+
+def _grade_key(grade: int) -> str:
+    return "IT01" if grade == -1 else f"IT{grade}"
+
+
 def _fundamental_tolerance_unit(D_mm: float) -> float:
     """Return the fundamental tolerance unit used by this reference engine."""
     return 0.45 * (D_mm ** (1 / 3)) + 0.001 * D_mm
 
 
-def it_width(basic_mm: float, grade: int) -> dict:
-    """Return tolerance width in microns and size range info."""
+def _formula_it_width(basic_mm: float, grade: int) -> dict:
     sr = _find_range(basic_mm)
     D = sr[2]  # geometric mean
     i = _fundamental_tolerance_unit(D)
@@ -83,3 +101,28 @@ def it_width(basic_mm: float, grade: int) -> dict:
         "size_range_D": round(D, 3),
         "source": "iso286_formula",
     }
+
+
+def it_width(basic_mm: float, grade: int) -> dict:
+    """Return tolerance width in microns and size range info."""
+    sr = _find_range(basic_mm)
+    size_label = f"{sr[0]}-{sr[1]}"
+    grade_key = _grade_key(grade)
+    table = _load_width_table()
+
+    for row in table.get("ranges", []):
+        if row.get("label") != size_label:
+            continue
+        if grade_key in row:
+            return {
+                "tolerance_width_um": row[grade_key],
+                "size_range": size_label,
+                "size_range_D": row.get("size_range_D", round(sr[2], 3)),
+                "source": "iso286_table",
+            }
+        break
+
+    if os.environ.get("TOLERANCE_ALLOW_FORMULA_FALLBACK", "").lower() in {"1", "true", "yes"}:
+        return _formula_it_width(basic_mm, grade)
+
+    raise ValueError(f"No table value for {grade_key} in size range {size_label}")

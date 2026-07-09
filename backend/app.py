@@ -38,7 +38,7 @@ MAX_ZIP_BYTES = 50 * 1024 * 1024
 MAX_ZIP_CAD_TOTAL_BYTES = 150 * 1024 * 1024
 MAX_ZIP_CAD_FILES = 20
 
-# ── Preview watermark ──────────────────────────
+# Preview watermark
 
 def _find_uploaded_cad(file_id: str) -> Path | None:
     """Find an uploaded CAD file by file_id. Supports both legacy {uuid}.ext and new {uuid}_name.ext."""
@@ -285,7 +285,11 @@ def create_app() -> Flask:
 
     @app.get("/api/public/tolerance/presets")
     def tolerance_presets():
-        return api_ok({"presets": get_tolerance_presets()})
+        return api_ok({"presets": get_tolerance_presets(
+            standard=request.args.get("standard"),
+            basis=request.args.get("basis"),
+            fit_type=request.args.get("fit_type"),
+        )})
 
     @app.get("/api/public/tolerance/capabilities")
     def tolerance_capabilities():
@@ -308,7 +312,7 @@ def create_app() -> Flask:
             return api_error("invalid_tolerance_request", str(exc), 400)
         return api_ok(result)
 
-    # ── Material Standards ──
+    # Material Standards
     @app.get("/api/public/material-standards/search")
     def material_standards_search_route():
         q = request.args.get("q", "")
@@ -328,7 +332,7 @@ def create_app() -> Flask:
     def material_standards_families_route():
         return api_ok(material_standards_families())
 
-    # ── Material Weight ──
+    # Material Weight
     @app.get("/api/public/material-weight/options")
     def material_weight_options_route():
         return api_ok(material_weight_options())
