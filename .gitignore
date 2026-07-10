@@ -23,6 +23,8 @@ backend/*.db
 local_backups/
 _private/
 _runtime_archive/
+/planning/
+/.firecrawl/
 
 # Private planning, analysis, and commercial source files
 PRD*.md
