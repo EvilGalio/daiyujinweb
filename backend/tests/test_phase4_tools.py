@@ -10,6 +10,7 @@ from backend.scripts.phase4_inventory_r2 import reconcile_r2_inventory
 from backend.scripts.phase4_inventory_runtime_storage import inventory as storage_inventory
 from backend.scripts.phase4_measure_latency import _percentile, _summary, _target
 from backend.scripts.phase4_occ_parity import _decode_analyzer_json, _dimensions, compare
+from backend.scripts.phase4_validate_system_inventory import validate_inventory
 
 
 def test_legacy_inventory_contains_metadata_but_not_row_values(tmp_path: Path) -> None:
@@ -159,3 +160,36 @@ def test_r2_inventory_reconciles_without_exposing_object_keys() -> None:
     assert "private-a.png" not in rendered
     assert "missing.pdf" not in rendered
     assert "orphan.mp4" not in rendered
+
+
+def test_system_inventory_validation_accepts_complete_resource_window() -> None:
+    payload = {
+        "resource_window": {
+            "sample_count": 60,
+            "summary": {
+                "cpu_percent": {"p95": 42.5},
+                "available_memory_bytes": {"p50": 4_000_000_000},
+                "disk_queue_length": {"p95": 0.2},
+            },
+        }
+    }
+
+    assert validate_inventory(payload) == []
+
+
+def test_system_inventory_validation_reports_each_missing_metric() -> None:
+    payload = {
+        "resource_window": {
+            "sample_count": 1,
+            "summary": {
+                "cpu_percent": {"p95": None},
+                "available_memory_bytes": {"p50": 4_000_000_000},
+                "disk_queue_length": {"p95": None},
+            },
+        }
+    }
+
+    errors = validate_inventory(payload)
+
+    assert "resource_window.summary.cpu_percent.p95 is unavailable or invalid" in errors
+    assert "resource_window.summary.disk_queue_length.p95 is unavailable or invalid" in errors

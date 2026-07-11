@@ -65,6 +65,7 @@ function Invoke-EvidenceStep {
             status = "pass"
             duration_ms = [int](((Get-Date) - $started).TotalMilliseconds)
             error_type = $null
+            error_message = $null
         }
     }
     catch {
@@ -73,6 +74,7 @@ function Invoke-EvidenceStep {
             status = "fail"
             duration_ms = [int](((Get-Date) - $started).TotalMilliseconds)
             error_type = $_.Exception.GetType().Name
+            error_message = $_.Exception.Message
         }
     }
 }
@@ -101,18 +103,10 @@ $steps += Invoke-EvidenceStep -Name "resource_window_validation" -Action {
     if (-not (Test-Path -LiteralPath $systemInventory -PathType Leaf)) {
         throw "System inventory was not written"
     }
-    $inventory = Get-Content -LiteralPath $systemInventory -Raw | ConvertFrom-Json
-    if ($inventory.resource_window.sample_count -lt 1) {
-        throw "Resource window contains no samples"
-    }
-    if ($null -eq $inventory.resource_window.summary.cpu_percent.p95) {
-        throw "CPU performance data is unavailable"
-    }
-    if ($null -eq $inventory.resource_window.summary.available_memory_bytes.p50) {
-        throw "Memory performance data is unavailable"
-    }
-    if ($null -eq $inventory.resource_window.summary.disk_queue_length.p95) {
-        throw "Disk queue performance data is unavailable"
+    $validator = Join-Path $root "backend\scripts\phase4_validate_system_inventory.py"
+    & $python -B $validator --input $systemInventory
+    if ($LASTEXITCODE -ne 0) {
+        throw "System inventory validation failed with exit code $LASTEXITCODE"
     }
 }
 $steps += Invoke-EvidenceStep -Name "legacy_inventory" -Action {
