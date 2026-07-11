@@ -10,6 +10,7 @@ from backend.scripts.phase4_inventory_r2 import reconcile_r2_inventory
 from backend.scripts.phase4_inventory_runtime_storage import inventory as storage_inventory
 from backend.scripts.phase4_measure_latency import _percentile, _summary, _target
 from backend.scripts.phase4_occ_parity import _decode_analyzer_json, _dimensions, compare
+from backend.scripts.phase4_run_portal_read_load import build_read_endpoints, summarize
 from backend.scripts.phase4_validate_system_inventory import validate_inventory
 
 
@@ -193,3 +194,37 @@ def test_system_inventory_validation_reports_each_missing_metric() -> None:
 
     assert "resource_window.summary.cpu_percent.p95 is unavailable or invalid" in errors
     assert "resource_window.summary.disk_queue_length.p95 is unavailable or invalid" in errors
+
+
+def test_portal_read_load_builds_complete_order_detail_reads() -> None:
+    endpoints = build_read_endpoints([7])
+
+    assert endpoints == [
+        "api/portal/auth/me",
+        "api/portal/orders",
+        "api/portal/orders/7",
+        "api/portal/orders/7/updates",
+        "api/portal/orders/7/messages",
+        "api/portal/orders/7/media",
+    ]
+
+
+def test_portal_read_load_summary_requires_99_percent_success() -> None:
+    samples = [
+        {"success": True, "duration_ms": 10.0, "status_code": 200, "error_type": None}
+        for _ in range(99)
+    ]
+    samples.append(
+        {
+            "success": False,
+            "duration_ms": 10.0,
+            "status_code": 500,
+            "error_type": "HTTPError",
+        }
+    )
+
+    report = summarize(samples, elapsed_seconds=10.0)
+
+    assert report["result"] == "pass"
+    assert report["success_rate"] == 0.99
+    assert report["achieved_rps"] == 10.0
