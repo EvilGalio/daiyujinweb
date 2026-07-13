@@ -18,10 +18,28 @@ $env:PYTHONIOENCODING = "utf-8"
 
 $RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
 $BackendRoot = Join-Path $RepoRoot "backend"
+$EnvFile = Join-Path $BackendRoot ".env"
 $RepairScript = Join-Path $PSScriptRoot "repair_allowed_extensions.py"
 
 $script:ResolvedPython = ""
 $script:PythonPrefix = @()
+
+function Get-EnvValue {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return ""
+    }
+    foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
+        if ($line -match "^\s*$Key\s*=\s*(.+?)\s*$") {
+            return $Matches[1].Trim().Trim('"').Trim("'")
+        }
+    }
+    return ""
+}
 
 function Use-PythonCandidate {
     param(
@@ -65,6 +83,13 @@ if ($PythonExe) {
 }
 else {
     $candidatePaths = @()
+    $configuredPython = Get-EnvValue -Path $EnvFile -Key "OCC_PYTHON"
+    if ($configuredPython) {
+        $candidatePaths += $configuredPython
+    }
+    if ($env:OCC_PYTHON) {
+        $candidatePaths += $env:OCC_PYTHON
+    }
     if ($env:VIRTUAL_ENV) {
         $candidatePaths += Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"
     }
@@ -73,6 +98,10 @@ else {
     }
     $candidatePaths += Join-Path $RepoRoot ".venv\Scripts\python.exe"
     $candidatePaths += Join-Path $BackendRoot ".venv\Scripts\python.exe"
+    $candidatePaths += Join-Path $env:USERPROFILE "miniconda3\envs\occ\python.exe"
+    $candidatePaths += Join-Path $env:USERPROFILE "miniconda3\python.exe"
+    $candidatePaths += Join-Path $env:USERPROFILE "anaconda3\envs\occ\python.exe"
+    $candidatePaths += Join-Path $env:USERPROFILE "anaconda3\python.exe"
     $candidatePaths += "D:\anaconda\python.exe"
 
     foreach ($candidate in $candidatePaths) {
@@ -105,16 +134,16 @@ Write-Host "Python:   $script:ResolvedPython"
 Push-Location -LiteralPath $BackendRoot
 try {
     if (-not $SkipDependencyInstall) {
-        Write-Host "Installing ZIP, RAR, and 7Z support dependencies..."
+        Write-Host "Installing archive migration dependencies..."
         Invoke-SelectedPython -Arguments @(
             "-m", "pip", "install", "--disable-pip-version-check",
-            "py7zr>=1.1.3,<2.0", "rarfile>=4.3,<5.0"
+            "SQLAlchemy>=2.0", "py7zr>=1.1.3,<2.0", "rarfile>=4.3,<5.0"
         )
     }
 
     Invoke-SelectedPython -Arguments @(
         "-B", "-c",
-        "from importlib.metadata import version; print('py7zr=' + version('py7zr')); print('rarfile=' + version('rarfile'))"
+        "import sqlalchemy, py7zr, rarfile; from importlib.metadata import version; print('SQLAlchemy=' + version('SQLAlchemy')); print('py7zr=' + version('py7zr')); print('rarfile=' + version('rarfile'))"
     )
 
     $repairArgs = @("-B", $RepairScript)
