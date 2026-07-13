@@ -1,4 +1,4 @@
-"""App settings service — read/write with audit trail and public safety."""
+"""App settings service with audit trail and public safety."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -31,7 +31,7 @@ def _register(scope: str, key: str, value: Any, value_type: str = "string", is_p
         "is_public": is_public, "description": description,
     }
 
-# ── Quote text & CTA ──
+# Quote text and CTA
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "disclaimer_template", "This estimate is for early cost evaluation. Final pricing may vary based on material grade, tolerances, finishing requirements, inspection needs, and lead time. For an exact quote, contact our engineers for a fast formal review.", is_public=True, description="Estimate disclaimer shown below results")
     _register(f"quote:{site}", "contact_note", "Looking for more material grades, custom materials, machining processes, or finishing options?", is_public=True, description="Inquiry note text above materials")
@@ -51,16 +51,16 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
         "default": "https://mfg-solution.com/request-quote/",
     }[site], "url", is_public=True, description="Engineer contact link URL")
 
-# ── Quote form rules ──
+# Quote form rules
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "customer_name_required", "true", "bool", is_public=True, description="Require customer name field")
     _register(f"quote:{site}", "customer_email_required", "true", "bool", is_public=True, description="Require customer email field")
     _register(f"quote:{site}", "quantity_min", "1", "number", is_public=True, description="Minimum quantity allowed")
     _register(f"quote:{site}", "quantity_max", "100000", "number", is_public=True, description="Maximum quantity allowed")
     _register(f"quote:{site}", "upload_max_mb", "50", "number", is_public=True, description="Max upload size in MB")
-    _register(f"quote:{site}", "allowed_extensions", '["stp","step","igs","iges","zip"]', "json", is_public=True, description="Allowed file extensions")
+    _register(f"quote:{site}", "allowed_extensions", '["stp","step","igs","iges","zip","rar","7z"]', "json", is_public=True, description="Allowed file extensions")
 
-# ── Watermark ──
+# Watermark
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "preview_watermark_text", "GCNOV CO., LIMITED", is_public=False, description="Watermark text on STEP previews")
     _register(f"quote:{site}", "preview_watermark_opacity", "0.12", "number", is_public=False, description="Watermark opacity (0.02-0.35)")
@@ -69,7 +69,7 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "preview_watermark_color", "#26303e", "color", is_public=False, description="Watermark text color (hex)")
     _register(f"quote:{site}", "preview_watermark_font_scale", "0.026", "number", is_public=False, description="Font scale factor")
 
-# ── Thumbnail render ──
+# Thumbnail rendering
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "thumbnail_background_color", "#f0f0f5", "color", is_public=False, description="CAD preview background color")
     _register(f"quote:{site}", "thumbnail_part_color", "#949aa3", "color", is_public=False, description="CAD preview part color")
@@ -77,7 +77,7 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "thumbnail_height", "2880", "number", is_public=False, description="Preview image height (px)")
 
 
-# ── Internal quote email notifications ──
+# Internal quote email notifications
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "quote_email_enabled", _email_enabled_default(site), "bool", is_public=False, description="Enable internal quote notification emails for this site")
     _register(f"quote:{site}", "quote_email_recipients", _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"), is_public=False, description="Comma-separated internal recipients")
@@ -212,7 +212,7 @@ def get_audit_logs(limit: int = 100) -> list[dict]:
         SessionLocal.remove()
 
 
-# ── Helpers ────────────────────────────────────
+# Helpers
 
 def _row_to_dict(row: AppSetting) -> dict:
     return {

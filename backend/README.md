@@ -25,6 +25,8 @@ Run these from the project root with `D:\anaconda\python.exe`:
 
 The quote calculator stores uploaded STEP files under `backend\uploads`, renders thumbnails under `backend\static\thumbnails`, and records estimate snapshots in `inquiries`.
 
+Archive uploads support ZIP, 7Z, and RAR. The quote API scans every directory level in an archive for STEP and IGES files while ignoring nested archives. ZIP uses the Python standard library, 7Z uses `py7zr`, and compressed RAR extraction also requires `unrar`, `unar`, `7z`, or `bsdtar`. Put the extractor on the server `PATH` or set `RAR_EXTRACTION_TOOL` to its absolute path. Windows also checks the standard 7-Zip and WinRAR install paths.
+
 ## Phase 1B Freight Workflow
 
 Run these from the project root with `D:\anaconda\python.exe`:

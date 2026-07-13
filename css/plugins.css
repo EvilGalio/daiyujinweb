@@ -39,7 +39,7 @@ body.tool-page {
     -webkit-font-smoothing: antialiased;
 }
 
-/* ── Shell ──────────────────────────────────── */
+/* Shell */
 
 .tool-shell {
     max-width: min(calc(100% - 48px), 1480px);
@@ -47,7 +47,7 @@ body.tool-page {
     padding: 0 1.5rem 3rem;
 }
 
-/* ── Navigation ─────────────────────────────── */
+/* Navigation */
 
 .tool-nav {
     display: flex;
@@ -103,7 +103,7 @@ body.tool-page {
     font-weight: 600;
 }
 
-/* ── Hero ───────────────────────────────────── */
+/* Hero */
 
 .tool-hero {
     display: grid;
@@ -131,7 +131,7 @@ body.tool-page {
     line-height: 1.55;
 }
 
-/* ── Status badge ───────────────────────────── */
+/* Status badge */
 
 .tool-status {
     display: flex;
@@ -164,7 +164,7 @@ body.tool-page {
     background: var(--danger);
 }
 
-/* ── Grid ───────────────────────────────────── */
+/* Grid */
 
 .tool-grid {
     display: grid;
@@ -192,7 +192,7 @@ body.tool-page {
     }
 }
 
-/* ── Panel / Card ───────────────────────────── */
+/* Panel and card */
 
 .tool-panel {
     border: 1px solid var(--line);
@@ -223,7 +223,7 @@ body.tool-page {
     color: var(--accent);
 }
 
-/* ── Form ───────────────────────────────────── */
+/* Form */
 
 .tool-form {
     display: grid;
@@ -270,7 +270,7 @@ body.tool-page {
     font-family: var(--font-mono);
 }
 
-/* ── Upload zone ────────────────────────────── */
+/* Upload zone */
 
 .tool-upload {
     display: grid;
@@ -310,7 +310,7 @@ body.tool-page {
     font-size: 0.82rem;
 }
 
-/* ── Checkbox group ─────────────────────────── */
+/* Checkbox group */
 
 .tool-checks {
     display: flex;
@@ -344,7 +344,7 @@ body.tool-page {
     flex-shrink: 0;
 }
 
-/* ── Buttons ────────────────────────────────── */
+/* Buttons */
 
 .tool-button {
     display: inline-flex;
@@ -390,7 +390,7 @@ body.tool-page {
     cursor: not-allowed;
 }
 
-/* ── Result display ─────────────────────────── */
+/* Result display */
 
 .tool-result {
     display: grid;
@@ -424,7 +424,7 @@ body.tool-page {
     color: var(--ink);
 }
 
-/* ── Notes / Alerts ─────────────────────────── */
+/* Notes and alerts */
 
 .tool-note {
     padding: 0.7rem 0.85rem;
@@ -454,7 +454,7 @@ body.tool-page {
     color: #065f46;
 }
 
-/* ── Carrier cards (freight) ────────────────── */
+/* Freight carrier cards */
 
 .carrier-card {
     padding: 1rem 1.15rem;
@@ -478,7 +478,7 @@ body.tool-page {
     border-left: 3px solid #4b1e7d;
 }
 
-/* ── Tolerance: instrument panel ──────────────── */
+/* Tolerance instrument panel */
 
 .tol-controls { margin-top: 1.5rem; }
 
@@ -779,7 +779,7 @@ body.tool-page {
     .tol-summary { flex-direction: column; gap: 0.75rem; }
 }
 
-/* ── Material category cards ────────────────── */
+/* Material category cards */
 
 .material-card-grid {
     display: grid;
@@ -831,7 +831,7 @@ body.tool-page {
     .material-card-grid { grid-template-columns: 1fr; }
 }
 
-/* ── Material standards lookup ──────────────── */
+/* Material standards lookup */
 
 .mat-search-bar {
     display: flex;
@@ -946,7 +946,7 @@ body.tool-page {
     color: var(--ink);
 }
 
-/* ── Shape diagram ──────────────────────────── */
+/* Shape diagram */
 
 .shape-diagram-wrap { min-height: 200px; display: flex; align-items: center; justify-content: center; }
 .shape-svg { width: 100%; max-width: 360px; aspect-ratio: 16 / 11; }
@@ -965,16 +965,58 @@ body.tool-page {
 .shape-label-bg { fill: #ffffff; opacity: 0.92; }
 .shape-dim-active { stroke: #0d8c4a; stroke-width: 2.2; }
 
-/* ── Quote specific ─────────────────────────── */
+/* Quote tool */
 
 .field-optional { color: var(--muted); font-weight: 500; font-size: .78em; }
 .field-hint { display: block; margin-top: .35rem; color: var(--muted); font-size: .74rem; line-height: 1.45; }
 
-.quote-form-section { display: flex; flex-direction: column; gap: 0.85rem; }
-.quote-form-section + .quote-form-section { margin-top: 1.15rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-.quote-form-section-contact h3 { margin: 0; font-size: 0.88rem; line-height: 1.25; color: var(--ink); }
+.quote-shell .tool-hero { align-items: center; padding: .85rem 0 .65rem; }
+.quote-shell .tool-hero h1 { font-size: clamp(1.7rem, 3vw, 2.1rem); }
+.quote-shell .tool-hero p { max-width: 720px; margin-top: .2rem; font-size: .82rem; line-height: 1.35; }
 
-.quote-inquiry-note { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.quote-config-panel { position: relative; padding: .95rem; }
+.quote-config-panel.tool-form { gap: .55rem; }
+.quote-config-panel > h2 { margin-bottom: 0; }
+.quote-config-panel .tool-upload {
+    position: relative;
+    min-height: 60px;
+    place-items: start;
+    align-content: center;
+    padding: .6rem .85rem;
+    text-align: left;
+    background: linear-gradient(110deg, #f8fafc, #f1f6fb);
+}
+.quote-config-panel .tool-upload::after {
+    content: "CAD / ARCHIVE";
+    position: absolute;
+    top: .55rem;
+    right: .7rem;
+    color: #7890a8;
+    font-family: var(--font-mono);
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+}
+.quote-config-panel .tool-upload span { font-size: .88rem; }
+.quote-config-panel .tool-upload small { margin-top: .12rem; font-size: .7rem; }
+
+.quote-parameter-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: .5rem;
+}
+.quote-parameter-grid .tool-field:nth-child(-n+3) { grid-column: span 2; }
+.quote-parameter-grid .tool-field:nth-child(n+4) { grid-column: span 3; }
+.quote-parameter-grid .tool-field input,
+.quote-parameter-grid .tool-field select,
+.quote-contact-grid .tool-field input { min-height: 38px; padding-block: .45rem; }
+
+.quote-form-section { display: flex; flex-direction: column; gap: .4rem; }
+.quote-form-section + .quote-form-section { margin-top: 1.15rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.quote-form-section-contact h3 { margin: 0; font-size: 0.82rem; line-height: 1.2; color: var(--ink); }
+.quote-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+
+.quote-inquiry-note { margin: 0; color: var(--muted); font-size: 0.7rem; line-height: 1.35; }
 .quote-inquiry-note a { color: var(--accent); font-weight: 700; text-decoration: none; border-bottom: 1px solid rgba(0,102,204,.28); }
 .quote-inquiry-note a:hover { border-bottom-color: currentColor; }
 
@@ -1015,14 +1057,14 @@ body.tool-page {
 .quote-part-total { font-size: 0.74rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .quote-action-row { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
 
-/* ── Batch parts rail (left column) ──────────── */
+/* Batch parts rail */
 .quote-shell { max-width: min(1680px, calc(100vw - 48px)); }
 
 .quote-workspace {
     display: grid;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: start;
-    grid-template-columns: minmax(450px, 1fr) minmax(400px, 600px);
+    grid-template-columns: minmax(500px, 1fr) minmax(360px, 560px);
 }
 .quote-parts-rail {
     position: static;
@@ -1041,16 +1083,15 @@ body.tool-page {
     max-height: calc(100vh - 10rem);
     overflow-y: auto;
 }
-.quote-config-panel { position: relative; }
 .quote-action-row {
-    position: sticky;
-    bottom: 0;
-    padding-top: .75rem;
-    margin-top: 0.5rem;
-    background: linear-gradient(to bottom, transparent, var(--surface) 38%);
+    position: static;
+    padding-top: 0;
+    margin-top: 0;
+    background: none;
     display: flex;
     gap: 0.5rem;
 }
+.quote-action-row .tool-button { width: 100%; }
 
 .quote-estimate-loading { position: relative; overflow: hidden; }
 .quote-estimate-loading::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,.45) 42%, transparent 58%); transform: translateX(-120%); animation: quote-scan 1.8s ease-in-out infinite; }
@@ -1081,11 +1122,11 @@ body.tool-page {
 
 @media (min-width: 1180px) {
     .quote-workspace.is-batch {
-        grid-template-columns: minmax(230px, 280px) minmax(420px, 1fr) minmax(400px, 600px);
+        grid-template-columns: minmax(210px, 250px) minmax(480px, 1fr) minmax(360px, 520px);
     }
     .quote-workspace.is-batch .quote-parts-rail { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: hidden; }
     .quote-workspace.is-batch .quote-part-list { max-height: calc(100vh - 10rem); overflow-y: auto; }
-    .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: minmax(450px, 1fr) minmax(400px, 600px); }
+    .quote-workspace.is-empty, .quote-workspace.is-single { grid-template-columns: minmax(500px, 1fr) minmax(360px, 560px); }
 }
 
 @media (min-width: 900px) and (max-width: 1179px) {
@@ -1107,13 +1148,23 @@ body.tool-page {
 @keyframes quote-rail-enter { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .quote-workspace.is-batch .quote-parts-rail { animation: none; } }
 
-/* ── Two-level material picker ──────────────── */
+/* Material picker */
 .quote-material-layout {
+    --quote-selected-bg: #eef6ff;
+    --quote-selected-border: #0066cc;
+    --quote-selected-ink: #083b73;
+    --quote-selected-soft: rgba(0, 102, 204, .10);
+    --quote-focus-ring: rgba(0, 102, 204, .22);
     display: grid;
-    grid-template-columns: 168px minmax(0, 1fr);
-    gap: 0.75rem;
-    min-height: 160px;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: .65rem;
+    min-height: 152px;
+    padding: .65rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdff;
 }
+.quote-material-layout.is-confirmed { display: block; min-height: 0; padding: 0; border-color: rgba(13, 140, 74, .32); background: var(--success-bg); }
 .quote-material-categories {
     display: flex;
     flex-direction: column;
@@ -1124,20 +1175,21 @@ body.tool-page {
 }
 .quote-material-cat-btn {
     text-align: left;
-    border: none;
     background: transparent;
-    padding: 6px 10px;
+    padding: 5px 9px;
     border-radius: 6px;
     font-size: 0.78rem;
     font-weight: 500;
     color: var(--muted);
     cursor: pointer;
     font-family: inherit;
-    transition: background .12s, color .12s;
+    position: relative;
+    border: 1px solid transparent;
+    transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
     white-space: nowrap;
 }
-.quote-material-cat-btn:hover { background: rgba(0,0,0,.04); color: var(--ink); }
-.quote-material-cat-btn.active { background: rgba(0,0,0,.06); color: var(--ink); }
+.quote-material-cat-btn:hover { background: rgba(0,0,0,.035); color: var(--ink); }
+.quote-material-cat-btn.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.34); color: var(--quote-selected-ink); font-weight: 700; box-shadow: inset 3px 0 0 var(--quote-selected-border); }
 
 .quote-material-grades {
     display: flex;
@@ -1159,24 +1211,27 @@ body.tool-page {
     flex-direction: column;
     gap: 1px;
     overflow-y: auto;
-    max-height: 200px;
+    max-height: 156px;
 }
 .quote-material-grade-option {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     text-align: left;
-    border: none;
+    position: relative;
+    border: 1px solid transparent;
     background: transparent;
-    padding: 5px 8px;
+    padding: 5px 2.35rem 5px 8px;
     border-radius: 6px;
     font-size: 0.78rem;
     cursor: pointer;
     font-family: inherit;
-    transition: background .12s;
+    transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
-.quote-material-grade-option:hover { background: rgba(0,0,0,.03); }
-.quote-material-grade-option.active { background: rgba(0,0,0,.05); }
+.quote-material-grade-option:hover { background: rgba(0,0,0,.025); }
+.quote-material-grade-option.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.42); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 3px var(--quote-selected-soft); }
+.quote-material-grade-option.active::after { content: "\2713"; position: absolute; right: .75rem; top: 50%; width: 1.2rem; height: 1.2rem; transform: translateY(-50%); border-radius: 999px; background: var(--quote-selected-border); color: #fff; display: grid; place-items: center; font-size: .78rem; font-weight: 800; line-height: 1; }
+.quote-material-grade-option.active .quote-material-grade-label { color: var(--quote-selected-ink); font-weight: 700; }
 .quote-material-grade-label { font-weight: 500; color: var(--ink); }
 .quote-material-grade-sub { font-size: 0.7rem; color: var(--muted); }
 .quote-material-badge {
@@ -1189,25 +1244,24 @@ body.tool-page {
 }
 .quote-material-badge.review { background: #fef3c7; color: #92400e; }
 
-.quote-material-layout {
-    --quote-selected-bg: #eef6ff;
-    --quote-selected-border: #0066cc;
-    --quote-selected-ink: #083b73;
-    --quote-selected-soft: rgba(0, 102, 204, .10);
-    --quote-focus-ring: rgba(0, 102, 204, .22);
-}
-.quote-material-cat-btn { position: relative; border: 1px solid transparent; font-weight: 500; transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; }
-.quote-material-cat-btn:hover { background: rgba(0,0,0,.035); }
-.quote-material-cat-btn.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.34); color: var(--quote-selected-ink); font-weight: 700; box-shadow: inset 3px 0 0 var(--quote-selected-border); }
 .quote-material-cat-btn:focus-visible,
-.quote-material-grade-option:focus-visible { outline: 3px solid var(--quote-focus-ring); outline-offset: 2px; }
-.quote-material-grade-option { position: relative; border: 1px solid transparent; padding-right: 2.35rem; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease; }
-.quote-material-grade-option:hover { background: rgba(0,0,0,.025); }
-.quote-material-grade-option.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.42); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 3px var(--quote-selected-soft); }
-.quote-material-grade-option.active .quote-material-grade-label { color: var(--quote-selected-ink); font-weight: 700; }
-.quote-material-grade-option.active::after { content: "\2713"; position: absolute; right: .85rem; top: 50%; width: 1.25rem; height: 1.25rem; transform: translateY(-50%); border-radius: 999px; background: var(--quote-selected-border); color: #fff; display: grid; place-items: center; font-size: .82rem; font-weight: 800; line-height: 1; }
+.quote-material-grade-option:focus-visible,
+.quote-material-change:focus-visible,
+.quote-material-confirm:focus-visible { outline: 3px solid var(--quote-focus-ring); outline-offset: 2px; }
 
-.quote-material-selected { display: none; }
+.quote-material-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-top: .55rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .72rem; }
+.quote-material-actions strong { color: var(--ink); font-weight: 650; }
+.quote-material-confirm,
+.quote-material-change { border: 0; border-radius: 6px; font-family: inherit; font-weight: 700; cursor: pointer; }
+.quote-material-confirm { min-height: 34px; padding: .42rem .8rem; background: var(--accent); color: #fff; font-size: .76rem; }
+.quote-material-confirm:disabled { cursor: not-allowed; opacity: .55; }
+.quote-material-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; min-height: 54px; padding: .55rem .7rem; }
+.quote-material-check { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 999px; background: var(--success); color: #fff; font-size: .85rem; font-weight: 800; }
+.quote-material-summary-copy { min-width: 0; }
+.quote-material-summary-copy small { display: block; color: #337455; font-size: .64rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.quote-material-summary-copy strong { display: block; overflow: hidden; color: #0b4f2d; font-size: .86rem; text-overflow: ellipsis; white-space: nowrap; }
+.quote-material-summary-copy strong span { color: #6aa182; font-weight: 500; }
+.quote-material-change { padding: .38rem .62rem; background: #fff; color: #0b6a3b; border: 1px solid rgba(13, 140, 74, .28); font-size: .72rem; }
 .quote-material-empty { padding: .85rem; color: var(--muted); font-size: .78rem; border: 1px dashed rgba(0,0,0,.12); border-radius: 8px; background: rgba(0,0,0,.015); }
 
 @media (max-width: 640px) {
@@ -1215,6 +1269,11 @@ body.tool-page {
     .quote-material-categories { flex-direction: row; flex-wrap: wrap; max-height: none; }
     .quote-material-cat-btn { min-height: 40px; }
     .quote-material-grade-option { min-height: 48px; }
+    .quote-material-actions { align-items: stretch; flex-direction: column; }
+    .quote-parameter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .quote-parameter-grid .tool-field:nth-child(n) { grid-column: span 1; }
+    .quote-parameter-grid .tool-field:nth-child(3) { grid-column: 1 / -1; }
+    .quote-contact-grid { grid-template-columns: 1fr; }
 }
 
 /* Preview panel with PNG/3D tabs */
@@ -1253,7 +1312,7 @@ body.tool-page {
 .quote-preview-stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 9;
     overflow: hidden;
     border-radius: var(--radius-sm);
     border: 1px solid rgba(148, 163, 184, .28);
@@ -1345,15 +1404,21 @@ body.tool-page {
     font-size: 0.74rem;
     color: var(--muted);
     line-height: 1.5;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--line);
+    margin: .45rem 0 0;
+    padding: .55rem 0 0;
+    border-top: 1px solid rgba(148, 163, 184, .32);
 }
+
+.quote-privacy-disclosure { color: var(--muted); font-size: .72rem; }
+.quote-privacy-disclosure summary { width: fit-content; cursor: pointer; font-weight: 650; }
+.quote-privacy-disclosure summary:hover { color: var(--ink-soft); }
 
 .quote-stack {
     display: grid;
-    gap: 1.5rem;
+    gap: .8rem;
 }
+
+.quote-stack .tool-panel { padding: 1.15rem; }
 
 .quote-thumb {
     display: block;
@@ -1377,7 +1442,7 @@ body.tool-page {
     margin: 0;
     border: 0;
     border-radius: 0;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center center;
     background: transparent;
 }
@@ -1400,7 +1465,7 @@ body.tool-page {
     font-size: 0.85rem;
 }
 
-/* ── Progress bar ──────────────────────────── */
+/* Progress bar */
 
 .quote-progress {
     margin-top: 1rem;
@@ -1444,7 +1509,7 @@ body.tool-page {
     transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ── Advanced dimensions ────────────────────────── */
+/* Advanced dimensions */
 
 .tool-advanced {
     border: 1px solid var(--line);
@@ -1508,7 +1573,7 @@ body.tool-page {
     color: #cbd5e1;
 }
 
-/* ── Cargo type segmented control ────────────── */
+/* Cargo type segmented control */
 
 .tool-checks label.active {
     border-color: var(--accent);
@@ -1516,7 +1581,7 @@ body.tool-page {
     color: var(--accent);
 }
 
-/* ── DHL result card ────────────────────────── */
+/* DHL result card */
 
 .dhl-result {
     position: relative;
@@ -1568,7 +1633,7 @@ body.tool-page {
 .dhl-result[data-state="error"] .dhl-result-amount { color: var(--ink, #0f172a); }
 .dhl-result[data-state="error"] .dhl-result-meta { color: var(--danger, #dc2626); }
 
-/* ── Freight progress bar (inside result card) ─ */
+/* Freight progress bar */
 
 .freight-progress {
     position: absolute;
@@ -1628,7 +1693,7 @@ body.tool-page {
     color: var(--muted, #64748b);
 }
 
-/* ── Country search dropdown ───────────────── */
+/* Country search dropdown */
 
 .country-search {
     position: relative;
@@ -1687,7 +1752,7 @@ body.tool-page {
     justify-content: flex-start;
 }
 
-/* ── Dynamic factor badge ──────────────────── */
+/* Dynamic factor badge */
 
 .dynamic-badge {
     display: inline-flex;
@@ -1722,7 +1787,7 @@ body.tool-page {
     margin: 0.75rem 0;
 }
 
-/* ── Footer ─────────────────────────────────── */
+/* Footer */
 
 footer {
     text-align: center;

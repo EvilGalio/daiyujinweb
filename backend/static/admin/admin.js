@@ -1,4 +1,4 @@
-/* 待雨尽 Tools 管理后台 */
+/* Daiyujin Tools admin */
 (function () {
     var toast = document.getElementById('admin-toast');
 
@@ -56,7 +56,7 @@
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
     function trunc(s, n) { var t = String(s); return t.length > n ? t.slice(0, n) + '...' : t; }
 
-    /* ── 询盘管理 ── */
+    /* Inquiry management */
     var inqPage = 1, inqQuery = '', inqDateFrom = '', inqDateTo = '', inqStatus = '';
 
     function loadInquiries() {
@@ -153,8 +153,7 @@
         document.getElementById('inq-next') && document.getElementById('inq-next').addEventListener('click', function () { inqPage++; loadInquiries(); });
     }
 
-    /* ── 系统设置 ── */
-    /* ── 系统设置 ── */
+    /* System settings */
     function renderSettingControl(s) {
         var attr = 'data-admin-input="' + s.scope + '/' + s.key + '"';
         if (s.value_type === 'bool') {
@@ -209,7 +208,7 @@
         privacy_note: '表单提交按钮下方的隐私与保密说明',
         customer_name_required: '开启后客户必须填写称呼才能提交报价',
         customer_email_required: '开启后客户必须填写邮箱才能提交报价',
-        allowed_extensions: '允许客户上传的文件格式，当前支持 stp/step/igs/iges/zip',
+        allowed_extensions: '允许客户上传的文件格式，当前支持 stp/step/igs/iges/zip/rar/7z',
         preview_watermark_text: 'STEP 预览图片中显示的水印文字内容',
         preview_watermark_opacity: '水印透明度，0.02 为几乎不可见，0.35 为较明显',
         preview_watermark_color: '水印文字颜色，使用十六进制色值',
@@ -286,7 +285,7 @@
         }).catch(function () { container.innerHTML = '<p>加载设置失败</p>'; });
     }
 
-    /* ── 导航 ── */
+    /* Navigation */
     document.querySelector('[data-nav="inquiries"]') && document.querySelector('[data-nav="inquiries"]').addEventListener('click', function (e) {
         e.preventDefault();
         document.querySelector('.admin-main').innerHTML = renderInquiriesPage();

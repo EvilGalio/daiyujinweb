@@ -49,6 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
         activePartId: "",
         options: null,
         materialSearch: "",
+        materialPickerOpen: true,
+        materialConfirmed: false,
+        materialDraft: {
+            category: "",
+            id: "",
+        },
         defaults: {
             material_category: "",
             material_id: "",
@@ -71,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function makeFileKey(file) { return `${file.name}:${file.size}:${file.lastModified}`; }
     function cloneDefaults() { return JSON.parse(JSON.stringify(state.defaults)); }
-    const SUPPORTED_CAD_EXTENSIONS = new Set(["stp", "step", "igs", "iges", "zip"]);
+    const SUPPORTED_CAD_EXTENSIONS = new Set(["stp", "step", "igs", "iges", "zip", "rar", "7z"]);
 
     function makeEstimateCacheKey(part) {
         const s = part.settings || {};
@@ -97,6 +103,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (cats.length) {
                 state.defaults.material_category = cats[0].id;
                 state.defaults.material_id = cats[0].default_material_id || cats[0].materials?.[0]?.id || "";
+                state.materialDraft.category = state.defaults.material_category;
+                state.materialDraft.id = state.defaults.material_id;
+                state.parts.forEach(part => {
+                    if (!part.settings.material_category) part.settings.material_category = state.defaults.material_category;
+                    if (!part.settings.material_id) part.settings.material_id = state.defaults.material_id;
+                });
             }
             renderMaterialPicker();
             if (processSelect) processSelect.innerHTML = (state.options.processes || []).map(item => `<option value="${esc(item.id)}"${item.id==="CNC"?" selected":""}>${esc(item.label||item.name)}</option>`).join("");
@@ -110,27 +122,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getCurrentMaterialContext() {
         const cats = (state.options && state.options.material_categories) || [];
-        const currentCat = cats.find(c => c.id === state.defaults.material_category) || cats[0];
+        const currentCat = cats.find(c => c.id === state.materialDraft.category) || cats[0];
         const materials = currentCat ? (currentCat.materials || []) : [];
         const query = (state.materialSearch || "").trim().toLowerCase();
         const filtered = query ? materials.filter(m => `${m.label||""} ${m.subtitle||""}`.toLowerCase().includes(query)) : materials;
         return { cats, currentCat, materials, filtered };
     }
 
+    function getMaterialSelection(categoryId, materialId) {
+        const cats = (state.options && state.options.material_categories) || [];
+        const category = cats.find(item => item.id === categoryId) || null;
+        const material = (category?.materials || []).find(item => item.id === materialId) || null;
+        return { category, material };
+    }
+
     function renderMaterialGradeOptions(filtered) {
         if (!filtered.length) return '<div class="quote-material-empty">No matching grade. Try another keyword.</div>';
-        return filtered.map(m => `<button type="button" role="option" aria-selected="${m.id===state.defaults.material_id?'true':'false'}" class="quote-material-grade-option${m.id===state.defaults.material_id?' active':''}" data-mat-id="${esc(m.id)}"><span class="quote-material-grade-label">${esc(m.label)}</span>${m.subtitle?`<span class="quote-material-grade-sub">${esc(m.subtitle)}</span>`:''}${(m.badges||[]).map(b=>`<span class="quote-material-badge">${esc(b)}</span>`).join('')}${m.review_recommended?'<span class="quote-material-badge review">Review</span>':''}</button>`).join("");
+        return filtered.map(m => `<button type="button" role="option" aria-selected="${m.id===state.materialDraft.id?'true':'false'}" class="quote-material-grade-option${m.id===state.materialDraft.id?' active':''}" data-mat-id="${esc(m.id)}"><span class="quote-material-grade-label">${esc(m.label)}</span>${m.subtitle?`<span class="quote-material-grade-sub">${esc(m.subtitle)}</span>`:''}${(m.badges||[]).map(b=>`<span class="quote-material-badge">${esc(b)}</span>`).join('')}${m.review_recommended?'<span class="quote-material-badge review">Review</span>':''}</button>`).join("");
     }
 
     function bindMaterialOptionEvents() {
-        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => { btn.addEventListener('click', () => { state.defaults.material_id = btn.dataset.matId; renderMaterialPicker(); }); });
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => { btn.addEventListener('click', () => { state.materialDraft.id = btn.dataset.matId; renderMaterialPicker(); }); });
     }
 
     function bindMaterialPickerEvents() {
-        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => { btn.addEventListener('click', () => { const { cats } = getCurrentMaterialContext(); state.defaults.material_category = btn.dataset.catId; state.materialSearch = ""; const cat = cats.find(c=>c.id===state.defaults.material_category); const inCat = (cat?.materials||[]).find(m=>m.id===state.defaults.material_id); state.defaults.material_id = inCat ? state.defaults.material_id : (cat?.default_material_id||cat?.materials?.[0]?.id||""); renderMaterialPicker(); }); });
+        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => { btn.addEventListener('click', () => { const { cats } = getCurrentMaterialContext(); state.materialDraft.category = btn.dataset.catId; state.materialSearch = ""; const cat = cats.find(c=>c.id===state.materialDraft.category); const inCat = (cat?.materials||[]).find(m=>m.id===state.materialDraft.id); state.materialDraft.id = inCat ? state.materialDraft.id : (cat?.default_material_id||cat?.materials?.[0]?.id||""); renderMaterialPicker(); }); });
         bindMaterialOptionEvents();
         const searchInput = materialPicker.querySelector('[data-material-search]');
         if (searchInput) searchInput.addEventListener('input', () => { state.materialSearch = searchInput.value; renderMaterialGradeListOnly(); });
+        const confirmButton = materialPicker.querySelector('[data-material-confirm]');
+        if (confirmButton) confirmButton.addEventListener('click', confirmMaterialSelection);
     }
 
     function renderMaterialGradeListOnly() {
@@ -143,9 +164,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderMaterialPicker() {
         if (!materialPicker || !state.options) return;
+        if (!state.materialPickerOpen && state.materialConfirmed) {
+            const { category, material } = getMaterialSelection(state.defaults.material_category, state.defaults.material_id);
+            materialPicker.classList.add("is-confirmed");
+            materialPicker.innerHTML = `<div class="quote-material-summary" role="status" aria-live="polite"><span class="quote-material-check" aria-hidden="true">&#10003;</span><span class="quote-material-summary-copy"><small>Material selected</small><strong>${esc(category?.label || state.defaults.material_category)}${material ? ` <span>&middot;</span> ${esc(material.label)}` : ""}</strong></span><button type="button" class="quote-material-change" data-material-change>Change</button></div>`;
+            const changeButton = materialPicker.querySelector('[data-material-change]');
+            if (changeButton) changeButton.addEventListener('click', openMaterialPicker);
+            return;
+        }
+
+        materialPicker.classList.remove("is-confirmed");
         const { cats, filtered } = getCurrentMaterialContext();
-        materialPicker.innerHTML = `<div class="quote-material-categories">${cats.map(c=>`<button type="button" class="quote-material-cat-btn${c.id===state.defaults.material_category?' active':''}" data-cat-id="${esc(c.id)}" aria-pressed="${c.id===state.defaults.material_category?'true':'false'}">${esc(c.label)}</button>`).join("")}</div><div class="quote-material-grades"><input type="text" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div></div>`;
+        const { category, material } = getMaterialSelection(state.materialDraft.category, state.materialDraft.id);
+        materialPicker.innerHTML = `<div class="quote-material-categories">${cats.map(c=>`<button type="button" class="quote-material-cat-btn${c.id===state.materialDraft.category?' active':''}" data-cat-id="${esc(c.id)}" aria-pressed="${c.id===state.materialDraft.category?'true':'false'}">${esc(c.label)}</button>`).join("")}</div><div class="quote-material-grades"><input type="text" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div></div><div class="quote-material-actions"><span>Selection: <strong>${esc(category?.label || "Choose category")}${material ? ` &middot; ${esc(material.label)}` : ""}</strong></span><button type="button" class="quote-material-confirm" data-material-confirm${material ? "" : " disabled"}>Use this material</button></div>`;
         bindMaterialPickerEvents();
+    }
+
+    function openMaterialPicker() {
+        state.materialDraft.category = state.defaults.material_category;
+        state.materialDraft.id = state.defaults.material_id;
+        state.materialSearch = "";
+        state.materialPickerOpen = true;
+        renderMaterialPicker();
+    }
+
+    function confirmMaterialSelection() {
+        const { category, material } = getMaterialSelection(state.materialDraft.category, state.materialDraft.id);
+        if (!category || !material) return;
+
+        const activePart = getActivePart();
+        const changed = state.defaults.material_category !== category.id || state.defaults.material_id !== material.id;
+        state.defaults.material_category = category.id;
+        state.defaults.material_id = material.id;
+        state.materialConfirmed = true;
+        state.materialPickerOpen = false;
+        state.materialSearch = "";
+
+        if (activePart) {
+            activePart.settings.material_category = category.id;
+            activePart.settings.material_id = material.id;
+            activePart.settingsSource = "override";
+            if (changed && activePart.estimate) {
+                activePart.estimate = null;
+                activePart.estimateStatus = "empty";
+                activePart.estimateCacheKey = "";
+                activePart.status = activePart.uploadStatus === "ready" ? "needs_recalculate" : activePart.status;
+            }
+        }
+
+        renderMaterialPicker();
+        render();
     }
     /* Batch upload */
     fileInput.addEventListener("change", () => {
@@ -288,7 +356,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!children.length) {
             parent.uploadStatus = "failed";
             parent.status = "failed";
-            parent.error = "ZIP archive did not contain supported CAD files.";
+            parent.error = "The archive did not contain supported CAD files.";
             return;
         }
         state.parts.splice(insertAt, 1, ...children);
@@ -386,6 +454,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function hydrateFormFromPart(part) {
         const s = part.settings;
+        state.defaults.material_category = s.material_category || state.defaults.material_category;
+        state.defaults.material_id = s.material_id || state.defaults.material_id;
+        state.materialDraft.category = state.defaults.material_category;
+        state.materialDraft.id = state.defaults.material_id;
+        state.materialPickerOpen = !state.materialConfirmed;
+        renderMaterialPicker();
         if (processSelect) processSelect.value = s.process || state.defaults.process;
         if (toleranceSelect) toleranceSelect.value = s.tolerance_grade || state.defaults.tolerance_grade;
         if (postprocessSelect) postprocessSelect.value = s.postprocess_group || state.defaults.postprocess_group;
@@ -402,6 +476,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const part = getActivePart();
         if (!part) { renderError("Choose a CAD file first."); return; }
         if (part.uploadStatus !== "ready") { renderError("This part is not ready yet."); return; }
+        if (!state.materialConfirmed) {
+            state.materialPickerOpen = true;
+            renderMaterialPicker();
+            renderError("Confirm a material before calculating.");
+            return;
+        }
         const contact = validateContactDetails();
         if (!contact) return;
 

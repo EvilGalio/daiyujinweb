@@ -1,10 +1,10 @@
-"""Repair allowed_extensions in app_settings to include IGES & ZIP."""
+"""Repair quote upload extensions in app_settings."""
 import sys
 sys.path.insert(0, "D:/myfirstgithubcode/daiyujinweb/backend")
 from database import SessionLocal
 from models import AppSetting
 
-VAL = '["stp","step","igs","iges","zip"]'
+VAL = '["stp","step","igs","iges","zip","rar","7z"]'
 session = SessionLocal()
 updated = 0
 for scope in ["quote:default", "quote:mfg", "quote:gcindus", "quote:gcnov"]:

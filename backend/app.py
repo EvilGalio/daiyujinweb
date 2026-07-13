@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import threading
 import uuid
-import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request
@@ -21,6 +19,13 @@ from services.tolerance import calculate_tolerance, get_tolerance_presets, get_t
 from services.material_standards import search as material_standards_search, get_families as material_standards_families
 from services.material_weight import get_options as material_weight_options, calculate as material_weight_calculate
 from services.cad_analyzer import SUPPORTED_CAD_EXTENSIONS, cad_format_for_path
+from services.archive_reader import (
+    ArchiveDependencyError,
+    ArchiveReadError,
+    SUPPORTED_ARCHIVE_EXTENSIONS,
+    extract_cad_members,
+    list_cad_members,
+)
 from services.exchange_rates import ensure_recent_rates
 
 
@@ -32,11 +37,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
-SUPPORTED_UPLOAD_EXTENSIONS = SUPPORTED_CAD_EXTENSIONS | {".zip"}
+SUPPORTED_UPLOAD_EXTENSIONS = SUPPORTED_CAD_EXTENSIONS | SUPPORTED_ARCHIVE_EXTENSIONS
 MAX_DIRECT_CAD_BYTES = 50 * 1024 * 1024
-MAX_ZIP_BYTES = 50 * 1024 * 1024
-MAX_ZIP_CAD_TOTAL_BYTES = 150 * 1024 * 1024
-MAX_ZIP_CAD_FILES = 20
+MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
+MAX_ARCHIVE_CAD_TOTAL_BYTES = 150 * 1024 * 1024
+MAX_ARCHIVE_CAD_FILES = 20
 
 # Preview watermark
 
@@ -99,7 +104,7 @@ DEFAULT_OCC_PYTHON = _occ_python_path()
 
 
 def _supported_upload_message() -> str:
-    return "Supported file types: .stp, .step, .igs, .iges, .zip"
+    return "Supported file types: .stp, .step, .igs, .iges, .zip, .rar, .7z"
 
 
 def _run_cad_analysis(app: Flask, saved_path: Path, display_name: str, source_filename: str | None = None, site: str = "default") -> dict:
@@ -165,53 +170,6 @@ def _save_direct_cad(uploaded, suffix: str) -> tuple[str, Path]:
     saved_path = UPLOAD_DIR / f"{file_id}_{safe_name}"
     uploaded.save(saved_path)
     return file_id, saved_path
-
-
-def _is_unsafe_zip_name(name: str) -> bool:
-    normalized = name.replace("\\", "/")
-    path = PurePosixPath(normalized)
-    return (
-        not normalized
-        or normalized.startswith("/")
-        or any(part in {"", ".", ".."} for part in path.parts)
-    )
-
-
-def _cad_zip_members(zf: zipfile.ZipFile) -> tuple[list[zipfile.ZipInfo], list[str]]:
-    warnings: list[str] = []
-    members: list[zipfile.ZipInfo] = []
-    total_size = 0
-
-    for info in zf.infolist():
-        name = info.filename.replace("\\", "/")
-        if info.is_dir() or name.startswith("__MACOSX/"):
-            continue
-        if _is_unsafe_zip_name(name):
-            raise ValueError(f"Unsafe ZIP entry path: {info.filename}")
-
-        suffix = PurePosixPath(name).suffix.lower()
-        if suffix == ".zip":
-            warnings.append(f"Nested ZIP ignored: {info.filename}")
-            continue
-        if suffix not in SUPPORTED_CAD_EXTENSIONS:
-            warnings.append(f"Unsupported file ignored: {info.filename}")
-            continue
-        if info.file_size <= 0:
-            warnings.append(f"Empty CAD file ignored: {info.filename}")
-            continue
-        if info.file_size > MAX_DIRECT_CAD_BYTES:
-            warnings.append(f"CAD file over 50 MB ignored: {info.filename}")
-            continue
-
-        total_size += info.file_size
-        if len(members) >= MAX_ZIP_CAD_FILES:
-            warnings.append(f"CAD file limit reached; ignored: {info.filename}")
-            continue
-        if total_size > MAX_ZIP_CAD_TOTAL_BYTES:
-            raise ValueError("ZIP CAD contents exceed the 150 MB extracted-size limit")
-        members.append(info)
-
-    return members, warnings
 
 
 def _refresh_exchange_rates_if_stale() -> None:
@@ -356,50 +314,61 @@ def create_app() -> Flask:
         suffix = Path(uploaded.filename).suffix.lower()
         if suffix not in SUPPORTED_UPLOAD_EXTENSIONS:
             return api_error("invalid_file_type", _supported_upload_message(), 400)
-        if request.content_length and suffix == ".zip" and request.content_length > MAX_ZIP_BYTES + 1024 * 1024:
-            return api_error("file_too_large", "ZIP uploads are limited to 50 MB.", 400)
-        if request.content_length and suffix != ".zip" and request.content_length > MAX_DIRECT_CAD_BYTES + 1024 * 1024:
+        is_archive = suffix in SUPPORTED_ARCHIVE_EXTENSIONS
+        if request.content_length and is_archive and request.content_length > MAX_ARCHIVE_BYTES + 1024 * 1024:
+            return api_error("file_too_large", "Archive uploads are limited to 50 MB.", 400)
+        if request.content_length and not is_archive and request.content_length > MAX_DIRECT_CAD_BYTES + 1024 * 1024:
             return api_error("file_too_large", "CAD uploads are limited to 50 MB each.", 400)
 
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 
-        if suffix == ".zip":
+        if is_archive:
+            archive_path = UPLOAD_DIR / f"{uuid.uuid4()}{suffix}"
+            uploaded.save(archive_path)
             try:
-                uploaded.stream.seek(0)
-                with zipfile.ZipFile(uploaded.stream) as zf:
-                    members, warnings = _cad_zip_members(zf)
-                    if not members:
-                        return api_error("invalid_archive", "ZIP archive does not contain supported CAD files.", 400)
+                members, warnings = list_cad_members(
+                    archive_path,
+                    suffix,
+                    cad_extensions=SUPPORTED_CAD_EXTENSIONS,
+                    max_file_size=MAX_DIRECT_CAD_BYTES,
+                    max_total_size=MAX_ARCHIVE_CAD_TOTAL_BYTES,
+                    max_files=MAX_ARCHIVE_CAD_FILES,
+                )
+                if not members:
+                    return api_error("invalid_archive", "Archive does not contain supported CAD files.", 400)
 
-                    parts = []
-                    for info in members:
-                        inner_name = info.filename.replace("\\", "/")
-                        inner_suffix = PurePosixPath(inner_name).suffix.lower()
-                        file_id = str(uuid.uuid4())
-                        safe_inner = PurePosixPath(inner_name).name.replace("\\", "_").replace("/", "_").replace(":", "_")[:120]
-                        saved_path = UPLOAD_DIR / f"{file_id}_{safe_inner}"
-                        with zf.open(info) as src, saved_path.open("wb") as dst:
-                            shutil.copyfileobj(src, dst)
-
-                        analysis = _run_cad_analysis(app, saved_path, PurePosixPath(inner_name).name, inner_name, site=site)
-                        analysis["file_id"] = file_id
-                        part = {
-                            "success": bool(analysis.get("success")),
-                            "file_id": file_id,
-                            "source_filename": inner_name,
-                            "source_format": analysis.get("source_format"),
-                            "warnings": analysis.get("warnings", []),
-                        }
-                        if analysis.get("success"):
-                            part["data"] = analysis.get("data")
-                        else:
-                            part["error"] = analysis.get("error") or "CAD analysis failed"
-                        parts.append(part)
-            except zipfile.BadZipFile:
-                return api_error("invalid_archive", "ZIP archive could not be read.", 400)
-            except ValueError as exc:
+                extracted = extract_cad_members(archive_path, suffix, members, UPLOAD_DIR)
+                parts = []
+                for item in extracted:
+                    inner_name = item.member.name
+                    display_name = inner_name.rsplit("/", 1)[-1]
+                    analysis = _run_cad_analysis(
+                        app,
+                        item.path,
+                        display_name,
+                        inner_name,
+                        site=site,
+                    )
+                    analysis["file_id"] = item.file_id
+                    part = {
+                        "success": bool(analysis.get("success")),
+                        "file_id": item.file_id,
+                        "source_filename": inner_name,
+                        "source_format": analysis.get("source_format"),
+                        "warnings": analysis.get("warnings", []),
+                    }
+                    if analysis.get("success"):
+                        part["data"] = analysis.get("data")
+                    else:
+                        part["error"] = analysis.get("error") or "CAD analysis failed"
+                    parts.append(part)
+            except ArchiveDependencyError as exc:
+                return api_error("archive_support_unavailable", str(exc), 503)
+            except ArchiveReadError as exc:
                 return api_error("invalid_archive", str(exc), 400)
+            finally:
+                archive_path.unlink(missing_ok=True)
 
             if not any(part.get("success") for part in parts):
                 return api_error(
