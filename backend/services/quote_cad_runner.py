@@ -14,7 +14,7 @@ from services.preview_watermark import apply_preview_watermark
 
 DEFAULT_TIMEOUT_SECONDS = 90
 DEFAULT_PREVIEW_WIDTH = 1280
-DEFAULT_PREVIEW_HEIGHT = 960
+DEFAULT_PREVIEW_HEIGHT = 720
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:

@@ -45,8 +45,8 @@ def _get_thumbnail_settings(site: str = "default") -> dict[str, str]:
         settings = {
             "background_color": get_setting(f"quote:{site}", "thumbnail_background_color", "#f0f0f5"),
             "part_color": get_setting(f"quote:{site}", "thumbnail_part_color", "#949aa3"),
-            "width": get_setting(f"quote:{site}", "thumbnail_width", "3840"),
-            "height": get_setting(f"quote:{site}", "thumbnail_height", "2880"),
+            "width": get_setting(f"quote:{site}", "thumbnail_width", "1280"),
+            "height": get_setting(f"quote:{site}", "thumbnail_height", "720"),
         }
         if os.environ.get("QUOTE_PREVIEW_WIDTH"):
             settings["width"] = os.environ["QUOTE_PREVIEW_WIDTH"]
@@ -55,8 +55,8 @@ def _get_thumbnail_settings(site: str = "default") -> dict[str, str]:
         return settings
     except Exception:
         return {
-            "width": os.environ.get("QUOTE_PREVIEW_WIDTH", "3840"),
-            "height": os.environ.get("QUOTE_PREVIEW_HEIGHT", "2880"),
+            "width": os.environ.get("QUOTE_PREVIEW_WIDTH", "1280"),
+            "height": os.environ.get("QUOTE_PREVIEW_HEIGHT", "720"),
         }
 
 
@@ -82,6 +82,39 @@ def _bounded_int(value: str, fallback: int, minimum: int, maximum: int) -> int:
     except (TypeError, ValueError):
         parsed = fallback
     return max(minimum, min(maximum, parsed))
+
+
+def _preview_dimensions(settings: dict[str, str]) -> tuple[int, int]:
+    width = _bounded_int(settings.get("width", "1280"), 1280, 800, 6000)
+    height = _bounded_int(settings.get("height", "720"), 720, 450, 6000)
+    if (width, height) == (3840, 2880):
+        return 1280, 720
+    expected_height = max(450, min(6000, round(width * 9 / 16)))
+    if height != expected_height:
+        height = expected_height
+    return width, height
+
+
+def _normalize_thumbnail_canvas(png_path: Path, width: int, height: int) -> None:
+    from PIL import Image
+
+    with Image.open(png_path) as source:
+        image = source.convert("RGB")
+        source_width, source_height = image.size
+        target_ratio = width / height
+        source_ratio = source_width / source_height
+        if source_ratio > target_ratio:
+            crop_width = max(1, round(source_height * target_ratio))
+            left = max(0, (source_width - crop_width) // 2)
+            box = (left, 0, left + crop_width, source_height)
+        else:
+            crop_height = max(1, round(source_width / target_ratio))
+            top = max(0, (source_height - crop_height) // 2)
+            box = (0, top, source_width, top + crop_height)
+        normalized = image.crop(box)
+        if normalized.size != (width, height):
+            normalized = normalized.resize((width, height), Image.Resampling.LANCZOS)
+        normalized.save(png_path, format="PNG", optimize=True)
 
 
 def read_cad_shape(file_path: str | Path) -> Any:
@@ -121,8 +154,7 @@ def _export_thumbnail(shape: Any, png_path: Path, site: str = "default") -> None
     from OCC.Display.SimpleGui import OffscreenRenderer
 
     settings = _get_thumbnail_settings(site)
-    width = _bounded_int(settings.get("width", "3840"), 3840, 800, 6000)
-    height = _bounded_int(settings.get("height", "2880"), 2880, 600, 6000)
+    width, height = _preview_dimensions(settings)
     bg_rgb = _hex_rgb(settings.get("background_color", "#f0f0f5"), (0.94, 0.94, 0.96))
     part_rgb = _hex_rgb(settings.get("part_color", "#949aa3"), (0.58, 0.60, 0.64))
 
@@ -141,6 +173,7 @@ def _export_thumbnail(shape: Any, png_path: Path, site: str = "default") -> None
     display.View_Iso()
     display.FitAll()
     display.View.Dump(str(png_path))
+    _normalize_thumbnail_canvas(png_path, width, height)
     display.EraseAll()
     time.sleep(0.2)
 

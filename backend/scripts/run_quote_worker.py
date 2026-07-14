@@ -163,7 +163,7 @@ def _analyze_part(part: dict[str, Any], cancel_event: threading.Event) -> dict[s
         site=part.get("site") or "default",
         timeout_seconds=max(1, int(os.environ.get("QUOTE_CAD_TIMEOUT_SECONDS", "90"))),
         preview_width=max(800, int(os.environ.get("QUOTE_PREVIEW_WIDTH", "1280"))),
-        preview_height=max(600, int(os.environ.get("QUOTE_PREVIEW_HEIGHT", "960"))),
+        preview_height=max(450, int(os.environ.get("QUOTE_PREVIEW_HEIGHT", "720"))),
         cancel_event=cancel_event,
     )
     if result.get("success") and isinstance(result.get("data"), dict):

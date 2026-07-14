@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { /* silent */ }
     }
     /* Material picker */
-    const materialPicker = document.querySelector("[data-material-picker]");
+    const materialPicker = queryTool("[data-material-picker]");
 
     function getCurrentMaterialContext() {
         const cats = (state.options && state.options.material_categories) || [];
@@ -160,28 +160,55 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderMaterialGradeOptions(filtered) {
         if (!filtered.length) return '<div class="quote-material-empty">No matching grade. Try another keyword.</div>';
-        return filtered.map(m => `<button type="button" role="option" aria-selected="${m.id===state.materialDraft.id?'true':'false'}" class="quote-material-grade-option${m.id===state.materialDraft.id?' active':''}" data-mat-id="${esc(m.id)}"><span class="quote-material-grade-label">${esc(m.label)}</span>${m.subtitle?`<span class="quote-material-grade-sub">${esc(m.subtitle)}</span>`:''}${(m.badges||[]).map(b=>`<span class="quote-material-badge">${esc(b)}</span>`).join('')}${m.review_recommended?'<span class="quote-material-badge review">Review</span>':''}</button>`).join("");
+        return filtered.map(m => `<button type="button" role="option" aria-selected="${m.id===state.materialDraft.id?'true':'false'}" class="quote-material-grade-option${m.id===state.materialDraft.id?' active':''}" data-mat-id="${esc(m.id)}" title="${esc(`${m.label || ""}${m.subtitle ? ` - ${m.subtitle}` : ""}`)}"><span class="quote-material-grade-label">${esc(m.label)}</span>${m.subtitle?`<span class="quote-material-grade-sub">${esc(m.subtitle)}</span>`:''}${(m.badges||[]).map(b=>`<span class="quote-material-badge">${esc(b)}</span>`).join('')}${m.review_recommended?'<span class="quote-material-badge review">Review</span>':''}</button>`).join("");
+    }
+
+    function renderMaterialCategoryOptions(cats) {
+        const groups = [
+            { label: "Metals", items: cats.filter(c => /aluminum|alloy|steel|metal/i.test(`${c.id || ""} ${c.label || ""}`)) },
+            { label: "Plastics", items: cats.filter(c => /plastic/i.test(`${c.id || ""} ${c.label || ""}`)) },
+        ];
+        const assigned = new Set(groups.flatMap(group => group.items.map(item => item.id)));
+        const other = cats.filter(c => !assigned.has(c.id));
+        if (other.length) groups.push({ label: "Other", items: other });
+        return groups.filter(group => group.items.length).map(group => `<optgroup label="${esc(group.label)}">${group.items.map(c => `<option value="${esc(c.id)}"${c.id===state.materialDraft.category?' selected':''}>${esc(c.label)}</option>`).join("")}</optgroup>`).join("");
+    }
+
+    function syncMaterialDraftUi() {
+        const { category, material } = getMaterialSelection(state.materialDraft.category, state.materialDraft.id);
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => {
+            const active = btn.dataset.matId === state.materialDraft.id;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        const selectionLabel = materialPicker.querySelector('[data-material-selection-label]');
+        if (selectionLabel) selectionLabel.textContent = `${category?.label || "Choose category"}${material ? ` / ${material.label}` : ""}`;
+        const confirmButton = materialPicker.querySelector('[data-material-confirm]');
+        if (confirmButton) confirmButton.disabled = !material;
     }
 
     function bindMaterialOptionEvents() {
-        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => { btn.addEventListener('click', () => { state.materialDraft.id = btn.dataset.matId; renderMaterialPicker(); }); });
+        materialPicker.querySelectorAll('[data-mat-id]').forEach(btn => { btn.addEventListener('click', () => { state.materialDraft.id = btn.dataset.matId; syncMaterialDraftUi(); }); });
     }
 
     function bindMaterialPickerEvents() {
-        materialPicker.querySelectorAll('[data-cat-id]').forEach(btn => { btn.addEventListener('click', () => { const { cats } = getCurrentMaterialContext(); state.materialDraft.category = btn.dataset.catId; state.materialSearch = ""; const cat = cats.find(c=>c.id===state.materialDraft.category); const inCat = (cat?.materials||[]).find(m=>m.id===state.materialDraft.id); state.materialDraft.id = inCat ? state.materialDraft.id : (cat?.default_material_id||cat?.materials?.[0]?.id||""); renderMaterialPicker(); }); });
+        const categorySelect = materialPicker.querySelector('[data-material-category]');
+        if (categorySelect) categorySelect.addEventListener('change', () => { const { cats } = getCurrentMaterialContext(); state.materialDraft.category = categorySelect.value; state.materialSearch = ""; const cat = cats.find(c=>c.id===state.materialDraft.category); const inCat = (cat?.materials||[]).find(m=>m.id===state.materialDraft.id); state.materialDraft.id = inCat ? state.materialDraft.id : (cat?.default_material_id||cat?.materials?.[0]?.id||""); const searchInput = materialPicker.querySelector('[data-material-search]'); if (searchInput) searchInput.value = ""; renderMaterialGradeListOnly(true); });
         bindMaterialOptionEvents();
         const searchInput = materialPicker.querySelector('[data-material-search]');
-        if (searchInput) searchInput.addEventListener('input', () => { state.materialSearch = searchInput.value; renderMaterialGradeListOnly(); });
+        if (searchInput) searchInput.addEventListener('input', () => { state.materialSearch = searchInput.value; renderMaterialGradeListOnly(true); });
         const confirmButton = materialPicker.querySelector('[data-material-confirm]');
         if (confirmButton) confirmButton.addEventListener('click', confirmMaterialSelection);
     }
 
-    function renderMaterialGradeListOnly() {
+    function renderMaterialGradeListOnly(resetScroll = false) {
         const list = materialPicker.querySelector('.quote-material-grade-list');
         if (!list) return;
         const { filtered } = getCurrentMaterialContext();
         list.innerHTML = renderMaterialGradeOptions(filtered);
+        if (resetScroll) list.scrollTop = 0;
         bindMaterialOptionEvents();
+        syncMaterialDraftUi();
     }
 
     function renderMaterialPicker() {
@@ -198,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
         materialPicker.classList.remove("is-confirmed");
         const { cats, filtered } = getCurrentMaterialContext();
         const { category, material } = getMaterialSelection(state.materialDraft.category, state.materialDraft.id);
-        materialPicker.innerHTML = `<div class="quote-material-categories">${cats.map(c=>`<button type="button" class="quote-material-cat-btn${c.id===state.materialDraft.category?' active':''}" data-cat-id="${esc(c.id)}" aria-pressed="${c.id===state.materialDraft.category?'true':'false'}">${esc(c.label)}</button>`).join("")}</div><div class="quote-material-grades"><input type="text" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div></div><div class="quote-material-actions"><span>Selection: <strong>${esc(category?.label || "Choose category")}${material ? ` &middot; ${esc(material.label)}` : ""}</strong></span><button type="button" class="quote-material-confirm" data-material-confirm${material ? "" : " disabled"}>Use this material</button></div>`;
+        materialPicker.innerHTML = `<div class="quote-material-controls"><select class="quote-material-category-select" data-material-category aria-label="Material family">${renderMaterialCategoryOptions(cats)}</select><input type="search" class="quote-material-search" placeholder="Search grade..." value="${esc(state.materialSearch)}" data-material-search aria-label="Search material grade"></div><div class="quote-material-grade-list" role="listbox" aria-label="Material grade">${renderMaterialGradeOptions(filtered)}</div><div class="quote-material-actions"><span>Selection: <strong data-material-selection-label>${esc(category?.label || "Choose category")}${material ? ` &middot; ${esc(material.label)}` : ""}</strong></span><button type="button" class="quote-material-confirm" data-material-confirm${material ? "" : " disabled"}>Use this material</button></div>`;
         bindMaterialPickerEvents();
     }
 

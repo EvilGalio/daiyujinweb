@@ -45,6 +45,32 @@ def _run(runner, tmp_path: Path, **overrides):
     return runner.run_cad_analysis(**arguments)
 
 
+def test_default_preview_dimensions_match_frontend_ratio(runner) -> None:
+    assert runner.DEFAULT_PREVIEW_WIDTH == 1280
+    assert runner.DEFAULT_PREVIEW_HEIGHT == 720
+    assert runner.DEFAULT_PREVIEW_WIDTH * 9 == runner.DEFAULT_PREVIEW_HEIGHT * 16
+
+
+def test_preview_dimensions_normalize_legacy_and_custom_ratios(runner) -> None:
+    from services.cad_analyzer import _preview_dimensions
+
+    assert _preview_dimensions({"width": "3840", "height": "2880"}) == (1280, 720)
+    assert _preview_dimensions({"width": "1920", "height": "1200"}) == (1920, 1080)
+
+
+def test_thumbnail_canvas_is_cropped_and_scaled_to_exact_size(runner, tmp_path: Path) -> None:
+    from PIL import Image
+    from services.cad_analyzer import _normalize_thumbnail_canvas
+
+    png_path = tmp_path / "preview.png"
+    Image.new("RGB", (1296, 759), "#f0f0f5").save(png_path)
+
+    _normalize_thumbnail_canvas(png_path, 1280, 720)
+
+    with Image.open(png_path) as normalized:
+        assert normalized.size == (1280, 720)
+
+
 def test_parse_cli_payload_accepts_noise_before_json(runner) -> None:
     expected = {"success": True, "data": {"volume_mm3": 12.5}}
     stdout = "OffscreenRenderer content dumped to capture.jpeg\n" + json.dumps(expected)

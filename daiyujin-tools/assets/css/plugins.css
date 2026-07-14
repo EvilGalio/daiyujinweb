@@ -39,6 +39,28 @@ body.tool-page {
     -webkit-font-smoothing: antialiased;
 }
 
+.dyj-tool-embed {
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+.dyj-tool-embed .tool-field > label,
+.dyj-tool-embed .tool-label {
+    margin: 0;
+    line-height: 1.25;
+}
+
+.dyj-tool-embed .quote-config-panel .tool-field :where(input:not([type="file"]), select) {
+    height: auto;
+    min-height: 38px;
+    margin: 0;
+    padding: .45rem .7rem;
+    line-height: 1.25;
+}
+
 /* Shell */
 
 .tool-shell {
@@ -970,16 +992,16 @@ body.tool-page {
 .field-optional { color: var(--muted); font-weight: 500; font-size: .78em; }
 .field-hint { display: block; margin-top: .35rem; color: var(--muted); font-size: .74rem; line-height: 1.45; }
 
-.quote-shell .tool-hero { align-items: center; padding: .85rem 0 .65rem; }
+.quote-shell .tool-hero { align-items: center; padding: .65rem 0 .45rem; }
 .quote-shell .tool-hero h1 { font-size: clamp(1.7rem, 3vw, 2.1rem); }
 .quote-shell .tool-hero p { max-width: 720px; margin-top: .2rem; font-size: .82rem; line-height: 1.35; }
 
 .quote-config-panel { position: relative; padding: .95rem; }
-.quote-config-panel.tool-form { gap: .55rem; }
+.quote-config-panel.tool-form { gap: .45rem; }
 .quote-config-panel > h2 { margin-bottom: 0; }
 .quote-config-panel .tool-upload {
     position: relative;
-    min-height: 60px;
+    min-height: 54px;
     place-items: start;
     align-content: center;
     padding: .6rem .85rem;
@@ -1215,62 +1237,52 @@ body.tool-page {
     --quote-selected-soft: rgba(0, 102, 204, .10);
     --quote-focus-ring: rgba(0, 102, 204, .22);
     display: grid;
-    grid-template-columns: 150px minmax(0, 1fr);
-    gap: .65rem;
-    min-height: 152px;
-    padding: .65rem;
+    grid-template-columns: 1fr;
+    gap: .4rem;
+    min-height: 0;
+    padding: .5rem;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #fbfdff;
 }
 .quote-material-layout.is-confirmed { display: block; min-height: 0; padding: 0; border-color: rgba(13, 140, 74, .32); background: var(--success-bg); }
-.quote-material-categories {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    overflow: visible;
-    max-height: none;
-    align-self: start;
+.quote-material-controls {
+    display: grid;
+    grid-template-columns: minmax(150px, .55fr) minmax(220px, 1fr);
+    gap: .45rem;
 }
-.quote-material-cat-btn {
-    text-align: left;
-    background: transparent;
-    padding: 5px 9px;
-    border-radius: 6px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: var(--muted);
-    cursor: pointer;
-    font-family: inherit;
-    position: relative;
-    border: 1px solid transparent;
-    transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
-    white-space: nowrap;
-}
-.quote-material-cat-btn:hover { background: rgba(0,0,0,.035); color: var(--ink); }
-.quote-material-cat-btn.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.34); color: var(--quote-selected-ink); font-weight: 700; box-shadow: inset 3px 0 0 var(--quote-selected-border); }
-
-.quote-material-grades {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-.quote-material-search {
+.quote-material-controls .quote-material-category-select,
+.quote-material-controls .quote-material-search {
+    width: 100%;
+    height: auto;
+    min-height: 32px;
+    margin: 0;
     border: 1px solid var(--line);
     border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 0.78rem;
+    padding: 4px 9px;
+    font-size: 0.76rem;
+    line-height: 1.25;
     font-family: inherit;
     background: var(--surface);
     color: var(--ink);
 }
-.quote-material-search:focus { outline: none; border-color: var(--accent); }
+.dyj-tool-embed .quote-config-panel .quote-material-controls .quote-material-category-select,
+.dyj-tool-embed .quote-config-panel .quote-material-controls .quote-material-search {
+    min-height: 32px;
+    padding: 4px 9px;
+}
+.quote-material-controls .quote-material-category-select:focus,
+.quote-material-controls .quote-material-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--quote-focus-ring); }
 .quote-material-grade-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-content: start;
+    gap: 2px .35rem;
     overflow-y: auto;
-    max-height: 156px;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    max-height: 88px;
+    padding-right: .15rem;
 }
 .quote-material-grade-option {
     display: flex;
@@ -1280,9 +1292,13 @@ body.tool-page {
     position: relative;
     border: 1px solid transparent;
     background: transparent;
-    padding: 5px 2.35rem 5px 8px;
+    min-width: 0;
+    min-height: 28px;
+    overflow: hidden;
+    padding: 3px 2.15rem 3px 8px;
     border-radius: 6px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
+    line-height: 1.25;
     cursor: pointer;
     font-family: inherit;
     transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
@@ -1291,9 +1307,10 @@ body.tool-page {
 .quote-material-grade-option.active { background: var(--quote-selected-bg); border-color: rgba(0,102,204,.42); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 3px var(--quote-selected-soft); }
 .quote-material-grade-option.active::after { content: "\2713"; position: absolute; right: .75rem; top: 50%; width: 1.2rem; height: 1.2rem; transform: translateY(-50%); border-radius: 999px; background: var(--quote-selected-border); color: #fff; display: grid; place-items: center; font-size: .78rem; font-weight: 800; line-height: 1; }
 .quote-material-grade-option.active .quote-material-grade-label { color: var(--quote-selected-ink); font-weight: 700; }
-.quote-material-grade-label { font-weight: 500; color: var(--ink); }
-.quote-material-grade-sub { font-size: 0.7rem; color: var(--muted); }
+.quote-material-grade-label { flex: 0 0 auto; font-weight: 500; color: var(--ink); }
+.quote-material-grade-sub { min-width: 0; overflow: hidden; color: var(--muted); font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
 .quote-material-badge {
+    flex: 0 0 auto;
     font-size: 0.62rem;
     font-weight: 500;
     padding: 1px 6px;
@@ -1303,31 +1320,35 @@ body.tool-page {
 }
 .quote-material-badge.review { background: #fef3c7; color: #92400e; }
 
-.quote-material-cat-btn:focus-visible,
+.quote-material-category-select:focus-visible,
 .quote-material-grade-option:focus-visible,
 .quote-material-change:focus-visible,
 .quote-material-confirm:focus-visible { outline: 3px solid var(--quote-focus-ring); outline-offset: 2px; }
 
-.quote-material-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-top: .55rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .72rem; }
+.quote-material-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-width: 0; padding-top: .35rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .7rem; }
+.quote-material-actions > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quote-material-actions strong { color: var(--ink); font-weight: 650; }
 .quote-material-confirm,
 .quote-material-change { border: 0; border-radius: 6px; font-family: inherit; font-weight: 700; cursor: pointer; }
-.quote-material-confirm { min-height: 34px; padding: .42rem .8rem; background: var(--accent); color: #fff; font-size: .76rem; }
+.quote-material-confirm { flex: 0 0 auto; min-height: 32px; padding: .35rem .7rem; background: var(--accent); color: #fff; font-size: .74rem; }
 .quote-material-confirm:disabled { cursor: not-allowed; opacity: .55; }
-.quote-material-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; min-height: 54px; padding: .55rem .7rem; }
-.quote-material-check { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 999px; background: var(--success); color: #fff; font-size: .85rem; font-weight: 800; }
+.quote-material-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .55rem; min-height: 44px; padding: .4rem .6rem; }
+.quote-material-check { display: grid; place-items: center; width: 1.55rem; height: 1.55rem; border-radius: 999px; background: var(--success); color: #fff; font-size: .78rem; font-weight: 800; }
 .quote-material-summary-copy { min-width: 0; }
-.quote-material-summary-copy small { display: block; color: #337455; font-size: .64rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
-.quote-material-summary-copy strong { display: block; overflow: hidden; color: #0b4f2d; font-size: .86rem; text-overflow: ellipsis; white-space: nowrap; }
+.quote-material-summary-copy small { display: block; color: #337455; font-size: .64rem; font-weight: 750; letter-spacing: .05em; line-height: 1.15; text-transform: uppercase; }
+.quote-material-summary-copy strong { display: block; overflow: hidden; color: #0b4f2d; font-size: .86rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .quote-material-summary-copy strong span { color: #6aa182; font-weight: 500; }
 .quote-material-change { padding: .38rem .62rem; background: #fff; color: #0b6a3b; border: 1px solid rgba(13, 140, 74, .28); font-size: .72rem; }
-.quote-material-empty { padding: .85rem; color: var(--muted); font-size: .78rem; border: 1px dashed rgba(0,0,0,.12); border-radius: 8px; background: rgba(0,0,0,.015); }
+.quote-material-empty { grid-column: 1 / -1; padding: .85rem; color: var(--muted); font-size: .78rem; border: 1px dashed rgba(0,0,0,.12); border-radius: 8px; background: rgba(0,0,0,.015); }
 
 @media (max-width: 640px) {
-    .quote-material-layout { grid-template-columns: 1fr; }
-    .quote-material-categories { flex-direction: row; flex-wrap: wrap; max-height: none; }
-    .quote-material-cat-btn { min-height: 40px; }
-    .quote-material-grade-option { min-height: 48px; }
+    .quote-material-controls { grid-template-columns: 1fr; }
+    .quote-material-controls .quote-material-category-select,
+    .quote-material-controls .quote-material-search { min-height: 44px; }
+    .dyj-tool-embed .quote-config-panel .quote-material-controls .quote-material-category-select,
+    .dyj-tool-embed .quote-config-panel .quote-material-controls .quote-material-search { min-height: 44px; }
+    .quote-material-grade-list { grid-template-columns: 1fr; max-height: min(38vh, 240px); }
+    .quote-material-grade-option { min-height: 44px; }
     .quote-material-actions { align-items: stretch; flex-direction: column; }
     .quote-parameter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .quote-parameter-grid .tool-field:nth-child(n) { grid-column: span 1; }
@@ -1380,12 +1401,6 @@ body.tool-page {
         linear-gradient(145deg, #f9fafb 0%, #eef1f5 48%, #e4e8ee 100%);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
 }
-.quote-preview-stage .quote-thumb {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-}
 .quote-3d-stage,
 .quote-3d-stage canvas {
     width: 100%;
@@ -1395,7 +1410,7 @@ body.tool-page {
 .quote-3d-stage {
     position: absolute;
     inset: 0;
-    min-height: 280px;
+    min-height: 0;
 }
 .quote-preview-stage .quote-thumb[hidden],
 .quote-preview-stage .quote-3d-stage[hidden] {

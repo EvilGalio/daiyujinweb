@@ -73,8 +73,8 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
 for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "thumbnail_background_color", "#f0f0f5", "color", is_public=False, description="CAD preview background color")
     _register(f"quote:{site}", "thumbnail_part_color", "#949aa3", "color", is_public=False, description="CAD preview part color")
-    _register(f"quote:{site}", "thumbnail_width", "3840", "number", is_public=False, description="Preview image width (px)")
-    _register(f"quote:{site}", "thumbnail_height", "2880", "number", is_public=False, description="Preview image height (px)")
+    _register(f"quote:{site}", "thumbnail_width", "1280", "number", is_public=False, description="16:9 preview image width (px)")
+    _register(f"quote:{site}", "thumbnail_height", "720", "number", is_public=False, description="16:9 preview image height (px)")
 
 
 # Internal quote email notifications
