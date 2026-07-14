@@ -34,6 +34,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function queryToolAll(selector) {
         return toolRoot.querySelectorAll ? Array.from(toolRoot.querySelectorAll(selector)) : Array.from(document.querySelectorAll(selector));
     }
+    const estimateFeedback = queryTool("[data-estimate-feedback]");
+    const quoteToastRegion = queryTool("[data-quote-toast-region]");
+    const estimateLayoutMedia = window.matchMedia ? window.matchMedia("(max-width: 1179px)") : null;
     function currentSite() {
         const raw = (toolRoot.dataset && toolRoot.dataset.dyjTheme) || CONFIG.theme || "default";
         const site = String(raw || "default").trim().toLowerCase();
@@ -77,7 +80,23 @@ document.addEventListener("DOMContentLoaded", () => {
         userSelectedPart: false,
         analysisLoopRunning: false,
         networkStatus: "online",
+        interactionVersion: 0,
+        readyButtonTimer: 0,
+        toastTimer: 0,
+        toastExitTimer: 0,
+        toastVersion: 0,
     };
+
+    function markUserInteraction() {
+        state.interactionVersion += 1;
+    }
+
+    document.addEventListener("pointerdown", markUserInteraction, true);
+    document.addEventListener("keydown", markUserInteraction, true);
+    document.addEventListener("input", markUserInteraction, true);
+    document.addEventListener("change", markUserInteraction, true);
+    document.addEventListener("wheel", markUserInteraction, { capture: true, passive: true });
+    document.addEventListener("touchmove", markUserInteraction, { capture: true, passive: true });
 
     function createBatchId() {
         try { return crypto.randomUUID(); } catch (e) { return `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
@@ -101,8 +120,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return state.options?.async_archive_analysis === true;
     }
 
-    function makeEstimateCacheKey(part) {
-        const s = part.settings || {};
+    function makeEstimateCacheKey(part, settings = part.settings || {}) {
+        const s = settings;
         return `${part.fileKey}|${s.material_id}|${s.process}|${s.tolerance_grade}|${s.postprocess_group}|${s.quantity}|${s.currency}`;
     }
 
@@ -631,7 +650,37 @@ document.addEventListener("DOMContentLoaded", () => {
         if (previousStatus === "failed" && mapped.analysisStatus !== "failed") part.error = "";
     }
 
+    function activePartRenderKey(part) {
+        if (!part) return "";
+        const analysis = part.analysis || {};
+        return JSON.stringify([
+            part.id,
+            part.fileName,
+            part.fullFileName,
+            part.uploadStatus,
+            part.analysisStatus,
+            part.analysisPresentation?.phase || "",
+            part.error || "",
+            part.errorCode || "",
+            part.attemptCount || 0,
+            analysis.file_id || "",
+            analysis.name || "",
+            analysis.volume_mm3 ?? null,
+            analysis.obb_dimensions_mm ?? null,
+            analysis.thumbnail_url || "",
+        ]);
+    }
+
+    function estimateFeedbackRenderKey() {
+        return JSON.stringify([
+            state.activePartId,
+            state.parts.map(part => [part.id, part.uploadStatus, part.estimateStatus]),
+        ]);
+    }
+
     function syncJobSnapshot(entry, payload) {
+        const previousActiveKey = activePartRenderKey(getActivePart());
+        const previousFeedbackKey = estimateFeedbackRenderKey();
         const job = payload.job || {};
         const remoteParts = Array.isArray(payload.parts) ? payload.parts.slice().sort((a, b) => (Number(a.position) || 0) - (Number(b.position) || 0)) : [];
         entry.status = String(job.status || entry.status || "queued");
@@ -658,11 +707,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const restoredActive = entry.restoreActivePartId ? nextParts.find(part => part.id === entry.restoreActivePartId) : null;
             if (restoredActive) {
                 state.userSelectedPart = true;
-                setActivePart(restoredActive.id, { userInitiated: false });
+                setActivePart(restoredActive.id, { userInitiated: false, renderView: false });
                 entry.restoreActivePartId = "";
             } else if (parentWasActive || (!state.userSelectedPart && (!active || active.uploadStatus !== "ready"))) {
                 const nextActive = readyParts[0] || nextParts[0];
-                if (nextActive) setActivePart(nextActive.id, { userInitiated: false });
+                if (nextActive) setActivePart(nextActive.id, { userInitiated: false, renderView: false });
             }
             if (entry.readyCount > oldReady) {
                 const newest = readyParts[readyParts.length - 1];
@@ -694,7 +743,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         persistAnalysisJobs();
         updateUploadLabel();
-        render();
+        if (previousActiveKey !== activePartRenderKey(getActivePart())) {
+            render();
+        } else {
+            renderPartList();
+            if (previousFeedbackKey !== estimateFeedbackRenderKey()) refreshEstimateFeedbackPreservingFocus();
+        }
     }
 
     function scheduleJobPoll(entry, delay = null) {
@@ -869,11 +923,263 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function announce(message) {
+    function announce(message, { assertive = false } = {}) {
         if (!analysisLive || !message) return;
         clearTimeout(state.liveTimer);
+        analysisLive.setAttribute("role", assertive ? "alert" : "status");
+        analysisLive.setAttribute("aria-live", assertive ? "assertive" : "polite");
         analysisLive.textContent = "";
         state.liveTimer = window.setTimeout(() => { analysisLive.textContent = message; }, 40);
+    }
+
+    function prefersReducedMotion() {
+        return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
+
+    function partPosition(part) {
+        const index = Math.max(0, state.parts.findIndex(item => item.id === part?.id));
+        return { current: index + 1, total: Math.max(1, state.parts.length) };
+    }
+
+    function findNextUnquotedPart(part) {
+        if (!part || state.parts.length < 2) return null;
+        const start = Math.max(0, state.parts.findIndex(item => item.id === part.id));
+        for (let offset = 1; offset < state.parts.length; offset += 1) {
+            const candidate = state.parts[(start + offset) % state.parts.length];
+            if (candidate.uploadStatus !== "ready") continue;
+            if (["estimated", "calculating"].includes(candidate.estimateStatus)) continue;
+            return candidate;
+        }
+        return null;
+    }
+
+    function focusEstimateForPart(partId) {
+        if (partId && state.activePartId !== partId) {
+            setActivePart(partId, { userInitiated: true });
+        }
+        window.requestAnimationFrame(() => {
+            const estimate = result.querySelector("#quote-estimate");
+            if (!estimate) return;
+            estimate.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+            try {
+                estimate.focus({ preventScroll: true });
+            } catch (error) {
+                estimate.focus();
+            }
+        });
+    }
+
+    function dismissEstimateToast(version = state.toastVersion) {
+        if (!quoteToastRegion || version !== state.toastVersion) return;
+        clearTimeout(state.toastTimer);
+        clearTimeout(state.toastExitTimer);
+        const toast = quoteToastRegion.querySelector(".quote-toast");
+        if (!toast) {
+            quoteToastRegion.hidden = true;
+            return;
+        }
+        toast.classList.remove("is-entering");
+        toast.classList.add("is-leaving");
+        state.toastExitTimer = window.setTimeout(() => {
+            if (version !== state.toastVersion) return;
+            quoteToastRegion.replaceChildren();
+            quoteToastRegion.hidden = true;
+        }, prefersReducedMotion() ? 0 : 180);
+    }
+
+    function showEstimateToast(kind, part) {
+        if (!quoteToastRegion || !part) return;
+        clearTimeout(state.toastTimer);
+        clearTimeout(state.toastExitTimer);
+        const version = ++state.toastVersion;
+        const success = kind === "success";
+        const total = part.estimate?.total_estimate?.display || "";
+        const title = success ? "Estimate ready" : "Estimate failed";
+        const message = success
+            ? (part.fileName + (total ? " is ready at " + total + "." : " is ready."))
+            : (part.fileName + ": " + (part.estimateError || "Please retry."));
+        quoteToastRegion.classList.add("quote-toast-region");
+        quoteToastRegion.setAttribute("aria-live", "off");
+        quoteToastRegion.hidden = false;
+        quoteToastRegion.innerHTML =
+            '<div class="quote-toast ' + (success ? "is-success" : "is-failed") + ' is-entering">' +
+                '<span class="quote-toast-icon" aria-hidden="true">' + (success ? "&#10003;" : "!") + "</span>" +
+                '<div class="quote-toast-copy">' +
+                    '<strong class="quote-toast-title">' + esc(title) + "</strong>" +
+                    '<span class="quote-toast-message">' + esc(message) + "</span>" +
+                    '<div class="quote-toast-actions">' +
+                        '<button type="button" class="quote-toast-view" data-view-estimate data-part-id="' + esc(part.id) + '">View estimate</button>' +
+                        '<button type="button" class="quote-toast-dismiss" data-toast-dismiss aria-label="Dismiss notification">&times;</button>' +
+                    "</div>" +
+                "</div>" +
+            "</div>";
+        const toast = quoteToastRegion.querySelector(".quote-toast");
+        window.requestAnimationFrame(() => toast?.classList.remove("is-entering"));
+        quoteToastRegion.querySelector("[data-view-estimate]")?.addEventListener("click", event => {
+            focusEstimateForPart(event.currentTarget.dataset.partId);
+            dismissEstimateToast(version);
+        });
+        quoteToastRegion.querySelector("[data-toast-dismiss]")?.addEventListener("click", () => dismissEstimateToast(version));
+        state.toastTimer = window.setTimeout(() => dismissEstimateToast(version), success ? 6000 : 8000);
+    }
+
+    function estimateIsVisible(estimate) {
+        const rect = estimate.getBoundingClientRect();
+        return rect.bottom > 80 && rect.top < window.innerHeight * 0.72;
+    }
+
+    function queueAutomaticEstimateReveal(partId, interactionVersion) {
+        window.requestAnimationFrame(() => {
+            if (!estimateLayoutMedia?.matches) return;
+            if (state.interactionVersion !== interactionVersion) return;
+            if (state.parts.length !== 1 && state.activePartId !== partId) return;
+            const estimate = result.querySelector("#quote-estimate");
+            if (!estimate || estimateIsVisible(estimate)) return;
+            estimate.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+        });
+    }
+
+    function renderEstimateFeedback() {
+        if (!estimateFeedback) return;
+        const part = getActivePart();
+        const status = part?.estimateStatus || "empty";
+        if (!["calculating", "estimated", "failed", "needs_recalculate"].includes(status)) {
+            estimateFeedback.hidden = true;
+            estimateFeedback.removeAttribute("data-state");
+            estimateFeedback.replaceChildren();
+            return;
+        }
+
+        estimateFeedback.classList.add("quote-estimate-feedback");
+        estimateFeedback.setAttribute("aria-live", "off");
+        estimateFeedback.hidden = false;
+        const position = partPosition(part);
+        const partName = part.fileName || "Current part";
+        const viewButton =
+            '<button type="button" class="quote-estimate-feedback-button" data-view-estimate data-part-id="' +
+            esc(part.id) + '">View estimate</button>';
+
+        if (status === "calculating") {
+            estimateFeedback.dataset.state = "calculating";
+            estimateFeedback.innerHTML =
+                '<span class="quote-estimate-feedback-icon" aria-hidden="true"><span class="quote-estimate-feedback-spinner"></span></span>' +
+                '<div class="quote-estimate-feedback-copy">' +
+                    '<span class="quote-estimate-feedback-kicker">Reference estimate</span>' +
+                    '<strong class="quote-estimate-feedback-title">Estimating ' + esc(partName) + "</strong>" +
+                    '<span class="quote-estimate-feedback-meta" data-estimate-feedback-phase>Preparing manufacturing model</span>' +
+                    '<div class="quote-estimate-feedback-progress" aria-hidden="true">' +
+                        '<span class="quote-estimate-feedback-progress-bar"><span class="quote-estimate-feedback-progress-fill" style="width:0%"></span></span>' +
+                    "</div>" +
+                "</div>";
+            return;
+        }
+
+        if (status === "failed") {
+            const retryButton =
+                '<button type="button" class="quote-estimate-feedback-button" data-retry-estimate data-part-id="' +
+                esc(part.id) + '">Retry estimate</button>';
+            estimateFeedback.dataset.state = "failed";
+            estimateFeedback.innerHTML =
+                '<span class="quote-estimate-feedback-icon" aria-hidden="true">!</span>' +
+                '<div class="quote-estimate-feedback-copy">' +
+                    '<span class="quote-estimate-feedback-kicker">Reference estimate</span>' +
+                    '<strong class="quote-estimate-feedback-title">Estimate failed for ' + esc(partName) + "</strong>" +
+                    '<span class="quote-estimate-feedback-meta">' + esc(part.estimateError || "Please retry.") + "</span>" +
+                "</div>" +
+                '<div class="quote-estimate-feedback-actions">' + retryButton + viewButton + "</div>";
+            return;
+        }
+
+        if (status === "needs_recalculate") {
+            estimateFeedback.dataset.state = "needs-update";
+            estimateFeedback.innerHTML =
+                '<span class="quote-estimate-feedback-icon" aria-hidden="true">!</span>' +
+                '<div class="quote-estimate-feedback-copy">' +
+                    '<span class="quote-estimate-feedback-kicker">Estimate needs update</span>' +
+                    '<strong class="quote-estimate-feedback-title">' + esc(partName) + "</strong>" +
+                    '<span class="quote-estimate-feedback-meta">Inputs changed. Update the estimate before using it.</span>' +
+                "</div>" +
+                '<div class="quote-estimate-feedback-actions">' + viewButton + "</div>";
+            return;
+        }
+
+        const estimate = part.estimate || {};
+        const selections = estimate.selections || {};
+        const total = estimate.total_estimate?.display || "-";
+        const unit = estimate.unit_estimate?.display || "-";
+        const quantity = selections.quantity || part.settings?.quantity || 1;
+        const estimatedCount = state.parts.filter(item => item.estimateStatus === "estimated").length;
+        const nextPart = findNextUnquotedPart(part);
+        const nextButton = nextPart
+            ? '<button type="button" class="quote-estimate-feedback-button" data-next-unquoted="' + esc(nextPart.id) + '">Next unquoted part</button>'
+            : "";
+        estimateFeedback.dataset.state = "success";
+        estimateFeedback.innerHTML =
+            '<span class="quote-estimate-feedback-icon" aria-hidden="true">&#10003;</span>' +
+            '<div class="quote-estimate-feedback-copy">' +
+                '<span class="quote-estimate-feedback-kicker">Estimate ready</span>' +
+                '<strong class="quote-estimate-feedback-title">' + esc(partName) + "</strong>" +
+                '<span class="quote-estimate-feedback-meta">Part ' + position.current + " of " + position.total +
+                    " &middot; " + estimatedCount + " / " + position.total + " parts estimated" +
+                    " &middot; Unit " + esc(unit) + " &middot; Quantity " + esc(quantity) + "</span>" +
+            "</div>" +
+            '<strong class="quote-estimate-feedback-total">' + esc(total) + "</strong>" +
+            '<div class="quote-estimate-feedback-actions">' + viewButton + nextButton + "</div>";
+    }
+
+    function bindEstimateFeedbackEvents() {
+        if (!estimateFeedback) return;
+        estimateFeedback.querySelectorAll("[data-view-estimate]").forEach(button => {
+            button.addEventListener("click", () => focusEstimateForPart(button.dataset.partId));
+        });
+        estimateFeedback.querySelectorAll("[data-retry-estimate]").forEach(button => {
+            button.addEventListener("click", () => {
+                if (state.activePartId !== button.dataset.partId) {
+                    setActivePart(button.dataset.partId, { userInitiated: true });
+                }
+                void calculateCurrentPart();
+            });
+        });
+        estimateFeedback.querySelectorAll("[data-next-unquoted]").forEach(button => {
+            button.addEventListener("click", () => {
+                const nextPart = state.parts.find(part => part.id === button.dataset.nextUnquoted);
+                if (!nextPart) return;
+                setActivePart(nextPart.id, { userInitiated: true });
+                announce(nextPart.fileName + " selected. Ready to configure.");
+                window.requestAnimationFrame(() => {
+                    const focusTarget = materialPicker?.querySelector("[data-material-change], [data-material-category], [data-material-confirm]") || calculateButton;
+                    (materialPicker || form).scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+                    try {
+                        focusTarget?.focus({ preventScroll: true });
+                    } catch (error) {
+                        focusTarget?.focus();
+                    }
+                });
+            });
+        });
+    }
+
+    function refreshEstimateFeedbackPreservingFocus() {
+        const focused = document.activeElement;
+        let actionSelector = "";
+        if (estimateFeedback?.contains(focused)) {
+            if (focused.matches("[data-view-estimate]")) actionSelector = "[data-view-estimate]";
+            else if (focused.matches("[data-retry-estimate]")) actionSelector = "[data-retry-estimate]";
+            else if (focused.matches("[data-next-unquoted]")) actionSelector = "[data-next-unquoted]";
+        }
+        renderEstimateFeedback();
+        bindEstimateFeedbackEvents();
+        if (!actionSelector) return;
+        const replacement = estimateFeedback.querySelector(actionSelector);
+        try {
+            replacement?.focus({ preventScroll: true });
+        } catch (error) {
+            replacement?.focus();
+        }
+    }
+
+    function setEstimateReadyButtonState(part) {
+        part.estimateReadyUntil = Date.now() + 1800;
     }
 
     async function retryRemotePart(part) {
@@ -1084,7 +1390,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cancelAnalysisButton) cancelAnalysisButton.hidden = activeJobs.length === 0;
     }
 
-    function setActivePart(partId, { userInitiated = true } = {}) {
+    function setActivePart(partId, { userInitiated = true, renderView = true } = {}) {
         if (userInitiated) state.userSelectedPart = true;
         if (state.activePartId === partId) return;
         const old = getActivePart();
@@ -1093,7 +1399,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const part = getActivePart();
         if (part) { hydrateFormFromPart(part); }
         persistAnalysisJobs();
-        render();
+        if (renderView) render();
     }
 
     function readSettingsFromForm() {
@@ -1108,6 +1414,40 @@ document.addEventListener("DOMContentLoaded", () => {
             currency: String(fd.get("currency") || ""),
         };
     }
+
+    const pricingSettingNames = new Set(["process", "tolerance_grade", "postprocess_group", "quantity", "currency"]);
+
+    function handlePricingSettingChange(event) {
+        const target = event.target;
+        if (!target || !pricingSettingNames.has(target.name)) return;
+        const part = getActivePart();
+        if (!part || part.uploadStatus !== "ready") return;
+
+        const latestSettings = readSettingsFromForm();
+        const latestKey = makeEstimateCacheKey(part, latestSettings);
+        const estimatedKey = part.estimateCacheKey || "";
+        part.settings = latestSettings;
+        part.settingsSource = "override";
+
+        if (part.estimateStatus === "calculating") return;
+        if (part.estimateStatus === "needs_recalculate") {
+            if (part.estimate && estimatedKey && latestKey === estimatedKey) {
+                part.estimateStatus = "estimated";
+                render();
+                announce("Original estimate inputs restored.");
+            }
+            return;
+        }
+        if (part.estimateStatus !== "estimated" || !part.estimate || latestKey === estimatedKey) return;
+
+        part.estimateStatus = "needs_recalculate";
+        part.estimateReadyUntil = 0;
+        render();
+        announce("Estimate inputs changed. Update the estimate to use the latest settings.");
+    }
+
+    form.addEventListener("input", handlePricingSettingChange);
+    form.addEventListener("change", handlePricingSettingChange);
 
     function readContactDetails() {
         const fd = new FormData(form);
@@ -1168,11 +1508,16 @@ document.addEventListener("DOMContentLoaded", () => {
         part.settingsSource = "override";
         const cacheKey = makeEstimateCacheKey(part);
         const cacheHit = part.estimate && part.estimateCacheKey === cacheKey;
+        const calculationPartId = part.id;
+        const interactionVersion = state.interactionVersion;
 
         part.estimateStatus = "calculating";
         part.estimateError = "";
+        part.estimateReadyUntil = 0;
         part.presentation = { progress: 0, phase: 0, startedAt: performance.now(), durationMs: randomInt(2200, 4800) };
         render();
+        announce("Calculating estimate for " + (part.fileName || "current part") + ".");
+        queueAutomaticEstimateReveal(calculationPartId, interactionVersion);
 
         let estimate;
         if (cacheHit) {
@@ -1198,19 +1543,41 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (err) {
                 part.estimateStatus = "failed";
                 part.estimateError = friendlyEstimateError(err);
+                part.estimateReadyUntil = 0;
                 finishEstimatePresentation(part, false);
                 render();
+                announce("Estimate failed for " + (part.fileName || "current part") + ". Retry is available.", { assertive: true });
+                showEstimateToast("failed", part);
+                queueAutomaticEstimateReveal(calculationPartId, interactionVersion);
                 return;
             }
         }
 
         await waitForPresentationMinimum(part);
+        const latestSettings = state.activePartId === calculationPartId ? readSettingsFromForm() : part.settings;
+        if (makeEstimateCacheKey(part, latestSettings) !== cacheKey) {
+            part.settings = latestSettings;
+            part.estimate = null;
+            part.estimateCacheKey = "";
+            part.estimateStatus = "needs_recalculate";
+            part.estimateReadyUntil = 0;
+            finishEstimatePresentation(part, false);
+            render();
+            announce("Inputs changed while the estimate was running. Update the estimate to use the latest settings.");
+            queueAutomaticEstimateReveal(calculationPartId, interactionVersion);
+            return;
+        }
         estimate = { ...estimate, customer_name: contact.customer_name, customer_email: contact.customer_email };
         part.estimate = estimate;
         part.estimateCacheKey = cacheKey;
         part.estimateStatus = "estimated";
         finishEstimatePresentation(part, true);
+        setEstimateReadyButtonState(part);
         render();
+        const totalDisplay = estimate.total_estimate?.display || "";
+        announce("Estimate ready for " + (part.fileName || "current part") + (totalDisplay ? ": " + totalDisplay + "." : "."));
+        showEstimateToast("success", part);
+        queueAutomaticEstimateReveal(calculationPartId, interactionVersion);
     }
 
     function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -1238,6 +1605,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const fill = document.querySelector(".quote-progress-fill");
         const phase = document.querySelector(".quote-progress-phase");
         const pct = document.querySelector(".quote-progress-pct");
+        const feedbackFill = estimateFeedback?.querySelector(".quote-estimate-feedback-progress-fill");
+        const feedbackPhase = estimateFeedback?.querySelector("[data-estimate-feedback-phase]");
         const part = getActivePart();
         if (!part || part.estimateStatus !== "calculating" || !fill || !phase || !pct) return;
 
@@ -1247,32 +1616,79 @@ document.addEventListener("DOMContentLoaded", () => {
         const ratio = Math.min(elapsed / total, 0.96);
         const p = ratio * 100;
         fill.style.width = p + "%";
+        if (feedbackFill) feedbackFill.style.width = p + "%";
         pct.textContent = Math.round(p) + "%";
         const phaseIdx = Math.min(Math.floor(ratio * phases.length), phases.length - 1);
         phase.textContent = phases[phaseIdx];
+        if (feedbackPhase) feedbackPhase.textContent = phases[phaseIdx];
     }
 
     setInterval(updateEstimateProgress, 300);
     /* Render */
+    function shouldRenderEstimateFirst(part) {
+        return !!estimateLayoutMedia?.matches &&
+            !!part &&
+            ["calculating", "estimated", "failed", "needs_recalculate"].includes(part.estimateStatus);
+    }
+
     function render() {
         renderPartList();
-        result.innerHTML = `${previewCard()}${estimateCard()}`;
+        const part = getActivePart();
+        result.innerHTML = shouldRenderEstimateFirst(part)
+            ? estimateCard() + previewCard()
+            : previewCard() + estimateCard();
         bindPreviewTabs();
+        renderEstimateFeedback();
+        bindEstimateFeedbackEvents();
         updateCalculateButton();
     }
 
     function updateCalculateButton() {
         if (!calculateButton) return;
+        clearTimeout(state.readyButtonTimer);
+        state.readyButtonTimer = 0;
         const part = getActivePart();
         const isCalculating = part?.estimateStatus === "calculating";
         const isReady = part?.uploadStatus === "ready";
-        calculateButton.disabled = !part || !isReady || isCalculating;
-        if (!part) calculateButton.textContent = "Upload CAD First";
-        else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") calculateButton.textContent = "Analyzing CAD...";
-        else if (part.uploadStatus === "failed") calculateButton.textContent = "Analysis Failed";
-        else if (part.uploadStatus === "cancelled") calculateButton.textContent = "Analysis Cancelled";
-        else if (isCalculating) calculateButton.textContent = "Estimating...";
-        else calculateButton.textContent = "Calculate Current Part";
+        const isEstimateReady = part?.estimateStatus === "estimated" && Number(part.estimateReadyUntil) > Date.now();
+        calculateButton.disabled = !part || !isReady || isCalculating || isEstimateReady;
+        calculateButton.setAttribute("aria-controls", "quote-estimate");
+        calculateButton.setAttribute("aria-busy", isCalculating ? "true" : "false");
+        if (!part) {
+            calculateButton.dataset.state = "empty";
+            calculateButton.textContent = "Upload CAD First";
+        } else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") {
+            calculateButton.dataset.state = "analyzing";
+            calculateButton.textContent = "Analyzing CAD...";
+        } else if (part.uploadStatus === "failed") {
+            calculateButton.dataset.state = "analysis-failed";
+            calculateButton.textContent = "Analysis Failed";
+        } else if (part.uploadStatus === "cancelled") {
+            calculateButton.dataset.state = "analysis-cancelled";
+            calculateButton.textContent = "Analysis Cancelled";
+        } else if (isCalculating) {
+            calculateButton.dataset.state = "calculating";
+            calculateButton.textContent = "Estimating...";
+        } else if (part.estimateStatus === "failed") {
+            calculateButton.dataset.state = "retry";
+            calculateButton.textContent = "Retry Estimate";
+        } else if (part.estimateStatus === "needs_recalculate") {
+            calculateButton.dataset.state = "update";
+            calculateButton.textContent = "Update Estimate";
+        } else if (isEstimateReady) {
+            calculateButton.dataset.state = "ready";
+            calculateButton.textContent = "Estimate Ready";
+            const readyForMs = Math.max(0, Number(part.estimateReadyUntil) - Date.now());
+            state.readyButtonTimer = window.setTimeout(() => {
+                if (state.activePartId === part.id) updateCalculateButton();
+            }, readyForMs + 25);
+        } else if (part.estimateStatus === "estimated") {
+            calculateButton.dataset.state = "recalculate";
+            calculateButton.textContent = "Recalculate";
+        } else {
+            calculateButton.dataset.state = "calculate";
+            calculateButton.textContent = "Calculate Current Part";
+        }
     }
 
     function previewCard() {
@@ -1345,7 +1761,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function estimateLoadingCard(part) {
-        return `<section class="tool-panel quote-estimate quote-estimate-loading" aria-live="polite">
+        return `<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate quote-estimate-loading" aria-busy="true">
             <h2>Reference Estimate</h2>
             <div class="quote-eval-head">
                 <span class="quote-eval-kicker">Manufacturing review</span>
@@ -1374,11 +1790,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (part?.estimateStatus === "failed") {
-            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note error">Reference estimate failed. Please adjust inputs or retry. ${esc(part.estimateError || "Please try again.")}</div></section>`;
+            return `<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note error">Reference estimate failed. Please adjust inputs or retry. ${esc(part.estimateError || "Please try again.")}</div></section>`;
+        }
+
+        if (part?.estimateStatus === "needs_recalculate") {
+            return '<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note warn">Inputs changed. Update the estimate before using it.</div></section>';
         }
 
         if (!part || !part.estimate) {
-            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload CAD files to begin."}</div></section>`;
+            return `<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note">${part && part.uploadStatus==="ready" ? "Ready to calculate." : "Upload CAD files to begin."}</div></section>`;
         }
         const e = part.estimate;
         const sel = e.selections || {};
@@ -1387,7 +1807,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const warnings = (e.warnings||[]).map(w=>`<div class="tool-note warn">${esc(w)}</div>`).join("");
         const disclaimer = estimateDisclaimer(e.customer_name);
 
-        return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
+        return `<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
             <div class="quote-total">${esc(totalEst.display||"-")}</div>
             <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"-")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
@@ -1453,6 +1873,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderError(msg) {
         const est = result.querySelector('.quote-estimate');
         if (est) est.innerHTML = `<h2>Reference Estimate</h2><div class="tool-note error">${esc(msg)}</div>`;
+        announce(msg);
     }
     /* Helpers */
     function formatNum(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }); }
@@ -1476,6 +1897,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* Init */
+    if (estimateLayoutMedia) {
+        const handleEstimateLayoutChange = () => render();
+        if (estimateLayoutMedia.addEventListener) estimateLayoutMedia.addEventListener("change", handleEstimateLayoutChange);
+        else if (estimateLayoutMedia.addListener) estimateLayoutMedia.addListener(handleEstimateLayoutChange);
+    }
     restoreAnalysisJobs();
     hydrateOptions();
     render();

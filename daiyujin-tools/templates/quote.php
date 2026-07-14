@@ -8,6 +8,7 @@
                 </div>
                 <div class="tool-status" data-api-status>checking</div>
             </section>
+            <div class="quote-analysis-live" data-analysis-live aria-live="polite" aria-atomic="true"></div>
 
             <section class="quote-workspace is-empty" data-quote-workspace>
                 <aside class="tool-panel quote-parts-rail" data-batch-parts hidden>
@@ -23,7 +24,6 @@
                         <button type="button" class="quote-batch-cancel" data-cancel-analysis hidden>Cancel remaining</button>
                     </div>
                     <div class="quote-part-list" data-part-list role="list" aria-label="CAD parts"></div>
-                    <div class="quote-analysis-live" data-analysis-live aria-live="polite" aria-atomic="true"></div>
                 </aside>
 
                 <form class="tool-panel tool-form quote-config-panel" data-quote-form>
@@ -89,8 +89,9 @@
                     </section>
 
                     <div class="quote-action-row">
-                        <button class="tool-button" type="submit" data-calculate-current>Calculate Current Part</button>
+                        <button class="tool-button" type="submit" data-calculate-current aria-controls="quote-estimate">Calculate Current Part</button>
                     </div>
+                    <div class="quote-estimate-feedback" data-estimate-feedback hidden></div>
                     <details class="quote-privacy-disclosure">
                         <summary>Privacy &amp; file confidentiality</summary>
                         <p class="quote-privacy-note" data-quote-privacy-note>By submitting this form, you confirm that you are authorized to share the uploaded file. We use your contact details only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.</p>
@@ -102,12 +103,13 @@
                         <h2>Part Preview</h2>
                         <div class="tool-note" data-part-placeholder>Awaiting CAD analysis.</div>
                     </section>
-                    <section class="tool-panel">
+                    <section class="tool-panel" id="quote-estimate">
                         <h2>Reference Estimate</h2>
                         <div class="tool-note">Select parameters and calculate after upload.</div>
                     </section>
                 </aside>
             </section>
+            <div class="quote-toast-region" data-quote-toast-region aria-label="Estimate notifications"></div>
         </main>
     </div>
 </div>
