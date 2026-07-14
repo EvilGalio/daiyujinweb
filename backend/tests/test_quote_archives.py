@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import stat
 import sys
+import warnings as python_warnings
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,14 +25,14 @@ def _zip_bytes(entries: dict[str, bytes]) -> io.BytesIO:
     return buffer
 
 
-def _list_members(path: Path, suffix: str):
+def _list_members(path: Path, suffix: str, *, max_files: int = 50):
     return list_cad_members(
         path,
         suffix,
         cad_extensions=CAD_EXTENSIONS,
         max_file_size=50 * 1024 * 1024,
         max_total_size=150 * 1024 * 1024,
-        max_files=20,
+        max_files=max_files,
     )
 
 
@@ -63,6 +65,70 @@ def test_zip_rejects_parent_directory_entries(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unsafe archive entry path"):
         _list_members(archive_path, ".zip")
+
+
+def test_zip_rejects_duplicate_member_paths(tmp_path: Path) -> None:
+    archive_path = tmp_path / "duplicate.zip"
+    with python_warnings.catch_warnings():
+        python_warnings.simplefilter("ignore", UserWarning)
+        with zipfile.ZipFile(archive_path, mode="w") as archive:
+            archive.writestr("folder/part.step", b"first")
+            archive.writestr("folder/part.step", b"second")
+
+    with pytest.raises(ValueError, match="Duplicate archive entry path"):
+        _list_members(archive_path, ".zip")
+
+
+def test_zip_rejects_symlink_entries(tmp_path: Path) -> None:
+    archive_path = tmp_path / "symlink.zip"
+    link = zipfile.ZipInfo("folder/link.step")
+    link.create_system = 3
+    link.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        archive.writestr(link, "../outside.step")
+
+    with pytest.raises(ValueError, match="link entries are not allowed"):
+        _list_members(archive_path, ".zip")
+
+
+def test_zip_rejects_archive_entry_flood(tmp_path: Path) -> None:
+    archive_path = tmp_path / "entry-flood.zip"
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        for index in range(2001):
+            archive.writestr(f"notes/{index}.txt", b"")
+
+    with pytest.raises(ValueError, match="more than 2000 entries"):
+        _list_members(archive_path, ".zip")
+
+
+def test_zip_caps_warning_details_and_adds_summary(tmp_path: Path) -> None:
+    archive_path = tmp_path / "warning-flood.zip"
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        for index in range(110):
+            archive.writestr(f"notes/{index}.txt", b"ignored")
+
+    members, warnings = _list_members(archive_path, ".zip")
+
+    assert members == []
+    assert len(warnings) == 100
+    assert warnings[-1] == "Additional archive notices omitted: 11."
+
+
+def test_zip_accepts_50_cad_files_and_rejects_51(tmp_path: Path) -> None:
+    accepted_path = tmp_path / "fifty.zip"
+    accepted_path.write_bytes(
+        _zip_bytes({f"parts/{index}.step": b"step" for index in range(50)}).getvalue()
+    )
+    members, warnings = _list_members(accepted_path, ".zip")
+    assert len(members) == 50
+    assert warnings == []
+
+    rejected_path = tmp_path / "fifty-one.zip"
+    rejected_path.write_bytes(
+        _zip_bytes({f"parts/{index}.step": b"step" for index in range(51)}).getvalue()
+    )
+    with pytest.raises(ValueError, match="more than 50 supported CAD files"):
+        _list_members(rejected_path, ".zip")
 
 
 def test_rar_adapter_scans_nested_folders(monkeypatch, tmp_path: Path) -> None:

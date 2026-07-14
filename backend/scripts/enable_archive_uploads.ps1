@@ -1,9 +1,14 @@
 [CmdletBinding()]
 param(
-    [string]$PythonExe = "",
+    [Alias("PythonExe")]
+    [string]$BackendPythonExe = "",
+    [string]$OccPythonExe = "",
     [string]$DatabaseUrl = "",
     [switch]$SkipDependencyInstall,
-    [switch]$SkipBackup
+    [switch]$SkipBackup,
+    [switch]$AllowMissingRarTool,
+    [switch]$EnableAsyncArchives,
+    [switch]$DisableAsyncArchives
 )
 
 Set-StrictMode -Version 2.0
@@ -20,9 +25,8 @@ $RepoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
 $BackendRoot = Join-Path $RepoRoot "backend"
 $EnvFile = Join-Path $BackendRoot ".env"
 $RepairScript = Join-Path $PSScriptRoot "repair_allowed_extensions.py"
-
-$script:ResolvedPython = ""
-$script:PythonPrefix = @()
+$WorkerScript = Join-Path $PSScriptRoot "run_quote_worker.py"
+$Requirements = Join-Path $BackendRoot "requirements.txt"
 
 function Get-EnvValue {
     param(
@@ -34,117 +38,171 @@ function Get-EnvValue {
         return ""
     }
     foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
-        if ($line -match "^\s*$Key\s*=\s*(.+?)\s*$") {
+        if ($line -match "^\s*$([regex]::Escape($Key))\s*=\s*(.*?)\s*$") {
             return $Matches[1].Trim().Trim('"').Trim("'")
         }
     }
     return ""
 }
 
-function Use-PythonCandidate {
+function Set-EnvValue {
     param(
-        [string]$Executable,
-        [string[]]$Prefix = @()
+        [string]$Path,
+        [string]$Key,
+        [string]$Value,
+        [switch]$OnlyIfMissing
     )
 
-    if (-not $Executable) {
-        return $false
+    $lines = @()
+    if (Test-Path -LiteralPath $Path) {
+        $lines = @([System.IO.File]::ReadAllLines($Path, [System.Text.Encoding]::UTF8))
     }
-    try {
-        $probeArgs = @($Prefix) + @("-c", "import sys; print(sys.executable)")
-        $null = & $Executable @probeArgs 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            $script:ResolvedPython = $Executable
-            $script:PythonPrefix = @($Prefix)
-            return $true
-        }
-    }
-    catch {
-        return $false
-    }
-    return $false
-}
-
-function Invoke-SelectedPython {
-    param([string[]]$Arguments)
-
-    $allArgs = @($script:PythonPrefix) + @($Arguments)
-    & $script:ResolvedPython @allArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Python command failed with exit code $LASTEXITCODE."
-    }
-}
-
-if ($PythonExe) {
-    $explicitCommand = Get-Command $PythonExe -ErrorAction SilentlyContinue
-    if (-not $explicitCommand -or -not (Use-PythonCandidate -Executable $explicitCommand.Source)) {
-        throw "The supplied Python executable could not be used: $PythonExe"
-    }
-}
-else {
-    $candidatePaths = @()
-    $configuredPython = Get-EnvValue -Path $EnvFile -Key "OCC_PYTHON"
-    if ($configuredPython) {
-        $candidatePaths += $configuredPython
-    }
-    if ($env:OCC_PYTHON) {
-        $candidatePaths += $env:OCC_PYTHON
-    }
-    if ($env:VIRTUAL_ENV) {
-        $candidatePaths += Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"
-    }
-    if ($env:CONDA_PREFIX) {
-        $candidatePaths += Join-Path $env:CONDA_PREFIX "python.exe"
-    }
-    $candidatePaths += Join-Path $RepoRoot ".venv\Scripts\python.exe"
-    $candidatePaths += Join-Path $BackendRoot ".venv\Scripts\python.exe"
-    $candidatePaths += Join-Path $env:USERPROFILE "miniconda3\envs\occ\python.exe"
-    $candidatePaths += Join-Path $env:USERPROFILE "miniconda3\python.exe"
-    $candidatePaths += Join-Path $env:USERPROFILE "anaconda3\envs\occ\python.exe"
-    $candidatePaths += Join-Path $env:USERPROFILE "anaconda3\python.exe"
-    $candidatePaths += "D:\anaconda\python.exe"
-
-    foreach ($candidate in $candidatePaths) {
-        if ((Test-Path -LiteralPath $candidate) -and (Use-PythonCandidate -Executable $candidate)) {
+    $pattern = "^\s*$([regex]::Escape($Key))\s*="
+    $index = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $pattern) {
+            $index = $i
             break
         }
     }
+    if ($index -ge 0) {
+        if ($OnlyIfMissing) {
+            return
+        }
+        $lines[$index] = "$Key=$Value"
+    }
+    else {
+        $lines += "$Key=$Value"
+    }
+    [System.IO.File]::WriteAllLines($Path, $lines, $Utf8NoBom)
+}
 
-    if (-not $script:ResolvedPython) {
-        $pythonCommand = Get-Command "python.exe" -ErrorAction SilentlyContinue
-        if ($pythonCommand) {
-            $null = Use-PythonCandidate -Executable $pythonCommand.Source
+function Resolve-PythonPath {
+    param(
+        [string]$RequestedPath,
+        [string]$EnvironmentName,
+        [string[]]$FallbackPaths,
+        [string]$ProbeCode = ""
+    )
+
+    $candidates = @()
+    if ($RequestedPath) {
+        $candidates += $RequestedPath
+    }
+    $processValue = [Environment]::GetEnvironmentVariable($EnvironmentName, "Process")
+    if ($processValue) {
+        $candidates += $processValue
+    }
+    $fileValue = Get-EnvValue -Path $EnvFile -Key $EnvironmentName
+    if ($fileValue) {
+        $candidates += $fileValue
+    }
+    $candidates += $FallbackPaths
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            $resolved = (Resolve-Path -LiteralPath $candidate).Path
+            if ($ProbeCode) {
+                & $resolved -B -c $ProbeCode 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    continue
+                }
+            }
+            return $resolved
         }
     }
-    if (-not $script:ResolvedPython) {
-        $pyCommand = Get-Command "py.exe" -ErrorAction SilentlyContinue
-        if ($pyCommand) {
-            $null = Use-PythonCandidate -Executable $pyCommand.Source -Prefix @("-3")
-        }
+    throw "$EnvironmentName is not configured with a usable absolute path."
+}
+
+function Invoke-Python {
+    param(
+        [string]$Executable,
+        [string[]]$Arguments,
+        [string]$Name
+    )
+
+    Write-Host $Name
+    & $Executable @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Name failed with exit code $LASTEXITCODE."
     }
 }
 
-if (-not $script:ResolvedPython) {
-    throw "No working Python 3 runtime was found. Pass -PythonExe with the service Python path."
+function Find-RarTool {
+    $configured = @(
+        $env:RAR_EXTRACTION_TOOL,
+        (Get-EnvValue -Path $EnvFile -Key "RAR_EXTRACTION_TOOL")
+    )
+    foreach ($path in $configured | Select-Object -Unique) {
+        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            return (Resolve-Path -LiteralPath $path).Path
+        }
+    }
+
+    foreach ($toolName in @("7z.exe", "unrar.exe", "unar.exe", "bsdtar.exe")) {
+        $tool = Get-Command $toolName -ErrorAction SilentlyContinue
+        if ($tool -and $tool.Source -and (Test-Path -LiteralPath $tool.Source -PathType Leaf)) {
+            return (Resolve-Path -LiteralPath $tool.Source).Path
+        }
+    }
+
+    foreach ($toolPath in @(
+        "C:\Program Files\7-Zip\7z.exe",
+        "C:\Program Files\WinRAR\UnRAR.exe"
+    )) {
+        if (Test-Path -LiteralPath $toolPath -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $toolPath).Path
+        }
+    }
+    return ""
 }
 
-Write-Host "Repo:     $RepoRoot"
-Write-Host "Python:   $script:ResolvedPython"
+if ($EnableAsyncArchives -and $DisableAsyncArchives) {
+    throw "EnableAsyncArchives and DisableAsyncArchives cannot be used together."
+}
+
+$commonPythonPaths = @(
+    (Join-Path $RepoRoot ".venv\Scripts\python.exe"),
+    (Join-Path $BackendRoot ".venv\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "miniconda3\envs\occ\python.exe"),
+    (Join-Path $env:USERPROFILE "anaconda3\envs\occ\python.exe"),
+    (Join-Path $env:ProgramFiles "Python313\python.exe"),
+    (Join-Path $env:ProgramFiles "Python312\python.exe"),
+    (Join-Path $env:LOCALAPPDATA "Programs\Python\Python313\python.exe"),
+    "D:\anaconda\envs\occ\python.exe",
+    "D:\anaconda\python.exe"
+)
+$BackendPythonExe = Resolve-PythonPath `
+    -RequestedPath $BackendPythonExe `
+    -EnvironmentName "BACKEND_PYTHON" `
+    -FallbackPaths $commonPythonPaths
+$OccPythonExe = Resolve-PythonPath `
+    -RequestedPath $OccPythonExe `
+    -EnvironmentName "OCC_PYTHON" `
+    -FallbackPaths (@($BackendPythonExe) + $commonPythonPaths) `
+    -ProbeCode "from OCC.Core.BRep import BRep_Tool"
+
+Write-Host "Repo:            $RepoRoot"
+Write-Host "BACKEND_PYTHON:  $BackendPythonExe"
+Write-Host "OCC_PYTHON:      $OccPythonExe"
 
 Push-Location -LiteralPath $BackendRoot
 try {
     if (-not $SkipDependencyInstall) {
-        Write-Host "Installing archive migration dependencies..."
-        Invoke-SelectedPython -Arguments @(
-            "-m", "pip", "install", "--disable-pip-version-check",
-            "SQLAlchemy>=2.0", "py7zr>=1.1.3,<2.0", "rarfile>=4.3,<5.0"
-        )
+        Invoke-Python `
+            -Executable $BackendPythonExe `
+            -Arguments @("-m", "pip", "install", "--disable-pip-version-check", "-r", $Requirements) `
+            -Name "Installing complete backend requirements"
     }
 
-    Invoke-SelectedPython -Arguments @(
-        "-B", "-c",
-        "import sqlalchemy, py7zr, rarfile; from importlib.metadata import version; print('SQLAlchemy=' + version('SQLAlchemy')); print('py7zr=' + version('py7zr')); print('rarfile=' + version('rarfile'))"
-    )
+    Invoke-Python `
+        -Executable $BackendPythonExe `
+        -Arguments @("-B", "-c", "import flask, sqlalchemy, waitress, py7zr, rarfile") `
+        -Name "Validating backend runtime"
+    Invoke-Python `
+        -Executable $OccPythonExe `
+        -Arguments @("-B", "-c", "from OCC.Core.BRep import BRep_Tool") `
+        -Name "Validating OCC runtime"
 
     $repairArgs = @("-B", $RepairScript)
     if ($DatabaseUrl) {
@@ -153,31 +211,54 @@ try {
     if ($SkipBackup) {
         $repairArgs += "--no-backup"
     }
-    Invoke-SelectedPython -Arguments $repairArgs
+    Invoke-Python `
+        -Executable $BackendPythonExe `
+        -Arguments $repairArgs `
+        -Name "Repairing archive extension settings"
+
+    if (-not (Test-Path -LiteralPath $WorkerScript -PathType Leaf)) {
+        throw "Quote worker entrypoint not found: $WorkerScript"
+    }
+    Invoke-Python `
+        -Executable $BackendPythonExe `
+        -Arguments @("-B", $WorkerScript, "--init-db") `
+        -Name "Initializing the quote job database"
 }
 finally {
     Pop-Location
 }
 
-$rarToolFound = $false
-if ($env:RAR_EXTRACTION_TOOL -and (Test-Path -LiteralPath $env:RAR_EXTRACTION_TOOL)) {
-    $rarToolFound = $true
-}
-foreach ($toolName in @("7z.exe", "unrar.exe", "unar.exe", "bsdtar.exe")) {
-    if (Get-Command $toolName -ErrorAction SilentlyContinue) {
-        $rarToolFound = $true
-        break
+$rarTool = Find-RarTool
+if (-not $rarTool) {
+    if (-not $AllowMissingRarTool) {
+        throw "RAR extraction tool not found. Install 7-Zip or UnRAR, then rerun. Use -AllowMissingRarTool only when RAR is intentionally disabled."
     }
+    Write-Warning "RAR extraction is unavailable because no supported extractor was found."
 }
-foreach ($toolPath in @("C:\Program Files\7-Zip\7z.exe", "C:\Program Files\WinRAR\UnRAR.exe")) {
-    if (Test-Path -LiteralPath $toolPath) {
-        $rarToolFound = $true
-        break
-    }
-}
-if (-not $rarToolFound) {
-    Write-Warning "RAR uploads need 7-Zip, UnRAR, Unar, or bsdtar. Install one before enabling RAR in production."
+else {
+    $rarProbe = "import subprocess,sys; subprocess.run([sys.argv[1]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)"
+    Invoke-Python `
+        -Executable $BackendPythonExe `
+        -Arguments @("-B", "-c", $rarProbe, $rarTool) `
+        -Name "Validating RAR extractor executable"
+    Set-EnvValue -Path $EnvFile -Key "RAR_EXTRACTION_TOOL" -Value $rarTool
+    Write-Host "RAR extractor:    $rarTool"
 }
 
-Write-Host "PASS: Archive upload dependencies and database settings are ready."
-Write-Host "Next: restart the backend service so the running process loads the new code and packages."
+Set-EnvValue -Path $EnvFile -Key "BACKEND_PYTHON" -Value $BackendPythonExe
+Set-EnvValue -Path $EnvFile -Key "OCC_PYTHON" -Value $OccPythonExe
+Set-EnvValue -Path $EnvFile -Key "QUOTE_CAD_CONCURRENCY" -Value "2" -OnlyIfMissing
+if ($EnableAsyncArchives) {
+    Set-EnvValue -Path $EnvFile -Key "QUOTE_ASYNC_ARCHIVES_ENABLED" -Value "1"
+}
+elseif ($DisableAsyncArchives) {
+    Set-EnvValue -Path $EnvFile -Key "QUOTE_ASYNC_ARCHIVES_ENABLED" -Value "0"
+}
+else {
+    Set-EnvValue -Path $EnvFile -Key "QUOTE_ASYNC_ARCHIVES_ENABLED" -Value "0" -OnlyIfMissing
+}
+
+$featureValue = Get-EnvValue -Path $EnvFile -Key "QUOTE_ASYNC_ARCHIVES_ENABLED"
+Write-Host "Async archives:   $featureValue"
+Write-Host "PASS: Backend dependencies, OCC runtime, archive support, and quote job database are ready."
+Write-Host "Restart run-quote-worker.ps1 and run-api.ps1 to load these settings."

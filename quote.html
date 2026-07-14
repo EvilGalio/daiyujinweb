@@ -39,7 +39,18 @@
                         <h2>Parts</h2>
                         <span data-batch-count>0 files</span>
                     </div>
-                    <div class="quote-part-list" data-part-list></div>
+                    <div class="quote-batch-progress" data-batch-progress hidden>
+                        <div class="quote-batch-progress-copy">
+                            <strong data-batch-progress-label>Preparing analysis</strong>
+                            <span class="quote-network-state" data-network-status hidden>Reconnecting</span>
+                        </div>
+                        <div class="quote-batch-progress-track" role="progressbar" aria-label="CAD analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-batch-progressbar>
+                            <span data-batch-progress-fill></span>
+                        </div>
+                        <button type="button" class="quote-batch-cancel" data-cancel-analysis hidden>Cancel remaining</button>
+                    </div>
+                    <div class="quote-part-list" data-part-list role="list" aria-label="CAD parts"></div>
+                    <div class="quote-analysis-live" data-analysis-live aria-live="polite" aria-atomic="true"></div>
                 </aside>
 
                 <form class="tool-panel tool-form quote-config-panel" data-quote-form>

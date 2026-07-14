@@ -42,14 +42,22 @@ def _get_thumbnail_settings(site: str = "default") -> dict[str, str]:
     try:
         from services.settings import get_setting
 
-        return {
+        settings = {
             "background_color": get_setting(f"quote:{site}", "thumbnail_background_color", "#f0f0f5"),
             "part_color": get_setting(f"quote:{site}", "thumbnail_part_color", "#949aa3"),
             "width": get_setting(f"quote:{site}", "thumbnail_width", "3840"),
             "height": get_setting(f"quote:{site}", "thumbnail_height", "2880"),
         }
+        if os.environ.get("QUOTE_PREVIEW_WIDTH"):
+            settings["width"] = os.environ["QUOTE_PREVIEW_WIDTH"]
+        if os.environ.get("QUOTE_PREVIEW_HEIGHT"):
+            settings["height"] = os.environ["QUOTE_PREVIEW_HEIGHT"]
+        return settings
     except Exception:
-        return {}
+        return {
+            "width": os.environ.get("QUOTE_PREVIEW_WIDTH", "3840"),
+            "height": os.environ.get("QUOTE_PREVIEW_HEIGHT", "2880"),
+        }
 
 
 def _hex_rgb(value: str, fallback: tuple[float, float, float]) -> tuple[float, float, float]:

@@ -4,21 +4,54 @@
         baseUrl: window.DAIYUJIN_API_BASE || defaultBaseUrl,
     };
 
-    async function request(path, options = {}) {
+    class DaiyujinAPIError extends Error {
+        constructor(message, { status = 0, code = "", payload = null, network = false, retryAfter = "" } = {}) {
+            super(message);
+            this.name = "DaiyujinAPIError";
+            this.status = status;
+            this.code = code;
+            this.payload = payload;
+            this.network = network;
+            this.retryAfter = retryAfter;
+        }
+    }
+
+    async function requestWithMeta(path, options = {}) {
         const headers = { ...(options.headers || {}) };
         if (options.body && !(options.body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
         }
-        const response = await fetch(`${config.baseUrl}${path}`, {
-            headers,
-            ...options,
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.error === true) {
-            const message = payload.message || `Request failed with ${response.status}`;
-            throw new Error(message);
+        let response;
+        try {
+            response = await fetch(`${config.baseUrl}${path}`, {
+                ...options,
+                headers,
+            });
+        } catch (error) {
+            throw new DaiyujinAPIError("The service could not be reached.", { code: "network_unavailable", network: true });
         }
-        return payload;
+        const noBody = response.status === 204 || response.status === 304;
+        const payload = noBody ? null : await response.json().catch(() => ({}));
+        const acceptable = response.ok || response.status === 304;
+        if (!acceptable || payload?.error === true) {
+            const message = payload?.message || payload?.error_message || `Request failed with ${response.status}`;
+            throw new DaiyujinAPIError(message, {
+                status: response.status,
+                code: payload?.code || payload?.error_code || "",
+                payload,
+                retryAfter: response.headers.get("Retry-After") || "",
+            });
+        }
+        return {
+            data: payload,
+            status: response.status,
+            headers: response.headers,
+        };
+    }
+
+    async function request(path, options = {}) {
+        const result = await requestWithMeta(path, options);
+        return result.data;
     }
 
     async function checkHealth(target = "[data-api-status]") {
@@ -37,6 +70,8 @@
     window.DaiyujinAPI = {
         config,
         request,
+        requestWithMeta,
+        DaiyujinAPIError,
         checkHealth,
     };
 })();

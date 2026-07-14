@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import tempfile
 import uuid
 import zipfile
@@ -10,6 +11,8 @@ from pathlib import Path, PurePosixPath
 
 
 SUPPORTED_ARCHIVE_EXTENSIONS = {".zip", ".rar", ".7z"}
+MAX_ARCHIVE_ENTRIES = 2000
+MAX_ARCHIVE_WARNINGS = 100
 
 
 class ArchiveDependencyError(RuntimeError):
@@ -33,6 +36,14 @@ class ExtractedArchiveMember:
     path: Path
 
 
+@dataclass(frozen=True)
+class _ArchiveEntry:
+    name: str
+    size: int
+    is_directory: bool
+    is_symlink: bool = False
+
+
 def _normalized_name(name: str) -> str:
     return str(name or "").replace("\\", "/")
 
@@ -48,18 +59,36 @@ def _is_unsafe_name(name: str) -> bool:
     )
 
 
-def _zip_entries(archive_path: Path) -> list[tuple[str, int, bool]]:
+def _metadata_flag(value, attribute: str) -> bool:
+    flag = getattr(value, attribute, False)
+    if callable(flag):
+        try:
+            return bool(flag())
+        except (AttributeError, TypeError):
+            return False
+    return bool(flag)
+
+
+def _zip_entries(archive_path: Path, max_entries: int) -> list[_ArchiveEntry]:
     try:
         with zipfile.ZipFile(archive_path) as archive:
+            infos = archive.infolist()
+            if len(infos) > max_entries:
+                raise ArchiveReadError(f"Archive contains more than {max_entries} entries.")
             return [
-                (_normalized_name(info.filename), int(info.file_size), bool(info.is_dir()))
-                for info in archive.infolist()
+                _ArchiveEntry(
+                    name=_normalized_name(info.filename),
+                    size=int(info.file_size),
+                    is_directory=bool(info.is_dir()),
+                    is_symlink=stat.S_ISLNK((int(info.external_attr) >> 16) & 0xFFFF),
+                )
+                for info in infos
             ]
     except zipfile.BadZipFile as exc:
         raise ArchiveReadError("ZIP archive could not be read.") from exc
 
 
-def _rar_entries(archive_path: Path) -> list[tuple[str, int, bool]]:
+def _rar_entries(archive_path: Path, max_entries: int) -> list[_ArchiveEntry]:
     try:
         import rarfile
     except ImportError as exc:
@@ -67,15 +96,27 @@ def _rar_entries(archive_path: Path) -> list[tuple[str, int, bool]]:
 
     try:
         with rarfile.RarFile(archive_path, errors="strict") as archive:
+            infos = archive.infolist()
+            if len(infos) > max_entries:
+                raise ArchiveReadError(f"Archive contains more than {max_entries} entries.")
             return [
-                (_normalized_name(info.filename), int(info.file_size), bool(info.isdir()))
-                for info in archive.infolist()
+                _ArchiveEntry(
+                    name=_normalized_name(info.filename),
+                    size=int(info.file_size),
+                    is_directory=bool(info.isdir()),
+                    is_symlink=_metadata_flag(info, "is_symlink") or _metadata_flag(info, "is_link"),
+                )
+                for info in infos
             ]
     except rarfile.Error as exc:
         raise ArchiveReadError("RAR archive could not be read.") from exc
 
 
-def _seven_zip_entries(archive_path: Path, max_extract_size: int) -> list[tuple[str, int, bool]]:
+def _seven_zip_entries(
+    archive_path: Path,
+    max_extract_size: int,
+    max_entries: int,
+) -> list[_ArchiveEntry]:
     try:
         import py7zr
     except ImportError as exc:
@@ -83,14 +124,24 @@ def _seven_zip_entries(archive_path: Path, max_extract_size: int) -> list[tuple[
 
     try:
         with py7zr.SevenZipFile(archive_path, mode="r", max_extract_size=max_extract_size) as archive:
+            infos = archive.list()
+            if len(infos) > max_entries:
+                raise ArchiveReadError(f"Archive contains more than {max_entries} entries.")
             return [
-                (
-                    _normalized_name(info.filename),
-                    int(info.uncompressed or 0),
-                    bool(info.is_directory),
+                _ArchiveEntry(
+                    name=_normalized_name(info.filename),
+                    size=int(info.uncompressed or 0),
+                    is_directory=bool(info.is_directory),
+                    is_symlink=(
+                        _metadata_flag(info, "is_symlink")
+                        or _metadata_flag(info, "is_link")
+                        or _metadata_flag(info, "is_hardlink")
+                    ),
                 )
-                for info in archive.list()
+                for info in infos
             ]
+    except ArchiveReadError:
+        raise
     except Exception as exc:
         raise ArchiveReadError("7Z archive could not be read.") from exc
 
@@ -103,55 +154,73 @@ def list_cad_members(
     max_file_size: int,
     max_total_size: int,
     max_files: int,
+    max_entries: int = MAX_ARCHIVE_ENTRIES,
+    max_warnings: int = MAX_ARCHIVE_WARNINGS,
 ) -> tuple[list[ArchiveMember], list[str]]:
     path = Path(archive_path)
     archive_suffix = suffix.lower()
+    entry_limit = max(1, int(max_entries))
+    warning_limit = max(1, int(max_warnings))
     if archive_suffix == ".zip":
-        entries = _zip_entries(path)
+        entries = _zip_entries(path, entry_limit)
     elif archive_suffix == ".rar":
-        entries = _rar_entries(path)
+        entries = _rar_entries(path, entry_limit)
     elif archive_suffix == ".7z":
-        entries = _seven_zip_entries(path, max_total_size)
+        entries = _seven_zip_entries(path, max_total_size, entry_limit)
     else:
         raise ArchiveReadError("Unsupported archive format.")
 
     warnings: list[str] = []
+    warning_count = 0
     members: list[ArchiveMember] = []
     seen_names: set[str] = set()
     total_size = 0
 
-    for raw_name, file_size, is_directory in entries:
-        name = _normalized_name(raw_name)
-        if is_directory or name.startswith("__MACOSX/"):
+    def add_warning(message: str) -> None:
+        nonlocal warning_count
+        warning_count += 1
+        if len(warnings) < warning_limit - 1:
+            warnings.append(message)
+
+    for entry in entries:
+        name = _normalized_name(entry.name)
+        if entry.is_symlink:
+            raise ArchiveReadError(f"Archive link entries are not allowed: {name}")
+        if entry.is_directory or name.startswith("__MACOSX/"):
             continue
         if _is_unsafe_name(name):
-            raise ArchiveReadError(f"Unsafe archive entry path: {raw_name}")
-        if name in seen_names:
-            warnings.append(f"Duplicate archive entry ignored: {name}")
-            continue
-        seen_names.add(name)
+            raise ArchiveReadError(f"Unsafe archive entry path: {entry.name}")
+        name_key = name.casefold()
+        if name_key in seen_names:
+            raise ArchiveReadError(f"Duplicate archive entry path: {name}")
+        seen_names.add(name_key)
 
         member_suffix = PurePosixPath(name).suffix.lower()
         if member_suffix in SUPPORTED_ARCHIVE_EXTENSIONS:
-            warnings.append(f"Nested archive ignored: {name}")
+            add_warning(f"Nested archive ignored: {name}")
             continue
         if member_suffix not in cad_extensions:
-            warnings.append(f"Unsupported file ignored: {name}")
+            add_warning(f"Unsupported file ignored: {name}")
             continue
+        file_size = entry.size
         if file_size <= 0:
-            warnings.append(f"Empty CAD file ignored: {name}")
+            add_warning(f"Empty CAD file ignored: {name}")
             continue
         if file_size > max_file_size:
-            warnings.append(f"CAD file over 50 MB ignored: {name}")
-            continue
+            raise ArchiveReadError(
+                f"CAD file exceeds the {max_file_size // (1024 * 1024)} MB per-file limit: {name}"
+            )
         if len(members) >= max_files:
-            warnings.append(f"CAD file limit reached; ignored: {name}")
-            continue
+            raise ArchiveReadError(f"Archive contains more than {max_files} supported CAD files.")
 
         total_size += file_size
         if total_size > max_total_size:
             raise ArchiveReadError("Archive CAD contents exceed the 150 MB extracted-size limit.")
         members.append(ArchiveMember(name=name, size=file_size))
+
+    omitted_warnings = warning_count - len(warnings)
+    if omitted_warnings > 0:
+        warnings.append(f"Additional archive notices omitted: {omitted_warnings}.")
 
     return members, warnings
 

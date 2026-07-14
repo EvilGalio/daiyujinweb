@@ -12,6 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const batchParts = document.querySelector("[data-batch-parts]");
     const batchCount = document.querySelector("[data-batch-count]");
     const partList = document.querySelector("[data-part-list]");
+    const batchProgress = document.querySelector("[data-batch-progress]");
+    const batchProgressLabel = document.querySelector("[data-batch-progress-label]");
+    const batchProgressbar = document.querySelector("[data-batch-progressbar]");
+    const batchProgressFill = document.querySelector("[data-batch-progress-fill]");
+    const networkStatus = document.querySelector("[data-network-status]");
+    const cancelAnalysisButton = document.querySelector("[data-cancel-analysis]");
+    const analysisLive = document.querySelector("[data-analysis-live]");
     if (!form || !result || !fileInput) return;
 
     const workspace = document.querySelector("[data-quote-workspace]") || document.querySelector(".quote-workspace");
@@ -65,6 +72,11 @@ document.addEventListener("DOMContentLoaded", () => {
             currency: "USD",
         },
         parts: [],
+        analysisJobs: new Map(),
+        nextSourceOrder: 0,
+        userSelectedPart: false,
+        analysisLoopRunning: false,
+        networkStatus: "online",
     };
 
     function createBatchId() {
@@ -77,7 +89,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function makeFileKey(file) { return `${file.name}:${file.size}:${file.lastModified}`; }
     function cloneDefaults() { return JSON.parse(JSON.stringify(state.defaults)); }
-    const SUPPORTED_CAD_EXTENSIONS = new Set(["stp", "step", "igs", "iges", "zip", "rar", "7z"]);
+    const ARCHIVE_EXTENSIONS = new Set(["zip", "rar", "7z"]);
+    const SUPPORTED_CAD_EXTENSIONS = new Set(["stp", "step", "igs", "iges", ...ARCHIVE_EXTENSIONS]);
+    const JOB_STORAGE_KEY = "dyj-quote-analysis-jobs-v1";
+    const TERMINAL_JOB_STATES = new Set(["completed", "completed_with_errors", "failed", "cancelled", "expired"]);
+    const ACTIVE_PART_STATES = new Set(["waiting", "queued", "extracting", "analyzing"]);
+    const POLL_BACKOFF_MS = [1000, 2000, 4000, 8000, 15000];
+    const MAX_BATCH_FILES = 50;
+
+    function asyncArchiveAnalysisEnabled() {
+        return state.options?.async_archive_analysis === true;
+    }
 
     function makeEstimateCacheKey(part) {
         const s = part.settings || {};
@@ -206,9 +228,8 @@ document.addEventListener("DOMContentLoaded", () => {
             activePart.settingsSource = "override";
             if (changed && activePart.estimate) {
                 activePart.estimate = null;
-                activePart.estimateStatus = "empty";
+                activePart.estimateStatus = "needs_recalculate";
                 activePart.estimateCacheKey = "";
-                activePart.status = activePart.uploadStatus === "ready" ? "needs_recalculate" : activePart.status;
             }
         }
 
@@ -230,13 +251,37 @@ document.addEventListener("DOMContentLoaded", () => {
         valid.forEach(file => {
             const fk = makeFileKey(file);
             if (existing.has(fk)) { skipped++; return; }
-            if (state.parts.length >= 20) return;
-            const part = { id: createPartId(), index: state.parts.length, file, fileName: file.name, fullFileName: file.name, fileKey: fk, status: "pending", uploadStatus: "pending", estimateStatus: "empty", analysis: null, estimate: null, settings: cloneDefaults(), settingsSource: "inherited", estimateCacheKey: "", error: "", previewMode: "png", analysisPresentation: { startedAt: 0, progress: 0, phase: "Queued for CAD analysis" } };
+            if (state.nextSourceOrder >= MAX_BATCH_FILES) { skipped++; return; }
+            const extension = (file.name.toLowerCase().split(".").pop() || "");
+            const part = {
+                id: createPartId(),
+                index: state.parts.length,
+                sourceOrder: state.nextSourceOrder++,
+                remotePosition: 0,
+                file,
+                fileName: file.name,
+                fullFileName: file.name,
+                fileKey: fk,
+                isArchive: ARCHIVE_EXTENSIONS.has(extension),
+                analysisStatus: "pending",
+                uploadStatus: "pending",
+                estimateStatus: "empty",
+                analysis: null,
+                estimate: null,
+                settings: cloneDefaults(),
+                settingsSource: "inherited",
+                estimateCacheKey: "",
+                error: "",
+                estimateError: "",
+                previewMode: "png",
+                analysisPresentation: { phase: "Queued for CAD analysis" },
+            };
             state.parts.push(part);
             existing.add(fk);
             added++;
         });
         if (!state.activePartId && state.parts.length) state.activePartId = state.parts[0].id;
+        if (files.length !== valid.length || skipped) announce(`${added} file(s) added. ${files.length - added} file(s) skipped.`);
         updateUploadLabel();
         render();
         analyzePendingParts();
@@ -250,58 +295,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function analyzePendingParts() {
-        for (const part of state.parts) {
-            if (part.uploadStatus !== "pending") continue;
-            part.uploadStatus = "analyzing"; part.status = "analyzing";
-            part.analysisPresentation = { startedAt: performance.now(), progress: 5, phase: ANALYSIS_PHASES[0] };
-            renderForPartUpdate(part);
-            try {
-                const uploadResult = await uploadCad(part.file);
-                if (uploadResult.archive) {
-                    expandArchivePart(part, uploadResult);
-                    render();
-                    continue;
+        if (state.analysisLoopRunning) return;
+        state.analysisLoopRunning = true;
+        try {
+            for (const part of state.parts) {
+                if (part.uploadStatus !== "pending" || part.jobId) continue;
+                part.analysisStatus = "uploading";
+                part.uploadStatus = "analyzing";
+                part.analysisPresentation = { phase: "Uploading CAD file" };
+                renderForPartUpdate(part);
+                try {
+                    if (part.isArchive && asyncArchiveAnalysisEnabled()) {
+                        const handledAsynchronously = await createArchiveJob(part);
+                        if (handledAsynchronously) continue;
+                    }
+                    const uploadResult = await uploadCad(part.file);
+                    if (uploadResult.archive) {
+                        expandLegacyArchivePart(part, uploadResult);
+                        render();
+                        continue;
+                    }
+                    part.analysis = uploadResult.analysis;
+                    part.analysisStatus = "ready";
+                    part.uploadStatus = "ready";
+                    part.analysisPresentation.phase = "Preview ready";
+                } catch (error) {
+                    markPartAnalysisFailed(part, friendlyAnalysisError(error));
                 }
-                part.analysis = uploadResult.analysis;
-                part.uploadStatus = "ready"; part.status = "ready";
-                part.analysisPresentation.progress = 100;
-                part.analysisPresentation.phase = "Preview ready";
-            } catch (e) {
-                part.uploadStatus = "failed"; part.status = "failed"; part.error = e.message;
-                part.analysisPresentation.phase = "CAD analysis failed";
+                renderForPartUpdate(part);
             }
-            renderForPartUpdate(part);
+        } finally {
+            state.analysisLoopRunning = false;
+            if (state.parts.some(part => part.uploadStatus === "pending" && !part.jobId)) queueMicrotask(analyzePendingParts);
         }
     }
-
-    const ANALYSIS_PHASES = ["Uploading CAD file", "Reading geometry data", "Extracting bounding dimensions", "Generating static preview", "Preparing manufacturability inputs"];
 
     function renderForPartUpdate(part, { force = false } = {}) {
         if (!part) return;
         if (force || part.id === state.activePartId) { render(); } else { renderPartList(); }
     }
 
-    function tickAnalysisProgress() {
-        const part = getActivePart();
-        if (!part || part.uploadStatus !== "analyzing") return;
-        const elapsed = performance.now() - (part.analysisPresentation?.startedAt || 0);
-        const ratio = Math.min(elapsed / 8000, 0.92);
-        part.analysisPresentation.progress = Math.round(8 + ratio * 84);
-        part.analysisPresentation.phase = ANALYSIS_PHASES[Math.min(Math.floor(ratio * ANALYSIS_PHASES.length), ANALYSIS_PHASES.length - 1)];
-        updateVisibleAnalysisProgress(part);
+    function markPartAnalysisFailed(part, message) {
+        part.analysisStatus = "failed";
+        part.uploadStatus = "failed";
+        part.error = message || "This CAD file could not be analyzed.";
+        part.analysisPresentation = { phase: "CAD analysis failed" };
     }
 
-    function updateVisibleAnalysisProgress(part) {
-        if (!part || part.id !== state.activePartId) return;
-        const fill = document.querySelector(".quote-preview-analysis .quote-progress-fill");
-        const phase = document.querySelector(".quote-preview-analysis .quote-progress-phase");
-        const pct = document.querySelector(".quote-preview-analysis .quote-progress-pct");
-        if (fill) fill.style.width = `${part.analysisPresentation.progress}%`;
-        if (phase) phase.textContent = part.analysisPresentation.phase;
-        if (pct) pct.textContent = `${part.analysisPresentation.progress}%`;
+    function friendlyAnalysisError(error) {
+        if (error?.network || error?.code === "network_unavailable") return "The analysis service is temporarily unreachable. Please retry.";
+        if (error?.status === 429) return "The analysis queue is busy. Please wait and retry.";
+        if (error?.status === 503) return "CAD analysis is temporarily unavailable. Please retry shortly.";
+        const message = String(error?.message || "").trim();
+        if (!message || /failed to fetch/i.test(message)) return "The analysis service is temporarily unreachable. Please retry.";
+        return message;
     }
-
-    setInterval(tickAnalysisProgress, 350);
 
     async function uploadCad(file) {
         const site = currentSite();
@@ -311,109 +359,713 @@ document.addEventListener("DOMContentLoaded", () => {
         body.append("theme", site);
         const resp = await window.DaiyujinAPI.request("/api/public/quote/upload", { method: "POST", body });
         if (resp.archive) {
-            return { archive: true, parts: resp.parts || [], warnings: resp.warnings || [], source_filename: resp.source_filename || file.name };
+            return {
+                archive: true,
+                parts: resp.parts || [],
+                warnings: resp.warnings || [],
+                source_filename: resp.source_filename || file.name,
+            };
         }
         if (!resp.success || !resp.data) throw new Error(resp.error || resp.message || "CAD analysis failed.");
         return { archive: false, analysis: { file_id: resp.file_id, source_filename: resp.source_filename || file.name, source_format: resp.source_format || "", ...resp.data } };
     }
 
-    function normalizeArchiveAnalysis(item) {
+    function normalizeLegacyArchiveAnalysis(item) {
         const data = item.data || {};
         return {
-            file_id: item.file_id,
+            file_id: item.file_id || data.file_id || "",
             source_filename: item.source_filename || data.source_filename || data.name || "CAD part",
             source_format: item.source_format || data.source_format || "",
             ...data,
         };
     }
 
-    function expandArchivePart(parent, uploadResult) {
-        const insertAt = state.parts.findIndex(p => p.id === parent.id);
+    function expandLegacyArchivePart(parent, uploadResult) {
+        const insertAt = state.parts.findIndex(part => part.id === parent.id);
         if (insertAt < 0) return;
-        const children = (uploadResult.parts || []).map(item => {
+        const parentWasActive = state.activePartId === parent.id;
+        const settingsSnapshot = JSON.parse(JSON.stringify(parent.settings || state.defaults));
+        const children = (uploadResult.parts || []).map((item, position) => {
             const fullName = item.source_filename || "CAD part";
-            const ok = !!item.success;
+            const ready = !!item.success;
             return {
                 id: createPartId(),
                 index: 0,
+                sourceOrder: parent.sourceOrder,
+                remotePosition: position,
+                remotePartId: "",
+                jobId: "",
                 file: null,
                 fileName: shortFileName(fullName),
                 fullFileName: fullName,
                 fileKey: `${parent.fileKey}::${item.file_id || fullName}`,
-                status: ok ? "ready" : "failed",
-                uploadStatus: ok ? "ready" : "failed",
+                isArchive: false,
+                analysisStatus: ready ? "ready" : "failed",
+                uploadStatus: ready ? "ready" : "failed",
                 estimateStatus: "empty",
-                analysis: ok ? normalizeArchiveAnalysis(item) : null,
+                analysis: ready ? normalizeLegacyArchiveAnalysis(item) : null,
                 estimate: null,
-                settings: cloneDefaults(),
+                settings: JSON.parse(JSON.stringify(settingsSnapshot)),
                 settingsSource: "inherited",
                 estimateCacheKey: "",
                 error: item.error || "",
+                errorCode: item.error_code || "",
+                estimateError: "",
+                attemptCount: 0,
                 previewMode: "png",
-                analysisPresentation: { startedAt: performance.now(), progress: ok ? 100 : 0, phase: ok ? "Preview ready" : "CAD analysis failed" },
+                analysisPresentation: { phase: ready ? "Preview ready" : "CAD analysis failed" },
             };
         });
         if (!children.length) {
-            parent.uploadStatus = "failed";
-            parent.status = "failed";
-            parent.error = "The archive did not contain supported CAD files.";
+            markPartAnalysisFailed(parent, "The archive did not contain supported CAD files.");
             return;
         }
         state.parts.splice(insertAt, 1, ...children);
         reindexParts();
-        if (state.activePartId === parent.id) {
-            const firstReady = children.find(p => p.uploadStatus === "ready") || children[0];
+        if (parentWasActive) {
+            const firstReady = children.find(part => part.uploadStatus === "ready") || children[0];
             state.activePartId = firstReady.id;
             hydrateFormFromPart(firstReady);
         }
         updateUploadLabel();
+        const readyCount = children.filter(part => part.uploadStatus === "ready").length;
+        announce(`${readyCount} of ${children.length} archive part(s) ready.`);
+    }
+
+    function createJobToken() {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        let raw = "";
+        bytes.forEach(value => { raw += String.fromCharCode(value); });
+        return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function jobHeaders(entry, extra = {}) {
+        return {
+            "X-Quote-Job-Token": entry.token,
+            ...extra,
+        };
+    }
+
+    function jobPath(entry, suffix = "") {
+        return `/api/public/quote/analysis-jobs/${encodeURIComponent(entry.id)}${suffix}`;
+    }
+
+    async function postArchiveJob(entry, file) {
+        const site = currentSite();
+        const body = new FormData();
+        body.append("file", file);
+        body.append("site", site);
+        body.append("theme", site);
+        return window.DaiyujinAPI.requestWithMeta("/api/public/quote/analysis-jobs", {
+            method: "POST",
+            body,
+            headers: jobHeaders(entry, { "Idempotency-Key": entry.id }),
+        });
+    }
+
+    async function createArchiveJob(parent) {
+        const entry = {
+            id: createBatchId(),
+            token: createJobToken(),
+            parentId: parent.id,
+            sourceOrder: parent.sourceOrder,
+            settingsSnapshot: JSON.parse(JSON.stringify(parent.settings)),
+            status: "queued",
+            etag: "",
+            failureCount: 0,
+            pollAfterMs: 1000,
+            pollTimer: 0,
+            pollInFlight: false,
+            readyCount: 0,
+            createConfirmed: false,
+            pendingFile: parent.file,
+            connectionInterrupted: false,
+        };
+        parent.jobId = entry.id;
+        parent.analysisStatus = "queued";
+        parent.analysisPresentation = { phase: "Creating analysis job" };
+        state.analysisJobs.set(entry.id, entry);
+        persistAnalysisJobs();
+
+        try {
+            const response = await postArchiveJob(entry, parent.file);
+            entry.createConfirmed = true;
+            entry.pendingFile = null;
+            applyJobResponse(entry, response);
+            setJobConnectionState(entry, false);
+            scheduleJobPoll(entry, entry.pollAfterMs);
+            return true;
+        } catch (error) {
+            if (error?.code === "async_archives_disabled") {
+                if (state.options) state.options.async_archive_analysis = false;
+                clearTimeout(entry.pollTimer);
+                state.analysisJobs.delete(entry.id);
+                parent.jobId = "";
+                parent.analysisStatus = "uploading";
+                parent.uploadStatus = "analyzing";
+                parent.analysisPresentation = { phase: "Switching to compatible archive analysis" };
+                setJobConnectionState(entry, false);
+                persistAnalysisJobs();
+                render();
+                return false;
+            }
+            if (error?.network || !error?.status || error.status >= 500) {
+                entry.status = "recovering";
+                parent.analysisStatus = "queued";
+                parent.uploadStatus = "pending";
+                parent.analysisPresentation = { phase: "Connection interrupted. Recovering upload" };
+                setJobConnectionState(entry, true);
+                persistAnalysisJobs();
+                render();
+                scheduleJobPoll(entry, retryDelay(error, entry.failureCount++));
+            } else {
+                state.analysisJobs.delete(entry.id);
+                persistAnalysisJobs();
+                markPartAnalysisFailed(parent, friendlyAnalysisError(error));
+                render();
+            }
+            return true;
+        }
+    }
+
+    function applyJobResponse(entry, response) {
+        const etag = response?.headers?.get("ETag");
+        if (etag) entry.etag = etag;
+        if (response?.status === 304 || !response?.data) return;
+        syncJobSnapshot(entry, response.data);
+    }
+
+    function normalizeJobAnalysis(item) {
+        const raw = item.analysis || {};
+        const data = raw.data || raw;
+        return {
+            file_id: item.file_id || data.file_id || "",
+            source_filename: item.source_filename || data.source_filename || data.name || "CAD part",
+            source_format: item.source_format || data.source_format || "",
+            ...data,
+        };
+    }
+
+    function mapRemotePartState(remoteStatus) {
+        const status = String(remoteStatus || "queued").toLowerCase();
+        if (status === "ready" || status === "completed") return { analysisStatus: "ready", uploadStatus: "ready" };
+        if (status === "failed") return { analysisStatus: "failed", uploadStatus: "failed" };
+        if (status === "cancelled") return { analysisStatus: "cancelled", uploadStatus: "cancelled" };
+        if (status === "analyzing" || status === "processing") return { analysisStatus: "analyzing", uploadStatus: "analyzing" };
+        return { analysisStatus: status, uploadStatus: "pending" };
+    }
+
+    function makeRemotePart(entry, item) {
+        const fullName = item.source_filename || "CAD part";
+        const mapped = mapRemotePartState(item.status);
+        return {
+            id: `job-${entry.id}-part-${item.id}`,
+            remotePartId: String(item.id),
+            jobId: entry.id,
+            index: 0,
+            sourceOrder: entry.sourceOrder,
+            remotePosition: Number(item.position) || 0,
+            file: null,
+            fileName: shortFileName(fullName),
+            fullFileName: fullName,
+            fileKey: `${entry.id}::${item.id}`,
+            isArchive: false,
+            analysisStatus: mapped.analysisStatus,
+            uploadStatus: mapped.uploadStatus,
+            estimateStatus: "empty",
+            analysis: mapped.analysisStatus === "ready" ? normalizeJobAnalysis(item) : null,
+            estimate: null,
+            settings: JSON.parse(JSON.stringify(entry.settingsSnapshot || state.defaults)),
+            settingsSource: "inherited",
+            estimateCacheKey: "",
+            error: item.error || "",
+            errorCode: item.error_code || "",
+            estimateError: "",
+            attemptCount: Number(item.attempt_count) || 0,
+            previewMode: "png",
+            analysisPresentation: { phase: item.phase || "Queued for CAD analysis" },
+        };
+    }
+
+    function updateRemotePart(part, item) {
+        const previousStatus = part.analysisStatus;
+        const mapped = mapRemotePartState(item.status);
+        part.analysisStatus = mapped.analysisStatus;
+        part.uploadStatus = mapped.uploadStatus;
+        part.remotePosition = Number(item.position) || part.remotePosition || 0;
+        part.fullFileName = item.source_filename || part.fullFileName;
+        part.fileName = shortFileName(part.fullFileName);
+        part.error = item.error || "";
+        part.errorCode = item.error_code || "";
+        part.attemptCount = Number(item.attempt_count) || 0;
+        part.analysisPresentation = { phase: item.phase || (mapped.analysisStatus === "ready" ? "Preview ready" : "Queued for CAD analysis") };
+        if (mapped.analysisStatus === "ready" && item.analysis) part.analysis = normalizeJobAnalysis(item);
+        if (previousStatus === "failed" && mapped.analysisStatus !== "failed") part.error = "";
+    }
+
+    function syncJobSnapshot(entry, payload) {
+        const job = payload.job || {};
+        const remoteParts = Array.isArray(payload.parts) ? payload.parts.slice().sort((a, b) => (Number(a.position) || 0) - (Number(b.position) || 0)) : [];
+        entry.status = String(job.status || entry.status || "queued");
+        entry.counts = job.counts || entry.counts || {};
+        entry.pollAfterMs = Number(payload.poll_after_ms) || entry.pollAfterMs || 1000;
+
+        const oldReady = entry.readyCount || 0;
+        if (remoteParts.length) {
+            const existing = new Map(state.parts.filter(part => part.jobId === entry.id && part.remotePartId).map(part => [part.remotePartId, part]));
+            const nextParts = remoteParts.map(item => {
+                const remoteId = String(item.id);
+                const part = existing.get(remoteId) || makeRemotePart(entry, item);
+                if (existing.has(remoteId)) updateRemotePart(part, item);
+                return part;
+            });
+            const parentWasActive = state.activePartId === entry.parentId;
+            state.parts = state.parts.filter(part => part.id !== entry.parentId && part.jobId !== entry.id).concat(nextParts);
+            state.parts.sort((a, b) => (a.sourceOrder - b.sourceOrder) || ((a.remotePosition || 0) - (b.remotePosition || 0)));
+            reindexParts();
+
+            const readyParts = nextParts.filter(part => part.analysisStatus === "ready");
+            entry.readyCount = readyParts.length;
+            const active = getActivePart();
+            const restoredActive = entry.restoreActivePartId ? nextParts.find(part => part.id === entry.restoreActivePartId) : null;
+            if (restoredActive) {
+                state.userSelectedPart = true;
+                setActivePart(restoredActive.id, { userInitiated: false });
+                entry.restoreActivePartId = "";
+            } else if (parentWasActive || (!state.userSelectedPart && (!active || active.uploadStatus !== "ready"))) {
+                const nextActive = readyParts[0] || nextParts[0];
+                if (nextActive) setActivePart(nextActive.id, { userInitiated: false });
+            }
+            if (entry.readyCount > oldReady) {
+                const newest = readyParts[readyParts.length - 1];
+                announce(`${newest?.fileName || "A CAD part"} is ready. ${entry.readyCount} part(s) complete.`);
+            }
+        } else {
+            const parent = state.parts.find(part => part.id === entry.parentId);
+            if (parent) {
+                if (entry.status === "cancelled") {
+                    parent.analysisStatus = "cancelled";
+                    parent.uploadStatus = "cancelled";
+                    parent.analysisPresentation = { phase: "Analysis cancelled" };
+                    parent.error = "";
+                } else {
+                    parent.analysisStatus = entry.status === "failed" ? "failed" : "queued";
+                    parent.uploadStatus = entry.status === "failed" ? "failed" : "pending";
+                    parent.analysisPresentation = { phase: entry.status === "extracting" ? "Scanning archive folders" : "Waiting for archive inventory" };
+                    if (entry.status === "failed") parent.error = job.error || "The archive could not be analyzed.";
+                }
+            }
+        }
+
+        if (TERMINAL_JOB_STATES.has(entry.status)) {
+            clearTimeout(entry.pollTimer);
+            if (!remoteParts.length && entry.status !== "cancelled") {
+                const parent = state.parts.find(part => part.id === entry.parentId);
+                if (parent) markPartAnalysisFailed(parent, job.error || "The archive did not contain supported CAD files.");
+            }
+        }
+        persistAnalysisJobs();
+        updateUploadLabel();
+        render();
+    }
+
+    function scheduleJobPoll(entry, delay = null) {
+        if (!entry || TERMINAL_JOB_STATES.has(entry.status)) return;
+        clearTimeout(entry.pollTimer);
+        const baseDelay = delay === null ? (document.hidden ? 5000 : 1000) : delay;
+        entry.pollTimer = window.setTimeout(() => pollAnalysisJob(entry), Math.max(0, baseDelay));
+    }
+
+    function retryDelay(error, failureCount) {
+        if (error?.retryAfter) {
+            const seconds = Number(error.retryAfter);
+            if (Number.isFinite(seconds)) return Math.max(1000, seconds * 1000);
+            const retryAt = Date.parse(error.retryAfter);
+            if (Number.isFinite(retryAt)) return Math.max(1000, retryAt - Date.now());
+        }
+        const base = POLL_BACKOFF_MS[Math.min(failureCount, POLL_BACKOFF_MS.length - 1)];
+        return Math.round(base * (0.85 + Math.random() * 0.3));
+    }
+
+    async function pollAnalysisJob(entry) {
+        if (!entry || entry.pollInFlight || TERMINAL_JOB_STATES.has(entry.status)) return;
+        entry.pollInFlight = true;
+        try {
+            const headers = jobHeaders(entry, entry.etag ? { "If-None-Match": entry.etag } : {});
+            const response = await window.DaiyujinAPI.requestWithMeta(jobPath(entry), { headers });
+            entry.createConfirmed = true;
+            entry.pendingFile = null;
+            entry.failureCount = 0;
+            setJobConnectionState(entry, false);
+            applyJobResponse(entry, response);
+            scheduleJobPoll(entry, document.hidden ? 5000 : entry.pollAfterMs || 1000);
+        } catch (error) {
+            if (error?.status > 0 && error.status < 500) setJobConnectionState(entry, false);
+            if (error?.status === 404 && !entry.createConfirmed && entry.pendingFile) {
+                try {
+                    const response = await postArchiveJob(entry, entry.pendingFile);
+                    entry.createConfirmed = true;
+                    entry.pendingFile = null;
+                    entry.failureCount = 0;
+                    setJobConnectionState(entry, false);
+                    applyJobResponse(entry, response);
+                    scheduleJobPoll(entry, entry.pollAfterMs || 1000);
+                } catch (postError) {
+                    if (postError?.status > 0 && postError.status < 500) setJobConnectionState(entry, false);
+                    if (postError?.network || !postError?.status || postError.status >= 500) {
+                        entry.failureCount += 1;
+                        setJobConnectionState(entry, true);
+                        scheduleJobPoll(entry, retryDelay(postError, entry.failureCount - 1));
+                    } else {
+                        entry.status = "failed";
+                        const parent = state.parts.find(part => part.id === entry.parentId);
+                        if (parent) markPartAnalysisFailed(parent, friendlyAnalysisError(postError));
+                        persistAnalysisJobs();
+                        render();
+                    }
+                }
+            } else if (error?.status === 404 || error?.status === 410) {
+                entry.status = "expired";
+                state.parts.filter(part => part.jobId === entry.id || part.id === entry.parentId).forEach(part => {
+                    if (part.uploadStatus !== "ready") markPartAnalysisFailed(part, "This analysis job has expired. Please upload the archive again.");
+                });
+                persistAnalysisJobs();
+                render();
+            } else if (error?.status === 401 || error?.status === 403) {
+                entry.status = "failed";
+                state.parts.filter(part => part.jobId === entry.id || part.id === entry.parentId).forEach(part => {
+                    if (part.uploadStatus !== "ready") markPartAnalysisFailed(part, "This analysis session is no longer authorized. Please upload again.");
+                });
+                persistAnalysisJobs();
+                render();
+            } else {
+                entry.failureCount += 1;
+                setJobConnectionState(entry, true);
+                scheduleJobPoll(entry, retryDelay(error, entry.failureCount - 1));
+            }
+        } finally {
+            entry.pollInFlight = false;
+        }
+    }
+
+    function setNetworkState(status) {
+        if (state.networkStatus === status) return;
+        state.networkStatus = status;
+        if (status === "reconnecting") announce("Connection interrupted. CAD analysis will resume automatically.");
+        renderBatchStatus();
+    }
+
+    function setJobConnectionState(entry, interrupted) {
+        if (entry) entry.connectionInterrupted = interrupted;
+        const anyInterrupted = Array.from(state.analysisJobs.values()).some(job => job.connectionInterrupted);
+        setNetworkState(anyInterrupted ? "reconnecting" : "online");
+    }
+
+    function persistAnalysisJobs() {
+        try {
+            const jobs = Array.from(state.analysisJobs.values())
+                .filter(entry => !TERMINAL_JOB_STATES.has(entry.status))
+                .map(entry => ({
+                    id: entry.id,
+                    token: entry.token,
+                    sourceOrder: entry.sourceOrder,
+                    settingsSnapshot: entry.settingsSnapshot,
+                }));
+            const activePart = getActivePart();
+            const activePartId = activePart?.jobId ? activePart.id : "";
+            if (jobs.length) sessionStorage.setItem(JOB_STORAGE_KEY, JSON.stringify({ jobs, activePartId }));
+            else sessionStorage.removeItem(JOB_STORAGE_KEY);
+        } catch (error) {}
+    }
+
+    function restoreAnalysisJobs() {
+        let saved = [], restoredActivePartId = "";
+        try {
+            const stored = JSON.parse(sessionStorage.getItem(JOB_STORAGE_KEY) || "[]");
+            saved = Array.isArray(stored) ? stored : stored.jobs;
+            restoredActivePartId = Array.isArray(stored) ? "" : String(stored.activePartId || "");
+        } catch (error) { saved = []; }
+        if (!Array.isArray(saved)) return;
+        saved.forEach(savedJob => {
+            if (!savedJob?.id || !savedJob?.token || state.analysisJobs.has(savedJob.id)) return;
+            const storedOrder = Number(savedJob.sourceOrder);
+            const sourceOrder = Number.isFinite(storedOrder) ? storedOrder : state.nextSourceOrder;
+            state.nextSourceOrder = Math.max(state.nextSourceOrder, sourceOrder + 1);
+            const settingsSnapshot = savedJob.settingsSnapshot && typeof savedJob.settingsSnapshot === "object" ? savedJob.settingsSnapshot : cloneDefaults();
+            const placeholder = {
+                id: `restored-${savedJob.id}`,
+                index: state.parts.length,
+                sourceOrder,
+                remotePosition: 0,
+                file: null,
+                fileName: "Restoring archive analysis",
+                fullFileName: "Restoring archive analysis",
+                fileKey: `restored::${savedJob.id}`,
+                isArchive: true,
+                jobId: savedJob.id,
+                analysisStatus: "queued",
+                uploadStatus: "pending",
+                estimateStatus: "empty",
+                analysis: null,
+                estimate: null,
+                settings: JSON.parse(JSON.stringify(settingsSnapshot)),
+                settingsSource: "inherited",
+                estimateCacheKey: "",
+                error: "",
+                estimateError: "",
+                previewMode: "png",
+                analysisPresentation: { phase: "Restoring analysis session" },
+            };
+            const entry = {
+                id: savedJob.id,
+                token: savedJob.token,
+                parentId: placeholder.id,
+                sourceOrder,
+                settingsSnapshot: JSON.parse(JSON.stringify(settingsSnapshot)),
+                status: "queued",
+                etag: "",
+                failureCount: 0,
+                pollAfterMs: 1000,
+                pollTimer: 0,
+                pollInFlight: false,
+                readyCount: 0,
+                createConfirmed: false,
+                pendingFile: null,
+                connectionInterrupted: false,
+                restoreActivePartId: restoredActivePartId.startsWith(`job-${savedJob.id}-part-`) ? restoredActivePartId : "",
+            };
+            state.parts.push(placeholder);
+            state.analysisJobs.set(entry.id, entry);
+            if (!state.activePartId) state.activePartId = placeholder.id;
+            scheduleJobPoll(entry, 0);
+        });
+    }
+
+    function announce(message) {
+        if (!analysisLive || !message) return;
+        clearTimeout(state.liveTimer);
+        analysisLive.textContent = "";
+        state.liveTimer = window.setTimeout(() => { analysisLive.textContent = message; }, 40);
+    }
+
+    async function retryRemotePart(part) {
+        const entry = state.analysisJobs.get(part?.jobId);
+        if (!entry || !part?.remotePartId) return;
+        part.analysisStatus = "queued";
+        part.uploadStatus = "pending";
+        part.error = "";
+        part.analysisPresentation = { phase: "Retry requested" };
+        render();
+        try {
+            const response = await window.DaiyujinAPI.requestWithMeta(jobPath(entry, `/parts/${encodeURIComponent(part.remotePartId)}/retry`), {
+                method: "POST",
+                headers: jobHeaders(entry),
+            });
+            entry.status = "analyzing";
+            setJobConnectionState(entry, false);
+            applyJobResponse(entry, response);
+            scheduleJobPoll(entry, 0);
+        } catch (error) {
+            if (error?.network || !error?.status || error.status >= 500) {
+                entry.status = "recovering";
+                entry.failureCount += 1;
+                part.analysisStatus = "queued";
+                part.uploadStatus = "pending";
+                part.analysisPresentation = { phase: "Connection interrupted. Recovering retry" };
+                setJobConnectionState(entry, true);
+                persistAnalysisJobs();
+                render();
+                scheduleJobPoll(entry, retryDelay(error, entry.failureCount - 1));
+                return;
+            }
+            setJobConnectionState(entry, false);
+            markPartAnalysisFailed(part, friendlyAnalysisError(error));
+            render();
+        }
+    }
+
+    async function cancelActiveJobs() {
+        const activeJobs = Array.from(state.analysisJobs.values()).filter(entry => !TERMINAL_JOB_STATES.has(entry.status));
+        cancelAnalysisButton?.setAttribute("disabled", "");
+        await Promise.all(activeJobs.map(async entry => {
+            try {
+                const response = await window.DaiyujinAPI.requestWithMeta(jobPath(entry, "/cancel"), {
+                    method: "POST",
+                    headers: jobHeaders(entry),
+                });
+                setJobConnectionState(entry, false);
+                applyJobResponse(entry, response);
+            } catch (error) {
+                if (error?.network) setJobConnectionState(entry, true);
+            }
+        }));
+        cancelAnalysisButton?.removeAttribute("disabled");
+        render();
+    }
+
+    if (cancelAnalysisButton) cancelAnalysisButton.addEventListener("click", cancelActiveJobs);
+
+    function refreshActivePolls() {
+        state.analysisJobs.forEach(entry => {
+            if (!TERMINAL_JOB_STATES.has(entry.status) && !entry.pollInFlight) scheduleJobPoll(entry, document.hidden ? 5000 : 0);
+        });
+    }
+
+    document.addEventListener("visibilitychange", refreshActivePolls);
+    window.addEventListener("online", refreshActivePolls);
+
+    function archivePartCanRetry(part) {
+        const entry = part?.jobId ? state.analysisJobs.get(part.jobId) : null;
+        return part?.analysisStatus === "failed" && !!entry && !["expired", "cancelled"].includes(entry.status) && Number(part.attemptCount || 0) < 2;
     }
 
     function updateWorkspaceMode() {
         if (!workspace) return;
         const count = state.parts.length;
+        const showRail = count > 1 || state.analysisJobs.size > 0;
         workspace.classList.toggle("is-empty", count === 0);
-        workspace.classList.toggle("is-single", count === 1);
-        workspace.classList.toggle("is-batch", count > 1);
+        workspace.classList.toggle("is-single", count === 1 && !showRail);
+        workspace.classList.toggle("is-batch", showRail);
         workspace.dataset.partCount = String(count);
-        if (batchParts) batchParts.hidden = count <= 1;
+        if (batchParts) batchParts.hidden = !showRail;
     }
     /* Part list UI */
     function renderPartList() {
         updateWorkspaceMode();
         if (!batchParts || !partList) return;
-        if (batchCount) batchCount.textContent = `${state.parts.length} part(s)`;
-
-        if (state.parts.length <= 1) {
-            partList.innerHTML = "";
+        renderBatchStatus();
+        const showRail = state.parts.length > 1 || state.analysisJobs.size > 0;
+        if (!showRail) {
+            partList.replaceChildren();
             return;
         }
 
-        partList.innerHTML = state.parts.map(p => {
-            const statusLabel = { pending: "Pending", analyzing: "Analyzing", ready: "Ready", needs_recalculate: "Needs Update", calculating: "Estimating", estimated: "Estimated", failed: "Failed" }[p.status] || p.status;
-            const statusClass = { estimated: "green", ready: "neutral", analyzing: "blue", calculating: "blue", failed: "red", needs_recalculate: "amber" }[p.status] || "";
-            const total = p.estimate && p.status === "estimated" ? (p.estimate.total_estimate || {}).display || "" : "";
-            return `<button type="button" class="quote-part-row${p.id === state.activePartId ? ' active' : ''}" data-part-id="${esc(p.id)}" title="${esc(p.fullFileName || p.fileName)}">
-                <span class="quote-part-index">${p.index + 1}</span>
-                <span class="quote-part-name">${esc(p.fileName)}</span>
-                <span class="quote-part-status ${statusClass}">${statusLabel}</span>
-                ${total ? `<span class="quote-part-total">${esc(total)}</span>` : ""}
-            </button>`;
-        }).join("");
+        const desiredIds = new Set(state.parts.map(part => part.id));
+        Array.from(partList.querySelectorAll("[data-part-entry]")).forEach(entryEl => {
+            if (!desiredIds.has(entryEl.dataset.partEntry)) entryEl.remove();
+        });
 
-        partList.querySelectorAll('[data-part-id]').forEach(btn => {
-            btn.addEventListener('click', () => setActivePart(btn.dataset.partId));
+        const entryById = new Map(Array.from(partList.querySelectorAll("[data-part-entry]")).map(entryEl => [entryEl.dataset.partEntry, entryEl]));
+        state.parts.forEach((part, index) => {
+            let entryEl = entryById.get(part.id);
+            if (!entryEl) {
+                entryEl = createPartRow(part.id);
+                entryById.set(part.id, entryEl);
+            }
+            updatePartRow(entryEl, part);
+            const currentAtIndex = partList.children[index];
+            if (currentAtIndex !== entryEl) partList.insertBefore(entryEl, currentAtIndex || null);
         });
     }
 
-    function setActivePart(partId) {
+    function createPartRow(partId) {
+        const entryEl = document.createElement("div");
+        entryEl.className = "quote-part-entry";
+        entryEl.dataset.partEntry = partId;
+        entryEl.setAttribute("role", "listitem");
+
+        const selectButton = document.createElement("button");
+        selectButton.type = "button";
+        selectButton.className = "quote-part-row";
+        selectButton.dataset.partId = partId;
+        ["quote-part-index", "quote-part-name", "quote-part-status", "quote-part-total"].forEach(className => {
+            const span = document.createElement("span");
+            span.className = className;
+            selectButton.appendChild(span);
+        });
+        selectButton.addEventListener("click", () => setActivePart(selectButton.dataset.partId, { userInitiated: true }));
+
+        const retryButton = document.createElement("button");
+        retryButton.type = "button";
+        retryButton.className = "quote-part-retry";
+        retryButton.textContent = "Retry";
+        retryButton.hidden = true;
+        retryButton.addEventListener("click", () => {
+            const part = state.parts.find(item => item.id === retryButton.dataset.retryPartId);
+            if (part) retryRemotePart(part);
+        });
+        entryEl.append(selectButton, retryButton);
+        return entryEl;
+    }
+
+    function partDisplayState(part) {
+        if (part.uploadStatus !== "ready") {
+            const status = part.analysisStatus || part.uploadStatus || "pending";
+            const labels = { pending: "Pending", waiting: "Waiting", queued: "Queued", uploading: "Uploading", extracting: "Scanning", analyzing: "Analyzing", failed: "Failed", cancelled: "Cancelled" };
+            const classes = { pending: "neutral", waiting: "neutral", queued: "neutral", uploading: "blue", extracting: "blue", analyzing: "blue", failed: "red", cancelled: "neutral" };
+            return { label: labels[status] || "Pending", className: classes[status] || "neutral" };
+        }
+        const estimateLabels = { calculating: "Estimating", estimated: "Estimated", needs_recalculate: "Needs Update", failed: "Estimate Retry" };
+        const estimateClasses = { calculating: "blue", estimated: "green", needs_recalculate: "amber", failed: "amber" };
+        if (estimateLabels[part.estimateStatus]) return { label: estimateLabels[part.estimateStatus], className: estimateClasses[part.estimateStatus] };
+        return { label: "Ready", className: "green" };
+    }
+
+    function updatePartRow(entryEl, part) {
+        const selectButton = entryEl.querySelector("[data-part-id]");
+        const retryButton = entryEl.querySelector(".quote-part-retry");
+        const display = partDisplayState(part);
+        const total = part.estimate && part.estimateStatus === "estimated" ? (part.estimate.total_estimate || {}).display || "" : "";
+        entryEl.dataset.partEntry = part.id;
+        entryEl.classList.toggle("has-action", archivePartCanRetry(part));
+        selectButton.dataset.partId = part.id;
+        selectButton.title = part.fullFileName || part.fileName;
+        selectButton.classList.toggle("active", part.id === state.activePartId);
+        selectButton.setAttribute("aria-current", part.id === state.activePartId ? "true" : "false");
+        selectButton.setAttribute("aria-busy", ACTIVE_PART_STATES.has(part.analysisStatus) || part.analysisStatus === "uploading" ? "true" : "false");
+        selectButton.querySelector(".quote-part-index").textContent = String(part.index + 1);
+        selectButton.querySelector(".quote-part-name").textContent = part.fileName || "CAD part";
+        const statusEl = selectButton.querySelector(".quote-part-status");
+        statusEl.className = `quote-part-status ${display.className}`;
+        statusEl.textContent = display.label;
+        const totalEl = selectButton.querySelector(".quote-part-total");
+        totalEl.textContent = total;
+        totalEl.hidden = !total;
+        retryButton.dataset.retryPartId = part.id;
+        retryButton.hidden = !archivePartCanRetry(part);
+        retryButton.setAttribute("aria-label", `Retry analysis for ${part.fileName || "CAD part"}`);
+    }
+
+    function renderBatchStatus() {
+        const remoteParts = state.parts.filter(part => part.remotePartId);
+        const displayParts = remoteParts.length ? remoteParts : state.parts.filter(part => !part.isArchive || !part.jobId);
+        const total = remoteParts.length || Number(Array.from(state.analysisJobs.values()).find(entry => entry.counts?.total)?.counts?.total) || displayParts.length;
+        const ready = remoteParts.filter(part => part.analysisStatus === "ready").length;
+        const failed = remoteParts.filter(part => part.analysisStatus === "failed").length;
+        const cancelled = remoteParts.filter(part => part.analysisStatus === "cancelled").length;
+        const analyzing = remoteParts.filter(part => part.analysisStatus === "analyzing").length;
+        const activeJobs = Array.from(state.analysisJobs.values()).filter(entry => !TERMINAL_JOB_STATES.has(entry.status));
+        const finished = ready + failed + cancelled;
+        const progress = total ? Math.round((finished / total) * 100) : 0;
+
+        if (batchCount) batchCount.textContent = total ? `${total} part(s)` : "Reading archive";
+        if (batchProgress) batchProgress.hidden = state.analysisJobs.size === 0;
+        if (batchProgressLabel) {
+            const suffix = [analyzing ? `${analyzing} analyzing` : "", failed ? `${failed} failed` : ""].filter(Boolean).join(", ");
+            batchProgressLabel.textContent = total ? `${ready} / ${total} ready${suffix ? `, ${suffix}` : ""}` : "Reading archive inventory";
+        }
+        if (batchProgressbar) {
+            batchProgressbar.setAttribute("aria-valuenow", String(progress));
+            batchProgressbar.setAttribute("aria-valuetext", total ? `${finished} of ${total} processed, ${ready} ready, ${failed} failed` : "Reading archive inventory");
+        }
+        if (batchProgressFill) batchProgressFill.style.width = `${progress}%`;
+        if (networkStatus) {
+            networkStatus.hidden = state.networkStatus === "online";
+            networkStatus.textContent = state.networkStatus === "online" ? "" : "Reconnecting";
+        }
+        if (cancelAnalysisButton) cancelAnalysisButton.hidden = activeJobs.length === 0;
+    }
+
+    function setActivePart(partId, { userInitiated = true } = {}) {
+        if (userInitiated) state.userSelectedPart = true;
         if (state.activePartId === partId) return;
-        // Save current form to old active part
         const old = getActivePart();
-        if (old) { old.settings = readSettingsFromForm(); old.settingsSource = "override"; }
+        if (old && userInitiated) { old.settings = readSettingsFromForm(); old.settingsSource = "override"; }
         state.activePartId = partId;
         const part = getActivePart();
         if (part) { hydrateFormFromPart(part); }
+        persistAnalysisJobs();
         render();
     }
 
@@ -490,7 +1142,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const cacheKey = makeEstimateCacheKey(part);
         const cacheHit = part.estimate && part.estimateCacheKey === cacheKey;
 
-        part.estimateStatus = "calculating"; part.status = "calculating";
+        part.estimateStatus = "calculating";
+        part.estimateError = "";
         part.presentation = { progress: 0, phase: 0, startedAt: performance.now(), durationMs: randomInt(2200, 4800) };
         render();
 
@@ -516,7 +1169,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
                 estimate = await window.DaiyujinAPI.request("/api/public/quote/calculate", { method: "POST", body: JSON.stringify(payload) });
             } catch (err) {
-                part.estimateStatus = "failed"; part.status = "failed"; part.error = err.message;
+                part.estimateStatus = "failed";
+                part.estimateError = friendlyEstimateError(err);
                 finishEstimatePresentation(part, false);
                 render();
                 return;
@@ -527,13 +1181,19 @@ document.addEventListener("DOMContentLoaded", () => {
         estimate = { ...estimate, customer_name: contact.customer_name, customer_email: contact.customer_email };
         part.estimate = estimate;
         part.estimateCacheKey = cacheKey;
-        part.estimateStatus = "estimated"; part.status = "estimated";
+        part.estimateStatus = "estimated";
         finishEstimatePresentation(part, true);
         render();
     }
 
     function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function friendlyEstimateError(error) {
+        const message = String(error?.message || "").trim();
+        if (!message || error?.network || /failed to fetch/i.test(message)) return "The estimate service is temporarily unreachable. Please retry.";
+        return message;
+    }
 
     function estimatePhases() { return ["Preparing manufacturing model", "Reviewing machinability factors", "Evaluating material and process data", "Calibrating tolerance requirements", "Assessing surface finish impact", "Generating reference estimate"]; }
 
@@ -583,6 +1243,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!part) calculateButton.textContent = "Upload CAD First";
         else if (part.uploadStatus === "pending" || part.uploadStatus === "analyzing") calculateButton.textContent = "Analyzing CAD...";
         else if (part.uploadStatus === "failed") calculateButton.textContent = "Analysis Failed";
+        else if (part.uploadStatus === "cancelled") calculateButton.textContent = "Analysis Cancelled";
         else if (isCalculating) calculateButton.textContent = "Estimating...";
         else calculateButton.textContent = "Calculate Current Part";
     }
@@ -602,6 +1263,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note error">CAD analysis failed: ${esc(part.error || "Unknown error")}</div></section>`;
         }
 
+        if (part.uploadStatus === "cancelled") {
+            return `<section class="tool-panel quote-preview-panel"><h2>Part Preview</h2><div class="tool-note">CAD analysis was cancelled. Upload the archive again to restart this part.</div></section>`;
+        }
+
         if (!part.analysis) {
             return previewAnalysisCard(part);
         }
@@ -611,17 +1276,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function previewAnalysisCard(part) {
         const p = part.analysisPresentation || {};
-        const pct = Math.round(p.progress || 8);
         const phase = p.phase || "Reading CAD geometry";
-        return `<section class="tool-panel quote-preview-panel quote-preview-analysis" aria-live="polite">
+        return `<section class="tool-panel quote-preview-panel quote-preview-analysis" aria-busy="true">
             <div class="quote-preview-head"><h2>Part Preview</h2></div>
             <div class="quote-analysis-card">
                 <div class="quote-analysis-title"><span>CAD analysis</span><strong>${esc(part.fileName || "Current part")}</strong></div>
-                <div class="quote-progress">
-                    <div class="quote-progress-bar"><div class="quote-progress-fill" style="width:${pct}%"></div></div>
-                    <div class="quote-progress-text"><span class="quote-progress-phase">${esc(phase)}</span><span class="quote-progress-pct">${pct}%</span></div>
+                <div class="quote-progress quote-progress-indeterminate">
+                    <div class="quote-progress-bar"><div class="quote-progress-fill"></div></div>
+                    <div class="quote-progress-text"><span class="quote-progress-phase">${esc(phase)}</span><span>Working</span></div>
                 </div>
-                <div class="tool-note" style="margin-top:.75rem;">Extracting geometry and preparing preview. Calculation available once ready.</div>
+                <div class="tool-note" style="margin-top:.75rem;">Each part becomes available as soon as its geometry and preview are ready.</div>
             </div>
         </section>`;
     }
@@ -683,7 +1347,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (part?.estimateStatus === "failed") {
-            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note error">Reference estimate failed. Please adjust inputs or retry. ${esc(part.error || "Please try again.")}</div></section>`;
+            return `<section class="tool-panel quote-estimate"><h2>Reference Estimate</h2><div class="tool-note error">Reference estimate failed. Please adjust inputs or retry. ${esc(part.estimateError || "Please try again.")}</div></section>`;
         }
 
         if (!part || !part.estimate) {
@@ -785,6 +1449,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* Init */
+    restoreAnalysisJobs();
     hydrateOptions();
     render();
 
