@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.5.1
+ * Version: 1.6.0
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.5.1');
+define('DYJ_TOOLS_VERSION', '1.6.0');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -89,6 +89,40 @@ function dyj_tools_order_prefix($theme = null) {
     return isset($prefixes[$theme]) ? $prefixes[$theme] : $prefixes['default'];
 }
 
+function dyj_tools_brand_code($theme = null) {
+    $theme = dyj_tools_normalize_theme($theme);
+    return $theme === 'default' ? 'mfg' : $theme;
+}
+
+function dyj_tools_customer_portal_url($theme = null) {
+    $theme = dyj_tools_normalize_theme($theme);
+    $url = defined('DYJ_TOOLS_CUSTOMER_PORTAL_URL')
+        ? DYJ_TOOLS_CUSTOMER_PORTAL_URL
+        : 'https://portal.mfg-solution.com';
+    return apply_filters('dyj_tools_customer_portal_url', rtrim($url, '/'), $theme);
+}
+
+function dyj_tools_portal_route($path, $theme = null, $source = '') {
+    $theme = dyj_tools_normalize_theme($theme);
+    $url = dyj_tools_customer_portal_url($theme) . '/' . ltrim($path, '/');
+    $args = array('brand' => dyj_tools_brand_code($theme));
+    if ($source) {
+        $args['source'] = sanitize_key($source);
+    }
+    return add_query_arg($args, $url);
+}
+
+function dyj_tools_instant_quote_url($theme = null) {
+    $theme = dyj_tools_normalize_theme($theme);
+    $urls = array(
+        'mfg' => 'https://mfg-solution.com/online-quote/',
+        'gcindus' => 'https://gcindus.com/online-quote/',
+        'gcnov' => 'https://gcnov.com/online-quote/',
+        'default' => 'https://mfg-solution.com/online-quote/',
+    );
+    return apply_filters('dyj_tools_instant_quote_url', $urls[$theme], $theme);
+}
+
 /* Asset loading */
 
 function dyj_tools_enqueue_common($theme_override = null) {
@@ -132,6 +166,7 @@ function dyj_tools_enqueue_common($theme_override = null) {
             'site' => $theme,
             'orderPrefix' => dyj_tools_order_prefix($theme),
             'brandLabel' => dyj_tools_brand_label($theme),
+            'customerPortalUrl' => dyj_tools_customer_portal_url($theme),
             'formalQuoteUrl' => dyj_tools_formal_quote_url($theme),
             'formalQuoteLabel' => dyj_tools_formal_quote_label($theme),
             'engineerContactUrl' => dyj_tools_formal_quote_url($theme),
@@ -269,3 +304,33 @@ function dyj_order_portal_shortcode($atts = array()) {
     return dyj_tools_render_template('order-portal', array('theme' => $atts['theme']));
 }
 add_shortcode('dyj_order_portal', 'dyj_order_portal_shortcode');
+
+function dyj_portal_entry_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'theme' => '',
+        'variant' => 'standard',
+        'source' => 'website_entry',
+    ), $atts);
+    dyj_tools_enqueue_common($atts['theme']);
+    return dyj_tools_render_template('portal-entry', array(
+        'theme' => $atts['theme'],
+        'variant' => $atts['variant'],
+        'source' => $atts['source'],
+    ));
+}
+add_shortcode('dyj_portal_entry', 'dyj_portal_entry_shortcode');
+
+function dyj_contact_router_shortcode($atts = array()) {
+    $atts = shortcode_atts(array(
+        'theme' => '',
+        'general_url' => '#contact-form',
+        'source' => 'contact_router',
+    ), $atts);
+    dyj_tools_enqueue_common($atts['theme']);
+    return dyj_tools_render_template('contact-router', array(
+        'theme' => $atts['theme'],
+        'general_url' => $atts['general_url'],
+        'source' => $atts['source'],
+    ));
+}
+add_shortcode('dyj_contact_router', 'dyj_contact_router_shortcode');

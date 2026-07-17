@@ -21,6 +21,11 @@ from api_utils import api_error, api_ok
 from database import init_db, shutdown_session
 from services.freight import calculate_freight, get_countries, get_freight_summary
 from services.pricing import calculate_quote, get_quote_options, recalculate_weight, request_formal_quote
+from services.nextgen_handoff import (
+    QuoteBridgeUnavailable,
+    QuoteReferenceError,
+    create_nextgen_handoff,
+)
 from services.tolerance import calculate_tolerance, get_tolerance_presets, get_tolerance_zones, get_tolerance_capabilities
 from services.material_standards import search as material_standards_search, get_families as material_standards_families
 from services.material_weight import get_options as material_weight_options, calculate as material_weight_calculate
@@ -860,6 +865,36 @@ def create_app() -> Flask:
             )
         except ValueError as exc:
             return api_error("invalid_quote_request", str(exc), 400)
+        return api_ok(result)
+
+    @app.post("/api/public/quote/handoff")
+    def quote_handoff():
+        payload = request.get_json(silent=True) or {}
+        quote_reference = str(payload.get("quote_reference") or "").strip()
+        if not quote_reference:
+            return api_error(
+                "missing_quote_reference",
+                "A Quote reference is required.",
+                400,
+            )
+        site = _site_from_request(request, payload.get("site") or payload.get("theme"))
+        brand_code = site if site in {"mfg", "gcindus", "gcnov"} else "mfg"
+        return_url = str(payload.get("return_url") or "").strip() or None
+        try:
+            result = create_nextgen_handoff(
+                quote_reference=quote_reference,
+                brand_code=brand_code,
+                return_url=return_url,
+            )
+        except QuoteReferenceError as exc:
+            return api_error("invalid_quote_reference", str(exc), 400)
+        except QuoteBridgeUnavailable:
+            app.logger.exception("NextGen Quote handoff is unavailable")
+            return api_error(
+                "portal_temporarily_unavailable",
+                "The Customer Portal is temporarily unavailable. Your estimate is still saved.",
+                503,
+            )
         return api_ok(result)
 
     @app.get("/api/public/settings")

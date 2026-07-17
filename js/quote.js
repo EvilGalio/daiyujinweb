@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     CONFIG.theme = currentSite();
     function formalQuoteUrl() { return CONFIG.formalQuoteUrl || "https://mfg-solution.com/request-quote/"; }
     function formalQuoteLabel() { return CONFIG.formalQuoteLabel || "Request Formal Quote"; }
+    function customerPortalUrl() { return CONFIG.customerPortalUrl || "https://portal.mfg-solution.com"; }
     function engineerContactUrl() { return CONFIG.engineerContactUrl || formalQuoteUrl(); }
     function engineerContactLabel() { return CONFIG.engineerContactLabel || "Contact our engineers"; }
 
@@ -1638,6 +1639,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ? estimateCard() + previewCard()
             : previewCard() + estimateCard();
         bindPreviewTabs();
+        bindQuoteHandoffEvents();
         renderEstimateFeedback();
         bindEstimateFeedbackEvents();
         updateCalculateButton();
@@ -1806,22 +1808,69 @@ document.addEventListener("DOMContentLoaded", () => {
         const unitEst = e.unit_estimate || {};
         const warnings = (e.warnings||[]).map(w=>`<div class="tool-note warn">${esc(w)}</div>`).join("");
         const disclaimer = estimateDisclaimer(e.customer_name);
+        const handoffAvailable = typeof e.quote_reference === "string" && e.quote_reference.length > 20;
+        const handoffError = part.handoffError
+            ? `<div class="tool-note error quote-handoff-message" role="alert">${esc(part.handoffError)}</div>`
+            : "";
+        const handoffAction = handoffAvailable
+            ? `<button class="tool-button quote-handoff-primary" type="button" data-continue-engineering>Continue to Engineering Review</button>`
+            : "";
 
         return `<section id="quote-estimate" tabindex="-1" class="tool-panel quote-estimate"><h2>Reference Estimate</h2>
             <div class="quote-total">${esc(totalEst.display||"-")}</div>
             <div class="metric-row"><span>Unit Estimate</span><strong>${esc(unitEst.display||"-")}</strong></div>
             <div class="metric-row"><span>Quantity</span><strong>${sel.quantity} pcs</strong></div>
             <div class="metric-row"><span>Valid Until</span><strong>${esc(e.valid_until)}</strong></div>
-            <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--line);">
+            <div class="quote-estimate-breakdown">
                 <div class="metric-row"><span>Material</span><strong>${esc(sel.material_category||'-')}${sel.material?' &middot; '+esc(sel.material):''}</strong></div>
                 <div class="metric-row"><span>Process</span><strong>${esc(sel.process)}</strong></div>
                 <div class="metric-row"><span>Postprocess</span><strong>${esc(sel.postprocess_group)}</strong></div>
                 <div class="metric-row"><span>Tolerance</span><strong>${esc(sel.tolerance_grade)}</strong></div>
             </div>
             ${warnings}
-            <div class="tool-note" style="margin-top:0.5rem;">${formalQuoteText(disclaimer)}</div>
-            <a class="tool-button" href="${formalQuoteUrl()}" target="_blank" rel="noopener" style="display:inline-flex;text-decoration:none;margin-top:0.5rem;">${esc(formalQuoteLabel())}</a>
+            <div class="tool-note quote-estimate-disclaimer">${formalQuoteText(disclaimer)}</div>
+            <div class="quote-estimate-actions">
+                ${handoffAction}
+                <a class="tool-button secondary quote-formal-link" href="${formalQuoteUrl()}" target="_blank" rel="noopener">${esc(formalQuoteLabel())}</a>
+            </div>
+            ${handoffError}
         </section>`;
+    }
+
+    function bindQuoteHandoffEvents() {
+        const button = queryTool("[data-continue-engineering]");
+        if (!button) return;
+        button.addEventListener("click", () => continueToEngineeringReview(button));
+    }
+
+    async function continueToEngineeringReview(button) {
+        const part = getActivePart();
+        const quoteReference = part?.estimate?.quote_reference;
+        if (!part || typeof quoteReference !== "string" || !quoteReference) return;
+        part.handoffError = "";
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "Opening secure workspace...";
+        try {
+            const response = await window.DaiyujinAPI.request("/api/public/quote/handoff", {
+                method: "POST",
+                body: JSON.stringify({
+                    quote_reference: quoteReference,
+                    site: currentSite(),
+                    return_url: /^https?:$/.test(window.location.protocol) ? window.location.origin : null,
+                }),
+            });
+            const destination = new URL(response.sign_up_url);
+            const expected = new URL(customerPortalUrl());
+            const localDestination = ["127.0.0.1", "localhost"].includes(destination.hostname);
+            if (destination.origin !== expected.origin && !localDestination) {
+                throw new Error("The Customer Portal returned an unexpected destination.");
+            }
+            window.location.assign(destination.href);
+        } catch (error) {
+            part.handoffError = error?.message || "The Customer Portal could not be opened. Your estimate is still saved.";
+            render();
+        }
     }
 
     function bindPreviewTabs() {

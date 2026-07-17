@@ -1,18 +1,18 @@
-"""Quote pricing — facade to v2.1 calculator.
-
-Delegates calculation to quote_calculator_v2.
-Preserves inquiry logging and formal quote request.
-No random perturbation.
-"""
+"""Quote pricing facade to the v2 calculator."""
 
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from database import SessionLocal
 from models import Inquiry
-from services.quote_calculator_v2 import calculate_quote_v2, get_quote_options_v2, public_quote_response, _public_material_display
+from services.nextgen_handoff import QuoteHandoffError, create_quote_reference
+from services.quote_calculator_v2 import (
+    _public_material_display,
+    calculate_quote_v2,
+    get_quote_options_v2,
+    public_quote_response,
+)
 from services.quote_email_notifications import notify_quote_submitted
 
 
@@ -20,19 +20,34 @@ def get_quote_options() -> dict:
     return get_quote_options_v2()
 
 
-def calculate_quote(payload: dict, *, client_ip: str = "", client_country: str = "", user_agent: str = "") -> dict:
-    """Calculate quote, log inquiry, send email notification for allowed sites."""
+def calculate_quote(
+    payload: dict,
+    *,
+    client_ip: str = "",
+    client_country: str = "",
+    user_agent: str = "",
+) -> dict:
+    """Calculate a Quote, persist the inquiry, and return public-safe output."""
     result = calculate_quote_v2(payload)
     inquiry_id = _record_inquiry(payload, result, client_ip, user_agent)
     notify_quote_submitted(
-        payload=payload, result=result, inquiry_id=inquiry_id,
-        client_ip=client_ip, client_country=client_country, user_agent=user_agent,
+        payload=payload,
+        result=result,
+        inquiry_id=inquiry_id,
+        client_ip=client_ip,
+        client_country=client_country,
+        user_agent=user_agent,
     )
-    return public_quote_response(result)
+    response = public_quote_response(result)
+    try:
+        response["quote_reference"] = create_quote_reference(inquiry_id)
+    except QuoteHandoffError:
+        response["quote_reference"] = None
+    return response
 
 
 def recalculate_weight(volume_mm3: float = 0, material_id: str = "", **_kwargs) -> dict:
-    """Legacy weight recalc. V2 uses OBB, not net volume."""
+    """Return the legacy weight recalculation compatibility response."""
     return {
         "volume_mm3": volume_mm3,
         "material_id": material_id,
@@ -41,8 +56,13 @@ def recalculate_weight(volume_mm3: float = 0, material_id: str = "", **_kwargs) 
     }
 
 
-def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str = "") -> dict:
-    """Log a formal quote request."""
+def request_formal_quote(
+    payload: dict,
+    *,
+    client_ip: str = "",
+    user_agent: str = "",
+) -> dict:
+    """Log a formal Quote request."""
     session = SessionLocal()
     try:
         inquiry = Inquiry(
@@ -65,20 +85,30 @@ def request_formal_quote(payload: dict, *, client_ip: str = "", user_agent: str 
         return {
             "status": "received",
             "inquiry_id": inquiry.record_id,
-            "message": "Your formal quote request has been received. Our engineering team will review and respond within 1 business day.",
+            "message": (
+                "Your formal quote request has been received. Our engineering team will "
+                "review and respond within 1 business day."
+            ),
         }
     finally:
         session.close()
         SessionLocal.remove()
 
 
-def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str) -> int:
+def _record_inquiry(
+    payload: dict,
+    result: dict,
+    client_ip: str,
+    user_agent: str,
+) -> int:
     session = SessionLocal()
     try:
         total = result.get("total_estimate") or result.get("total", {})
         currency = total.get("currency") or result.get("currency") or payload.get("currency", "")
         contact_name = (result.get("customer_name") or payload.get("customer_name") or "").strip()
-        contact_email = (result.get("customer_email") or payload.get("customer_email") or "").strip()
+        contact_email = (
+            result.get("customer_email") or payload.get("customer_email") or ""
+        ).strip()
         obb_lwh = result.get("part", {}).get("obb_lwh_mm") or [0]
         inquiry = Inquiry(
             part_name=_part_name_from_payload(payload, result),
@@ -100,22 +130,37 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
             stp_filename=payload.get("stp_filename"),
             client_ip=client_ip,
             user_agent=user_agent,
-            input_params=json.dumps({
-                "model_version": result.get("pricing_model_version", "v2.2_estimate"),
-                "batch": {
-                    "batch_id": payload.get("batch_id"),
-                    "batch_item_id": payload.get("batch_item_id"),
-                    "batch_item_index": payload.get("batch_item_index"),
-                    "batch_item_count": payload.get("batch_item_count"),
+            input_params=json.dumps(
+                {
+                    "model_version": result.get("pricing_model_version", "v2.2_estimate"),
+                    "file_id": payload.get("file_id"),
+                    "stp_filename": payload.get("stp_filename"),
+                    "site": payload.get("site") or payload.get("theme"),
+                    "batch": {
+                        "batch_id": payload.get("batch_id"),
+                        "batch_item_id": payload.get("batch_item_id"),
+                        "batch_item_index": payload.get("batch_item_index"),
+                        "batch_item_count": payload.get("batch_item_count"),
+                    },
+                    "contact": {
+                        "customer_name": contact_name or None,
+                        "customer_email": contact_email or None,
+                    },
+                    "selections": result.get("selections"),
+                    "quote_input": {
+                        "quantity": payload.get("quantity"),
+                        "currency": payload.get("currency"),
+                        "material_id": payload.get("material_id"),
+                        "material_category": payload.get("material_category"),
+                        "process": payload.get("process"),
+                        "postprocess_group": payload.get("postprocess_group"),
+                        "tolerance_grade": payload.get("tolerance_grade"),
+                    },
+                    "unit_estimate": result.get("unit_estimate"),
+                    "total_estimate": result.get("total_estimate"),
                 },
-                "contact": {
-                    "customer_name": contact_name or None,
-                    "customer_email": contact_email or None,
-                },
-                "selections": result.get("selections"),
-                "unit_estimate": result.get("unit_estimate"),
-                "total_estimate": result.get("total_estimate"),
-            }, ensure_ascii=False),
+                ensure_ascii=False,
+            ),
             result=json.dumps(result, ensure_ascii=False),
         )
         session.add(inquiry)
@@ -127,35 +172,51 @@ def _record_inquiry(payload: dict, result: dict, client_ip: str, user_agent: str
 
 
 def _resolve_material_display(payload: dict, result: dict | None = None) -> str:
-    mat_id = payload.get("material_id", "")
-    cat_id = payload.get("material_category", "")
-    if not mat_id:
+    del result
+    material_id = payload.get("material_id", "")
+    category_id = payload.get("material_category", "")
+    if not material_id:
         return "-"
     try:
-        display = _public_material_display(material_id=mat_id, category_id=cat_id)
+        display = _public_material_display(
+            material_id=material_id,
+            category_id=category_id,
+        )
         label = display.get("material", "")
-        cat = display.get("category", "")
-        return f"{cat} / {label}" if cat and label else mat_id
+        category = display.get("category", "")
+        return f"{category} / {label}" if category and label else material_id
     except Exception:
-        return mat_id
+        return material_id
 
 
 def _part_name_from_payload(payload: dict, result: dict | None = None) -> str:
     result = result or {}
-    quote_result = payload.get("quote_result") if isinstance(payload.get("quote_result"), dict) else {}
+    quote_result = payload.get("quote_result")
+    quote_result = quote_result if isinstance(quote_result, dict) else {}
     candidates = [
         payload.get("part_name"),
         (result.get("part") or {}).get("name") if isinstance(result.get("part"), dict) else None,
-        (quote_result.get("part") or {}).get("name") if isinstance(quote_result.get("part"), dict) else None,
+        (
+            (quote_result.get("part") or {}).get("name")
+            if isinstance(quote_result.get("part"), dict)
+            else None
+        ),
     ]
     for value in candidates:
         text = str(value or "").strip()
         if text:
             return text
-
     filename = (
         payload.get("stp_filename")
-        or ((result.get("part") or {}).get("stp_filename") if isinstance(result.get("part"), dict) else "")
-        or ((quote_result.get("part") or {}).get("stp_filename") if isinstance(quote_result.get("part"), dict) else "")
+        or (
+            (result.get("part") or {}).get("stp_filename")
+            if isinstance(result.get("part"), dict)
+            else ""
+        )
+        or (
+            (quote_result.get("part") or {}).get("stp_filename")
+            if isinstance(quote_result.get("part"), dict)
+            else ""
+        )
     )
     return str(filename or "").replace("\\", "/").split("/")[-1].rsplit(".", 1)[0]
