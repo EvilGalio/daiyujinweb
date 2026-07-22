@@ -318,7 +318,18 @@ function Compress-EncryptedZip([string]$SourceFolder, [string]$ZipPath) {
     }
     Ensure-Directory (Split-Path -Parent $ZipPath)
     $sourceGlob = Join-Path $SourceFolder "*"
-    Invoke-Native -FilePath $sevenZip -Arguments @("a", "-tzip", $ZipPath, $sourceGlob, "-p$password", "-mem=AES256", "-mx=5", "-y") -Name "7-Zip archive"
+    try {
+        Invoke-Native -FilePath $sevenZip -Arguments @(
+            "a", "-tzip", $ZipPath, $sourceGlob,
+            "-p$password", "-mem=AES256", "-mx=5", "-y"
+        ) -Name "7-Zip archive"
+        Invoke-Native -FilePath $sevenZip -Arguments @(
+            "t", $ZipPath, "-p$password", "-y"
+        ) -Name "7-Zip archive verification"
+    }
+    finally {
+        $password = $null
+    }
 }
 
 function Get-LegacyCandidates {

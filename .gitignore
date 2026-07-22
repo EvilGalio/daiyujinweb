@@ -7,6 +7,8 @@ __pycache__/
 .env
 .env.*
 backend/.env
+*daiyujin-fresh-pc-secrets*.csv
+*local-secrets*.csv
 *.log
 setup-company-pc.log
 api-runtime.*.log

@@ -29,7 +29,8 @@ param(
     [switch]$SkipApiRestart,
     [switch]$SkipWorkerRestart,
     [switch]$SkipWorkerTaskRegistration,
-    [switch]$RunWorkerTaskAtStartupAsSystem,
+    [Alias("RunWorkerTaskAtStartupAsSystem")]
+    [switch]$RunWorkerTaskAtStartupAsLocalService,
     [switch]$AllowMissingRarTool,
     [switch]$EnableAsyncArchives,
     [switch]$DisableAsyncArchives,
@@ -69,18 +70,23 @@ $QuoteBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "quote_job
 $EnvFile = Join-Path $BackendRoot ".env"
 $WorkerPidFile = Join-Path $BackendRoot "data\quote-worker-host.pid"
 $WorkerTaskName = "Daiyujin Quote Worker"
+$ApiTaskName = "Daiyujin Precision Tools API"
+$PrecisionRuntimeRoot = "C:\ProgramData\Daiyujin\PrecisionTools\runtime"
 $Script:GitProxyResolved = $false
 $Script:ResolvedGitProxy = ""
 $Script:BackendPython = ""
 $Script:OccPython = ""
 $Script:WorkerTaskWasPresent = $false
 $Script:WorkerTaskWasEnabled = $false
-$Script:WorkerTaskRunsAtStartupAsSystem = $false
+$Script:WorkerTaskRunsAtStartupAsLocalService = $false
 $Script:WorkerTaskWasPaused = $false
 $Script:QuoteMaintenanceActive = $false
 $Script:QuoteMaintenanceFile = ""
 $Script:QuoteMaintenanceToken = ""
 $Script:ApiWasStopped = [bool]$RestoreApiOnFailure
+$Script:ApiTaskWasPresent = [bool]$RestoreApiOnFailure
+$Script:ApiTaskWasEnabled = [bool]$RestoreApiOnFailure
+$Script:ApiTaskWasPaused = [bool]$RestoreApiOnFailure
 $Script:WorkerProcessWasStopped = [bool]$RestoreWorkerOnFailure
 
 function Write-Step {
@@ -151,6 +157,105 @@ function ConvertTo-CommandLineArgument {
         return $Value
     }
     return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Resolve-PrincipalSid {
+    param([string]$UserId)
+    try {
+        if ($UserId -match "^S-\d-") {
+            return [Security.Principal.SecurityIdentifier]::new($UserId).Value
+        }
+        return [Security.Principal.NTAccount]::new($UserId).Translate(
+            [Security.Principal.SecurityIdentifier]
+        ).Value
+    }
+    catch {
+        return ""
+    }
+}
+
+function Quote-ScheduledTaskArgument {
+    param([string]$Value)
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Get-RootScheduledTask {
+    param([string]$TaskName)
+    $matches = @(
+        Get-ScheduledTask -TaskName $TaskName -TaskPath "\" `
+            -ErrorAction SilentlyContinue
+    )
+    if ($matches.Count -gt 1) {
+        throw "More than one root scheduled task uses the protected task name: $TaskName"
+    }
+    if ($matches.Count -eq 0) {
+        return $null
+    }
+    return $matches[0]
+}
+
+function Get-ExpectedWorkerTaskArguments {
+    $launcher = Join-Path $ProjectRoot "run-quote-worker.ps1"
+    $runtimeLog = Join-Path $PrecisionRuntimeRoot `
+        "logs\quote-worker-scheduled.log"
+    $runtimeTemp = Join-Path $PrecisionRuntimeRoot "temp"
+    return @(
+        "-NoProfile",
+        "-WindowStyle", "Hidden",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Quote-ScheduledTaskArgument $launcher),
+        "-BackendPython", (Quote-ScheduledTaskArgument $Script:BackendPython),
+        "-OccPython", (Quote-ScheduledTaskArgument $Script:OccPython),
+        "-LogPath", (Quote-ScheduledTaskArgument $runtimeLog),
+        "-RuntimeTempRoot", (Quote-ScheduledTaskArgument $runtimeTemp)
+    ) -join " "
+}
+
+function Assert-WorkerTaskContract {
+    param([object]$Task)
+    $actions = @($Task.Actions)
+    $powerShell = Join-Path $env:SystemRoot `
+        "System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (
+        $actions.Count -ne 1 -or
+        (Resolve-PrincipalSid ([string]$Task.Principal.UserId)) -ne "S-1-5-19" -or
+        [string]$actions[0].Execute -ne $powerShell -or
+        [string]$actions[0].WorkingDirectory -ne $ProjectRoot -or
+        [string]$actions[0].Arguments -ne (Get-ExpectedWorkerTaskArguments)
+    ) {
+        throw "The quote worker task does not match the approved LocalService runtime"
+    }
+}
+
+function Get-ExpectedApiTaskArguments {
+    $launcher = Join-Path $ProjectRoot "run-api.ps1"
+    $runtimeTemp = Join-Path $PrecisionRuntimeRoot "temp"
+    return @(
+        "-NoProfile",
+        "-WindowStyle", "Hidden",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Quote-ScheduledTaskArgument $launcher),
+        "-BackendPython", (Quote-ScheduledTaskArgument $Script:BackendPython),
+        "-OccPython", (Quote-ScheduledTaskArgument $Script:OccPython),
+        "-RuntimeTempRoot", (Quote-ScheduledTaskArgument $runtimeTemp),
+        "-ApiPort", $ApiPort
+    ) -join " "
+}
+
+function Assert-ApiTaskContract {
+    param([object]$Task)
+    $actions = @($Task.Actions)
+    $powerShell = Join-Path $env:SystemRoot `
+        "System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (
+        $actions.Count -ne 1 -or
+        (Resolve-PrincipalSid ([string]$Task.Principal.UserId)) -ne "S-1-5-19" -or
+        [string]$actions[0].Execute -ne $powerShell -or
+        [string]$actions[0].WorkingDirectory -ne $ProjectRoot -or
+        [string]$actions[0].Arguments -ne (Get-ExpectedApiTaskArguments)
+    ) {
+        throw "The Precision Tools API task does not match the approved LocalService runtime"
+    }
 }
 
 function Test-LocalTcpPort {
@@ -507,20 +612,22 @@ function Stop-QuoteWorker {
     param([switch]$PreserveStartupTask)
 
     if (-not $PreserveStartupTask) {
-        $startupTask = Get-ScheduledTask -TaskName $WorkerTaskName -ErrorAction SilentlyContinue
+        $startupTask = Get-RootScheduledTask -TaskName $WorkerTaskName
         if ($startupTask) {
+            Assert-WorkerTaskContract -Task $startupTask
             $Script:WorkerTaskWasPresent = $true
             $Script:WorkerTaskWasEnabled = $startupTask.State -ne "Disabled"
-            $taskUserId = [string]$startupTask.Principal.UserId
-            $Script:WorkerTaskRunsAtStartupAsSystem = @(
-                "SYSTEM",
-                "NT AUTHORITY\SYSTEM",
-                "S-1-5-18"
-            ) -contains $taskUserId.ToUpperInvariant()
+            $taskUserId = Resolve-PrincipalSid (
+                [string]$startupTask.Principal.UserId
+            )
+            $Script:WorkerTaskRunsAtStartupAsLocalService = `
+                $taskUserId -eq "S-1-5-19"
             Write-Step "Pausing quote worker startup task during update"
-            Stop-ScheduledTask -TaskName $WorkerTaskName -ErrorAction SilentlyContinue
+            Stop-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+                -ErrorAction SilentlyContinue
             if ($Script:WorkerTaskWasEnabled) {
-                Disable-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop | Out-Null
+                Disable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+                    -ErrorAction Stop | Out-Null
                 $Script:WorkerTaskWasPaused = $true
             }
         }
@@ -720,7 +827,8 @@ function Restart-WithUpdatedScriptIfNeeded {
 
     Write-Step "Update script changed; relaunching the pulled version"
     if ($Script:WorkerTaskWasPaused -and $Script:WorkerTaskWasEnabled) {
-        Enable-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop | Out-Null
+        Enable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+            -ErrorAction Stop | Out-Null
         $Script:WorkerTaskWasPaused = $false
         Write-Note "Restored the worker task state before handing off to the pulled script."
     }
@@ -855,13 +963,24 @@ function Restart-QuoteWorker {
     )
     $argumentLine = ($arguments | ForEach-Object { ConvertTo-CommandLineArgument $_ }) -join " "
 
-    Start-Process `
-        -FilePath $powerShell `
-        -ArgumentList $argumentLine `
-        -WorkingDirectory $ProjectRoot `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $outLog `
-        -RedirectStandardError $errLog | Out-Null
+    $startupTask = Get-RootScheduledTask -TaskName $WorkerTaskName
+    $startupPrincipal = if ($null -ne $startupTask) {
+        Resolve-PrincipalSid ([string]$startupTask.Principal.UserId)
+    }
+    else {
+        ""
+    }
+    if ($startupPrincipal -eq "S-1-5-19") {
+        Assert-WorkerTaskContract -Task $startupTask
+        Enable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+            -ErrorAction Stop | Out-Null
+        Start-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+            -ErrorAction Stop
+        Write-Note "Starting quote worker through the LocalService startup task."
+    }
+    else {
+        throw "The production quote worker LocalService task is missing"
+    }
 
     for ($i = 1; $i -le 20; $i++) {
         if (Test-Path -LiteralPath $WorkerPidFile -PathType Leaf) {
@@ -885,22 +1004,23 @@ function Register-QuoteWorkerStartupTask {
         Write-Warn "Async archives are disabled; leaving the quote worker startup task unchanged."
         return
     }
-    $existingTask = Get-ScheduledTask -TaskName $WorkerTaskName -ErrorAction SilentlyContinue
+    $existingTask = Get-RootScheduledTask -TaskName $WorkerTaskName
     if ($existingTask -and -not $Script:WorkerTaskWasPresent) {
+        Assert-WorkerTaskContract -Task $existingTask
         $Script:WorkerTaskWasPresent = $true
         $Script:WorkerTaskWasEnabled = $existingTask.State -ne "Disabled"
-        $taskUserId = [string]$existingTask.Principal.UserId
-        $Script:WorkerTaskRunsAtStartupAsSystem = @(
-            "SYSTEM",
-            "NT AUTHORITY\SYSTEM",
-            "S-1-5-18"
-        ) -contains $taskUserId.ToUpperInvariant()
+        $taskUserId = Resolve-PrincipalSid (
+            [string]$existingTask.Principal.UserId
+        )
+        $Script:WorkerTaskRunsAtStartupAsLocalService = `
+            $taskUserId -eq "S-1-5-19"
     }
 
     if ($SkipWorkerTaskRegistration) {
         Write-Warn "Skipping quote worker startup task registration."
         if ($Script:WorkerTaskWasPresent -and $Script:WorkerTaskWasEnabled) {
-            Enable-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop | Out-Null
+            Enable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+                -ErrorAction Stop | Out-Null
             $Script:WorkerTaskWasPaused = $false
             Write-Note "Restored the existing quote worker startup task."
         }
@@ -922,24 +1042,39 @@ function Register-QuoteWorkerStartupTask {
             "-OccPython", $Script:OccPython,
             "-TaskName", $WorkerTaskName
     )
-    $preserveSystemStartup = `
-        $RunWorkerTaskAtStartupAsSystem -or $Script:WorkerTaskRunsAtStartupAsSystem
-    if ($preserveSystemStartup) {
-        $arguments += "-RunAtStartupAsSystem"
-    }
+    $arguments += "-RunAtStartupAsLocalService"
     Run-Native `
         -FilePath $powerShell `
         -Arguments $arguments `
         -Name "Registering quote worker startup task"
 
     if ($Script:WorkerTaskWasPresent -and -not $Script:WorkerTaskWasEnabled) {
-        Disable-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop | Out-Null
+        Disable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+            -ErrorAction Stop | Out-Null
         Write-Note "Preserved the existing disabled quote worker task state."
     }
 }
 
 function Stop-Api {
     Write-Step "Stopping local API"
+    $apiTask = Get-RootScheduledTask -TaskName $ApiTaskName
+    if ($null -eq $apiTask) {
+        throw "The production Precision Tools API LocalService task is missing"
+    }
+    Assert-ApiTaskContract -Task $apiTask
+    if (-not $Script:ApiTaskWasPresent) {
+        if ([string]$apiTask.State -eq "Disabled") {
+            throw "The production Precision Tools API task was disabled before the update"
+        }
+        $Script:ApiTaskWasPresent = $true
+        $Script:ApiTaskWasEnabled = $true
+    }
+    Stop-ScheduledTask -TaskName $ApiTaskName -TaskPath "\" `
+        -ErrorAction SilentlyContinue
+    Disable-ScheduledTask -TaskName $ApiTaskName -TaskPath "\" `
+        -ErrorAction Stop | Out-Null
+    $Script:ApiTaskWasPaused = $true
+    $Script:ApiWasStopped = $true
     try {
         $connections = @(
             Get-NetTCPConnection `
@@ -1002,13 +1137,18 @@ function Restart-Api {
     )
     $argumentLine = ($arguments | ForEach-Object { ConvertTo-CommandLineArgument $_ }) -join " "
 
-    Start-Process `
-        -FilePath $powerShell `
-        -ArgumentList $argumentLine `
-        -WorkingDirectory $ProjectRoot `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $outLog `
-        -RedirectStandardError $errLog | Out-Null
+    $apiTask = Get-RootScheduledTask -TaskName $ApiTaskName
+    if ($null -ne $apiTask) {
+        Assert-ApiTaskContract -Task $apiTask
+        Enable-ScheduledTask -TaskName $ApiTaskName -TaskPath "\" `
+            -ErrorAction Stop | Out-Null
+        Start-ScheduledTask -TaskName $ApiTaskName -TaskPath "\" `
+            -ErrorAction Stop
+        Write-Note "Starting API through the LocalService startup task."
+    }
+    else {
+        throw "The production Precision Tools API LocalService task is missing"
+    }
 
     $base = "http://127.0.0.1:$ApiPort"
     for ($i = 1; $i -le 45; $i++) {
@@ -1029,6 +1169,7 @@ function Restart-Api {
             }
             Write-Note "API healthy: $base/api/health"
             $Script:ApiWasStopped = $false
+            $Script:ApiTaskWasPaused = $false
             return
         } catch {
             Start-Sleep -Seconds 1
@@ -1061,6 +1202,12 @@ try {
     else {
         if (-not $SkipDatabaseBackup) {
             Write-Warn "Skipping the quote job snapshot because API and worker writes cannot both be paused with the selected switches."
+        }
+        if (-not $SkipApiRestart) {
+            Stop-Api
+        }
+        else {
+            Write-Warn "Leaving the currently running API unchanged because SkipApiRestart was selected."
         }
         if ($DisableAsyncArchives) {
             Write-Warn "Soft rollback requested; leaving the current quote worker and startup task unchanged."
@@ -1101,8 +1248,15 @@ try {
     $workerRestored = $false
     if ($Script:WorkerTaskWasPaused -and $Script:WorkerTaskWasEnabled) {
         try {
-            Enable-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop | Out-Null
-            Start-ScheduledTask -TaskName $WorkerTaskName -ErrorAction Stop
+            $restoreWorkerTask = Get-RootScheduledTask -TaskName $WorkerTaskName
+            if ($null -eq $restoreWorkerTask) {
+                throw "The quote worker task disappeared during rollback"
+            }
+            Assert-WorkerTaskContract -Task $restoreWorkerTask
+            Enable-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+                -ErrorAction Stop | Out-Null
+            Start-ScheduledTask -TaskName $WorkerTaskName -TaskPath "\" `
+                -ErrorAction Stop
             for ($i = 1; $i -le 10; $i++) {
                 if (Test-Path -LiteralPath $WorkerPidFile -PathType Leaf) {
                     $pidText = (Get-Content -LiteralPath $WorkerPidFile -Raw -ErrorAction SilentlyContinue).Trim()

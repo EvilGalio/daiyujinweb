@@ -35,7 +35,7 @@ Use these root launchers after setup:
 
 - `run-api.ps1` starts Waitress with `BACKEND_PYTHON`.
 - `run-quote-worker.ps1` supervises the worker coordinator and uses `OCC_PYTHON` only for killable CAD child processes.
-- `Install-Quote-Worker-Task.ps1` registers a hidden current-user logon task with bounded restart settings. Use `-RunAtStartupAsSystem` from an elevated shell when the worker must start before user logon.
+- `Install-Quote-Worker-Task.ps1` registers a hidden current-user logon task with bounded restart settings. Use `-RunAtStartupAsLocalService` from an elevated shell when the worker must start before user logon.
 
 `Update-Company-PC.ps1` performs these steps idempotently, pauses new asynchronous uploads, stops the API and worker for a consistent quote-job database plus storage snapshot, and keeps the latest seven backup packages by default. If a later pull changes the updater itself, the script relaunches the pulled version automatically. It defaults `QUOTE_ASYNC_ARCHIVES_ENABLED` to `0` when the setting is absent.
 

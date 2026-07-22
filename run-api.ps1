@@ -2,6 +2,7 @@
 param(
     [string]$BackendPython = "",
     [string]$OccPython = "",
+    [string]$RuntimeTempRoot = "",
     [int]$ApiPort = 5000
 )
 
@@ -78,6 +79,15 @@ function Resolve-PythonPath {
 }
 
 Import-EnvFile -Path $EnvFile
+
+if (-not [string]::IsNullOrWhiteSpace($RuntimeTempRoot)) {
+    $RuntimeTempRoot = [IO.Path]::GetFullPath($RuntimeTempRoot)
+    if (-not (Test-Path -LiteralPath $RuntimeTempRoot -PathType Container)) {
+        throw "Precision Tools API runtime temp directory was not prepared"
+    }
+    $env:TEMP = $RuntimeTempRoot
+    $env:TMP = $RuntimeTempRoot
+}
 
 $commonPythonPaths = @(
     (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),

@@ -4,6 +4,7 @@ param(
     [string]$OccPython = "",
     [int]$Concurrency = 0,
     [string]$LogPath = "",
+    [string]$RuntimeTempRoot = "",
     [switch]$NoRestart
 )
 
@@ -95,6 +96,15 @@ function Resolve-PythonPath {
 }
 
 Import-EnvFile -Path $EnvFile
+
+if (-not [string]::IsNullOrWhiteSpace($RuntimeTempRoot)) {
+    $RuntimeTempRoot = [IO.Path]::GetFullPath($RuntimeTempRoot)
+    if (-not (Test-Path -LiteralPath $RuntimeTempRoot -PathType Container)) {
+        throw "Precision Tools worker runtime temp directory was not prepared"
+    }
+    $env:TEMP = $RuntimeTempRoot
+    $env:TMP = $RuntimeTempRoot
+}
 
 $commonPythonPaths = @(
     (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),

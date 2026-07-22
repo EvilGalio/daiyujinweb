@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -17,6 +18,16 @@ from models import (AdminUser, ExchangeRate, FreightRuleConfig, FreightSurcharge
 def seed() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     init_db()
+    initial_admin_password = os.environ.get(
+        "PRECISION_TOOLS_ADMIN_PASSWORD", ""
+    ).strip()
+    if not initial_admin_password:
+        if os.environ.get("PRECISION_TOOLS_ALLOW_INSECURE_DEV_SEED") == "1":
+            initial_admin_password = "change-me-before-production"
+        else:
+            raise RuntimeError(
+                "PRECISION_TOOLS_ADMIN_PASSWORD is required for database seeding"
+            )
 
     session = SessionLocal()
     try:
@@ -25,7 +36,7 @@ def seed() -> None:
             session.add(
                 AdminUser(
                     username="admin",
-                    password_hash=generate_password_hash("change-me-before-production"),
+                    password_hash=generate_password_hash(initial_admin_password),
                 )
             )
 
