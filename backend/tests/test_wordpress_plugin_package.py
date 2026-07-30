@@ -12,7 +12,33 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = ROOT / "daiyujin-tools"
 MAIN_PLUGIN = PLUGIN_ROOT / "daiyujin-tools.php"
+CANONICAL_API = "https://api.daiyujin.dpdns.org"
 CANONICAL_PORTAL = "https://portal.daiyujin.dpdns.org"
+EXPECTED_MFG_PACKAGE_FILES = {
+    "README.md",
+    "daiyujin-tools.php",
+    "assets/css/order-portal.css",
+    "assets/css/plugins.css",
+    "assets/css/themes/mfg.css",
+    "assets/js/api.js",
+    "assets/js/config.js",
+    "assets/js/freight.js",
+    "assets/js/material-standards.js",
+    "assets/js/material-weight-shapes.js",
+    "assets/js/material-weight.js",
+    "assets/js/order-portal.js",
+    "assets/js/quote-3d-viewer.js",
+    "assets/js/quote.js",
+    "assets/js/tolerance.js",
+    "templates/contact-router.php",
+    "templates/freight.php",
+    "templates/material-standards.php",
+    "templates/material-weight.php",
+    "templates/order-portal.php",
+    "templates/portal-entry.php",
+    "templates/quote.php",
+    "templates/tolerance.php",
+}
 
 
 def _run_build(project_root: Path, output: Path) -> subprocess.CompletedProcess:
@@ -57,23 +83,43 @@ def test_plugin_version_portal_and_company_contract() -> None:
     quote_js = (PLUGIN_ROOT / "assets/js/quote.js").read_text(encoding="utf-8")
     root_quote_js = (ROOT / "js/quote.js").read_text(encoding="utf-8")
 
-    assert _plugin_versions(php) == ("1.6.1", "1.6.1")
+    assert _plugin_versions(php) == ("1.6.2", "1.6.2")
+    assert CANONICAL_API in php
     assert CANONICAL_PORTAL in php
     assert CANONICAL_PORTAL in quote_js
     assert CANONICAL_PORTAL in root_quote_js
     assert "https://portal.mfg-solution.com" not in php
     assert "https://portal.mfg-solution.com" not in quote_js
-    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" in php
-    assert "dyj_tools_customer_company_code()" in php
+    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" not in php
+    assert "dyj_tools_customer_company_code" not in php
+    assert "DYJ_TOOLS_API_BASE" not in php
+    api_base = php.split(
+        "function dyj_tools_api_base",
+        1,
+    )[1].split("/* Theme detection */", 1)[0]
+    assert f"return '{CANONICAL_API}';" in api_base
+    assert "defined(" not in api_base
+    assert "'customerPortalUrl' =>" not in php
+    portal_route = php.split(
+        "function dyj_tools_portal_route",
+        1,
+    )[1].split("function dyj_tools_instant_quote_url", 1)[0]
+    assert "'brand'" not in portal_route
+    assert "company" not in portal_route
 
     handoff = quote_js.split(
         "async function continueToEngineeringReview",
         1,
     )[1].split("function bindPreviewTabs", 1)[0]
-    assert "site: currentSite()" in handoff
+    assert "site: currentSite()" not in handoff
+    assert "theme:" not in handoff
+    assert "brand" not in handoff
+    assert "company" not in handoff
     assert "return_url" not in handoff
+    assert "quote_reference: quoteReference" in handoff
     assert "destination.origin !== expected.origin" in handoff
     assert "localDestination" not in handoff
+    assert "CONFIG.customerPortalUrl" not in handoff
     assert "file_receipt: part.analysis.file_receipt" in quote_js
     assert "file_receipt: item.file_receipt" in quote_js
 
@@ -83,14 +129,21 @@ def test_plugin_readme_documents_primary_customer_entry() -> None:
 
     assert '[dyj_quote_tool theme="mfg"]' in readme
     assert '[dyj_portal_entry theme="mfg"]' in readme
-    assert "DYJ_TOOLS_CUSTOMER_PORTAL_URL" in readme
-    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" in readme
+    assert "DYJ_TOOLS_CUSTOMER_PORTAL_URL" not in readme
+    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" not in readme
+    assert "DYJ_TOOLS_API_BASE" not in readme
+    assert "no WordPress override" in readme
+    assert CANONICAL_API in readme
+    assert "NextGen company: `daiyujin`" in readme
+    assert "never sent in a browser query" in readme
+    assert ".\\Build-DyjToolsZip.ps1 -Theme mfg" in readme
+    assert "Do not zip the source folder manually" in readme
     assert CANONICAL_PORTAL in readme
-    assert "1.6.1" in readme
+    assert "1.6.2" in readme
 
 
 def test_build_script_produces_one_valid_plugin_root(tmp_path: Path) -> None:
-    output = tmp_path / "daiyujin-tools-1.6.1-mfg.zip"
+    output = tmp_path / "daiyujin-tools-1.6.2-mfg.zip"
     completed = _run_build(ROOT, output)
     assert completed.returncode == 0, completed.stderr
     assert output.is_file()
@@ -111,16 +164,17 @@ def test_build_script_produces_one_valid_plugin_root(tmp_path: Path) -> None:
         assert names
         assert all(name.startswith("daiyujin-tools/") for name in names)
         assert not any(forbidden.search(name) for name in names)
-        assert "daiyujin-tools/daiyujin-tools.php" in names
-        assert "daiyujin-tools/assets/js/quote.js" in names
-        assert "daiyujin-tools/templates/portal-entry.php" in names
-        assert "daiyujin-tools/assets/css/themes/mfg.css" in names
-        assert "daiyujin-tools/assets/css/themes/gcindus.css" not in names
+        packaged_files = {
+            name.removeprefix("daiyujin-tools/")
+            for name in names
+            if not name.endswith("/")
+        }
+        assert packaged_files == EXPECTED_MFG_PACKAGE_FILES
         packaged_php = archive.read(
             "daiyujin-tools/daiyujin-tools.php"
         ).decode("utf-8")
 
-    assert _plugin_versions(packaged_php) == ("1.6.1", "1.6.1")
+    assert _plugin_versions(packaged_php) == ("1.6.2", "1.6.2")
 
 
 @pytest.mark.parametrize(
@@ -155,3 +209,76 @@ def test_build_script_rejects_forbidden_artifacts(
     assert "Forbidden plugin source path" in (
         completed.stdout + completed.stderr
     )
+
+
+def test_build_script_rejects_unreviewed_neutral_name_file(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    shutil.copy2(ROOT / "Build-DyjToolsZip.ps1", project_root)
+    shutil.copytree(PLUGIN_ROOT, project_root / "daiyujin-tools")
+    unexpected = project_root / "daiyujin-tools" / "assets" / "config.php"
+    unexpected.write_text("<?php return array();\n", encoding="utf-8")
+    output = tmp_path / "unexpected.zip"
+
+    completed = _run_build(project_root, output)
+
+    assert completed.returncode != 0
+    assert not output.exists()
+    assert "Plugin source manifest has an unexpected file: assets/config.php" in (
+        completed.stdout + completed.stderr
+    )
+
+
+def test_build_script_rejects_credential_content_without_echoing_it(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    shutil.copy2(ROOT / "Build-DyjToolsZip.ps1", project_root)
+    shutil.copytree(PLUGIN_ROOT, project_root / "daiyujin-tools")
+    fake_secret = "test-only-" + "A" * 48
+    readme = project_root / "daiyujin-tools" / "README.md"
+    readme.write_text(
+        readme.read_text(encoding="utf-8")
+        + f"\nNEXTGEN_LEGACY_HANDOFF_SECRET='{fake_secret}'\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "credential.zip"
+
+    completed = _run_build(project_root, output)
+    combined_output = completed.stdout + completed.stderr
+
+    assert completed.returncode != 0
+    assert not output.exists()
+    assert "Plugin source contains credential-like content: README.md" in combined_output
+    assert fake_secret not in combined_output
+
+
+def test_build_script_binds_archive_validation_to_one_candidate_identity() -> None:
+    script = (ROOT / "Build-DyjToolsZip.ps1").read_text(encoding="utf-8")
+    compressed = script.index(
+        "Compress-Archive -Path $packageRoot -DestinationPath $candidateZip"
+    )
+    initial_hash = script.index(
+        "$candidateArchiveHash = Get-Sha256 -Path $candidateZip",
+        compressed,
+    )
+    opened = script.index(
+        "[IO.Compression.ZipFile]::OpenRead($candidateZip)",
+        initial_hash,
+    )
+    rehashed = script.index(
+        "$validatedCandidateHash = Get-Sha256 -Path $candidateZip",
+        opened,
+    )
+    moved = script.index(
+        "Move-Item -LiteralPath $candidateZip -Destination $outputZip",
+        rehashed,
+    )
+    published_hash = script.index(
+        "$hash = Get-Sha256 -Path $outputZip",
+        moved,
+    )
+
+    assert compressed < initial_hash < opened < rehashed < moved < published_hash
+    assert "$validatedCandidateHash -cne $candidateArchiveHash" in script

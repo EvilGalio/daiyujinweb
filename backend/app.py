@@ -5,12 +5,13 @@ import binascii
 import hashlib
 import hmac
 import ipaddress
-import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -60,6 +61,60 @@ from services.portal_auth import portal_bp
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = Path(__file__).resolve().parent
+PRODUCTION_ENVIRONMENT_FILE = Path(
+    r"C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot"
+    r"\precision-tools\production.env"
+)
+PRODUCTION_REQUIRED_ENV_KEYS = frozenset(
+    {
+        "ADMIN_SECRET_KEY",
+        "ALLOWED_ORIGINS",
+        "BACKEND_PYTHON",
+        "NEXTGEN_API_BASE_URL",
+        "NEXTGEN_COMPANY_CODE",
+        "NEXTGEN_CUSTOMER_PORTAL_URL",
+        "NEXTGEN_HANDOFF_STAGING_ROOT",
+        "NEXTGEN_LEGACY_HANDOFF_SECRET",
+        "OCC_PYTHON",
+        "QUOTE_ASYNC_ARCHIVES_ENABLED",
+        "QUOTE_CAD_CONCURRENCY",
+        "QUOTE_HANDOFF_SIGNING_SECRET",
+        "SECRET_KEY",
+    }
+)
+PROCESS_STARTED_AT_EPOCH = time.time()
+
+
+def _validate_production_environment() -> None:
+    if os.environ.get("PRECISION_TOOLS_PRODUCTION") != "1":
+        return
+    configured_file = os.environ.get("PRECISION_TOOLS_ENVIRONMENT_FILE", "")
+    if os.path.normcase(os.path.abspath(configured_file)) != os.path.normcase(
+        os.path.abspath(PRODUCTION_ENVIRONMENT_FILE)
+    ):
+        raise RuntimeError("Production API requires the protected environment file")
+    missing = sorted(
+        key for key in PRODUCTION_REQUIRED_ENV_KEYS if not os.environ.get(key)
+    )
+    if missing:
+        raise RuntimeError("Production API environment is incomplete")
+    fixed_values = {
+        "NEXTGEN_API_BASE_URL": "http://127.0.0.1:5400/api/v2",
+        "NEXTGEN_COMPANY_CODE": "daiyujin",
+        "NEXTGEN_CUSTOMER_PORTAL_URL": "https://portal.daiyujin.dpdns.org",
+        "NEXTGEN_HANDOFF_STAGING_ROOT": (
+            r"C:\daiyujin\daiyujinweb\backend\private\nextgen_handoff"
+        ),
+    }
+    if any(os.environ.get(key) != value for key, value in fixed_values.items()):
+        raise RuntimeError("Production API environment changes a fixed endpoint")
+    configured_python = Path(os.environ["BACKEND_PYTHON"]).resolve()
+    if configured_python != Path(sys.executable).resolve():
+        raise RuntimeError("Production API is not using the configured Python")
+
+
+_validate_production_environment()
+
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 THUMBNAIL_DIR = BACKEND_ROOT / "static" / "thumbnails"
 SUPPORTED_UPLOAD_EXTENSIONS = SUPPORTED_CAD_EXTENSIONS | SUPPORTED_ARCHIVE_EXTENSIONS
@@ -145,14 +200,6 @@ def _occ_python_path():
     configured = os.environ.get("OCC_PYTHON", "").strip()
     if configured:
         return Path(configured)
-    env_file = BACKEND_ROOT / ".env"
-    try:
-        if env_file.is_file():
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                if line.startswith("OCC_PYTHON="):
-                    return Path(line.split("=", 1)[1].strip())
-    except OSError:
-        pass
     return Path(r"D:\anaconda\envs\occ\python.exe")
 
 DEFAULT_OCC_PYTHON = _occ_python_path()
@@ -503,6 +550,9 @@ def create_app() -> Flask:
             ok=True,
             service="daiyujin-precision-tools",
             phase="phase-1a",
+            process_id=os.getpid(),
+            process_started_at_epoch=PROCESS_STARTED_AT_EPOCH,
+            production=os.environ.get("PRECISION_TOOLS_PRODUCTION") == "1",
             quote_worker={
                 "enabled": async_enabled,
                 **worker,
