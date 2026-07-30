@@ -903,6 +903,26 @@ function Assert-PrecisionToolsProductionEnvironmentValues {
             throw "Precision Tools production EnvironmentFile changes a fixed endpoint"
         }
     }
+    $fixedOptionalPaths = @{
+        QUOTE_JOBS_DB_PATH = "C:\daiyujin\daiyujinweb\backend\data\quote_jobs.db"
+        QUOTE_JOB_STORAGE_ROOT = "C:\daiyujin\daiyujinweb\backend\uploads\quote-jobs"
+    }
+    foreach ($entry in $fixedOptionalPaths.GetEnumerator()) {
+        if (-not $Values.ContainsKey($entry.Key)) {
+            continue
+        }
+        $configured = [string]$Values[$entry.Key]
+        if (
+            [string]::IsNullOrWhiteSpace($configured) -or
+            -not [IO.Path]::IsPathRooted($configured) -or
+            -not [IO.Path]::GetFullPath($configured).Equals(
+                [IO.Path]::GetFullPath([string]$entry.Value),
+                [StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw "Precision Tools production EnvironmentFile changes a fixed quote runtime path"
+        }
+    }
     if ([string]$Values["QUOTE_ASYNC_ARCHIVES_ENABLED"] -cnotin @("0", "1")) {
         throw "QUOTE_ASYNC_ARCHIVES_ENABLED must be 0 or 1"
     }

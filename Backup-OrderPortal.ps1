@@ -87,6 +87,8 @@ $ProtectedArchiveScript = Join-Path (
 ) "protected_backup_archive.py"
 $DataRoot = Join-Path $BackendRoot "data"
 $DbPath = Join-Path $DataRoot "daiyujin.db"
+$QuoteJobsDbPath = Join-Path $DataRoot "quote_jobs.db"
+$QuoteJobStorageRoot = Join-Path $BackendRoot "uploads\quote-jobs"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $ModeLower = $Mode.ToLowerInvariant()
 $ProtectedWorkRoot = [IO.Path]::GetFullPath($ProtectedWorkRoot)
@@ -496,6 +498,59 @@ function Resolve-PythonExe {
     Assert-NoReparseComponents -Path $expectedPython `
         -Label "Protected backup runtime Python"
     return $expectedPython
+}
+
+function Get-EnvironmentSetting {
+    param([Parameter(Mandatory = $true)][string]$Key)
+    $matches = @(
+        foreach ($line in Get-Content -LiteralPath $EnvironmentFile `
+            -Encoding UTF8) {
+            if (
+                $line -match (
+                    "^\s*" + [Regex]::Escape($Key) + "\s*=\s*(.*?)\s*$"
+                )
+            ) {
+                $Matches[1].Trim().Trim('"').Trim("'")
+            }
+        }
+    )
+    if ($matches.Count -gt 1) {
+        throw "Production environment contains a duplicate $Key setting"
+    }
+    if ($matches.Count -eq 0) {
+        return ""
+    }
+    return [string]$matches[0]
+}
+
+function Assert-QuoteRuntimeBackupCoverage {
+    foreach ($contract in @(
+        [pscustomobject]@{
+            Key = "QUOTE_JOBS_DB_PATH"
+            Expected = $QuoteJobsDbPath
+        },
+        [pscustomobject]@{
+            Key = "QUOTE_JOB_STORAGE_ROOT"
+            Expected = $QuoteJobStorageRoot
+        }
+    )) {
+        $configured = Get-EnvironmentSetting -Key $contract.Key
+        if ([string]::IsNullOrWhiteSpace($configured)) {
+            continue
+        }
+        if (
+            -not [IO.Path]::IsPathRooted($configured) -or
+            -not [IO.Path]::GetFullPath($configured).Equals(
+                [IO.Path]::GetFullPath([string]$contract.Expected),
+                [StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw (
+                "$($contract.Key) must use the fixed path covered by the " +
+                "protected encrypted backup"
+            )
+        }
+    }
 }
 
 function Assert-NoReparseSnapshotTree {
@@ -925,7 +980,14 @@ function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Name) {
     }
 }
 
-function Invoke-SqliteBackup([string]$SourceDb, [string]$OutputDb, [string]$MetaPath) {
+function Invoke-SqliteBackup {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDb,
+        [Parameter(Mandatory = $true)][string]$OutputDb,
+        [Parameter(Mandatory = $true)][string]$MetaPath,
+        [ValidateSet("portal", "quote_jobs")]
+        [string]$DatabaseKind = "portal"
+    )
     if (-not (Test-Path -LiteralPath $SourceDb)) {
         throw "SQLite database not found: $SourceDb"
     }
@@ -950,22 +1012,43 @@ import os
 import sqlite3
 from datetime import datetime
 
-TABLES = [
-    "portal_users",
-    "portal_orders",
-    "portal_order_updates",
-    "portal_order_media",
-    "portal_messages",
-    "portal_events",
-    "portal_audit_logs",
-    "portal_security_logs",
-]
+TABLES = {
+    "portal": [
+        "portal_users",
+        "portal_orders",
+        "portal_order_updates",
+        "portal_order_media",
+        "portal_messages",
+        "portal_events",
+        "portal_audit_logs",
+        "portal_security_logs",
+    ],
+    "quote_jobs": [
+        "quote_analysis_jobs",
+        "quote_analysis_parts",
+        "quote_worker_heartbeats",
+    ],
+}
+REQUIRED = {
+    "portal": [
+        "portal_users",
+        "portal_orders",
+        "portal_order_updates",
+        "portal_order_media",
+        "portal_messages",
+        "portal_events",
+    ],
+    "quote_jobs": TABLES["quote_jobs"],
+}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--source", required=True)
 parser.add_argument("--output", required=True)
 parser.add_argument("--meta", required=True)
+parser.add_argument("--kind", required=True, choices=sorted(TABLES))
 args = parser.parse_args()
+tables = TABLES[args.kind]
+required_tables = REQUIRED[args.kind]
 
 src = sqlite3.connect(args.source)
 dst = sqlite3.connect(args.output)
@@ -979,30 +1062,41 @@ con = sqlite3.connect(args.output)
 try:
     existing = {row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     counts = {}
-    for table in TABLES:
+    for table in tables:
         if table in existing:
             counts[table] = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         else:
             counts[table] = None
     integrity = con.execute("PRAGMA integrity_check").fetchone()[0]
+    missing = [table for table in required_tables if table not in existing]
 finally:
     con.close()
 
 meta = {
     "created_at": datetime.now().astimezone().isoformat(),
+    "database_kind": args.kind,
     "source_db": args.source,
     "output_db": args.output,
     "db_size_bytes": os.path.getsize(args.output),
     "sqlite_integrity_check": integrity,
+    "missing_tables": missing,
     "table_counts": counts,
 }
 with open(args.meta, "w", encoding="utf-8") as f:
     json.dump(meta, f, ensure_ascii=False, indent=2)
 if integrity != "ok":
     raise SystemExit(f"SQLite integrity_check failed: {integrity}")
+if missing:
+    raise SystemExit("Missing required SQLite tables: " + ", ".join(missing))
 '@
     Set-Content -LiteralPath $scriptPath -Value $code -Encoding UTF8
-    Invoke-Native -FilePath $py -Arguments @("-B", $scriptPath, "--source", $SourceDb, "--output", $OutputDb, "--meta", $MetaPath) -Name "SQLite backup"
+    Invoke-Native -FilePath $py -Arguments @(
+        "-B", $scriptPath,
+        "--source", $SourceDb,
+        "--output", $OutputDb,
+        "--meta", $MetaPath,
+        "--kind", $DatabaseKind
+    ) -Name "SQLite backup"
     Assert-NoReparseTree -Path $SourceDb `
         -Label "Production SQLite backup source"
     Assert-NoReparseTree -Path $OutputDb `
@@ -1075,17 +1169,34 @@ function Copy-IfExists([string]$Source, [string]$Destination) {
 }
 
 function New-SnapshotSqliteSource {
-    $snapshotDb = ConvertTo-ProjectSnapshotPath -LivePath $DbPath
+    param(
+        [Parameter(Mandatory = $true)][string]$LiveDbPath,
+        [Parameter(Mandatory = $true)][string]$DatabaseName,
+        [switch]$Required
+    )
+    $snapshotDb = ConvertTo-ProjectSnapshotPath -LivePath $LiveDbPath
     if (-not (Test-Path -LiteralPath $snapshotDb -PathType Leaf)) {
-        throw "Immutable VSS snapshot is missing the production SQLite database"
+        if ($Required) {
+            throw (
+                "Immutable VSS snapshot is missing the required production " +
+                "SQLite database: $DatabaseName"
+            )
+        }
+        Write-Log (
+            "Optional production SQLite database not found, skipping: " +
+            $DatabaseName
+        ) "WARN"
+        return $null
     }
     Assert-NoReparseSnapshotTree -Path $snapshotDb `
         -Label "Immutable VSS SQLite source"
-    $snapshotSourceRoot = Join-Path $RunRoot "sqlite-source"
+    $snapshotSourceRoot = Join-Path (
+        Join-Path $RunRoot "sqlite-source"
+    ) $DatabaseName
     Ensure-Directory $snapshotSourceRoot
-    $protectedDb = Join-Path $snapshotSourceRoot "daiyujin.db"
+    $protectedDb = Join-Path $snapshotSourceRoot $DatabaseName
     Copy-IfExists -Source $snapshotDb -Destination $protectedDb
-    foreach ($suffix in @("-wal", "-shm")) {
+    foreach ($suffix in @("-wal", "-shm", "-journal")) {
         $snapshotSidecar = "$snapshotDb$suffix"
         if (Test-Path -LiteralPath $snapshotSidecar -PathType Leaf) {
             Copy-IfExists -Source $snapshotSidecar `
@@ -1101,9 +1212,41 @@ function Add-RuntimePayload {
     Write-Log "Creating runtime payload"
     $dbOut = Join-Path $PayloadRoot "backend\data\daiyujin.db"
     $dbMeta = Join-Path $PayloadRoot "db-meta.json"
-    $snapshotDb = New-SnapshotSqliteSource
+    $snapshotDb = New-SnapshotSqliteSource `
+        -LiveDbPath $DbPath -DatabaseName "daiyujin.db" -Required
     Invoke-SqliteBackup -SourceDb $snapshotDb `
         -OutputDb $dbOut -MetaPath $dbMeta
+
+    $quoteJobsSnapshot = New-SnapshotSqliteSource `
+        -LiveDbPath $QuoteJobsDbPath -DatabaseName "quote_jobs.db"
+    $snapshotQuoteStorage = ConvertTo-ProjectSnapshotPath `
+        -LivePath $QuoteJobStorageRoot
+    $quoteStorageHasItems = $false
+    if (Test-Path -LiteralPath $snapshotQuoteStorage) {
+        Assert-NoReparseSnapshotTree -Path $snapshotQuoteStorage `
+            -Label "Immutable VSS quote-job storage"
+        if (-not (Test-Path -LiteralPath $snapshotQuoteStorage `
+            -PathType Container)) {
+            throw "Quote-job storage must be a directory"
+        }
+        $quoteStorageHasItems = @(
+            Get-ChildItem -LiteralPath $snapshotQuoteStorage -Force
+        ).Count -gt 0
+    }
+    if ($null -eq $quoteJobsSnapshot -and $quoteStorageHasItems) {
+        throw (
+            "Quote-job storage contains customer data but quote_jobs.db is " +
+            "missing; refusing an incomplete protected backup"
+        )
+    }
+    if ($null -ne $quoteJobsSnapshot) {
+        Invoke-SqliteBackup -SourceDb $quoteJobsSnapshot `
+            -OutputDb (
+                Join-Path $PayloadRoot "backend\data\quote_jobs.db"
+            ) `
+            -MetaPath (Join-Path $PayloadRoot "quote-jobs-db-meta.json") `
+            -DatabaseKind "quote_jobs"
+    }
 
     foreach ($mapping in @(
         @("backend\private\order_media", "backend\private\order_media"),
@@ -1131,6 +1274,12 @@ function New-Manifest([string]$PackageName, [hashtable]$PackageHashes) {
     if (Test-Path -LiteralPath $dbMetaPath) {
         $dbMeta = Get-Content -LiteralPath $dbMetaPath -Raw -Encoding UTF8 | ConvertFrom-Json
     }
+    $quoteJobsMetaPath = Join-Path $PayloadRoot "quote-jobs-db-meta.json"
+    $quoteJobsMeta = $null
+    if (Test-Path -LiteralPath $quoteJobsMetaPath) {
+        $quoteJobsMeta = Get-Content -LiteralPath $quoteJobsMetaPath `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
 
     $counts = @{}
     if ($dbMeta -and $dbMeta.table_counts) {
@@ -1148,6 +1297,23 @@ function New-Manifest([string]$PackageName, [hashtable]$PackageHashes) {
         db_path = "backend/data/daiyujin.db"
         db_size_bytes = if ($dbMeta) { [int64]$dbMeta.db_size_bytes } else { 0 }
         sqlite_integrity_check = if ($dbMeta) { $dbMeta.sqlite_integrity_check } else { $null }
+        quote_jobs_db_path = "backend/data/quote_jobs.db"
+        quote_jobs_db_included = [bool]($null -ne $quoteJobsMeta)
+        quote_jobs_db_size_bytes = if ($quoteJobsMeta) {
+            [int64]$quoteJobsMeta.db_size_bytes
+        }
+        else {
+            0
+        }
+        quote_jobs_sqlite_integrity_check = if ($quoteJobsMeta) {
+            $quoteJobsMeta.sqlite_integrity_check
+        }
+        else {
+            $null
+        }
+        quote_job_storage_file_count = Get-DirectoryFileCount (
+            Join-Path $PayloadRoot "backend\uploads\quote-jobs"
+        )
         portal_user_count = if ($counts.ContainsKey("portal_users")) { $counts["portal_users"] } else { $null }
         portal_order_count = if ($counts.ContainsKey("portal_orders")) { $counts["portal_orders"] } else { $null }
         portal_message_count = if ($counts.ContainsKey("portal_messages")) { $counts["portal_messages"] } else { $null }
@@ -1337,6 +1503,7 @@ try {
     if (-not (Test-Path -LiteralPath $EnvironmentFile -PathType Leaf)) {
         throw "Precision Tools external environment file was not found"
     }
+    Assert-QuoteRuntimeBackupCoverage
     Assert-NoReparseComponents -Path $ProjectRoot `
         -Label "Fixed production checkout"
 

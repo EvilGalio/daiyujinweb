@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PRODUCTION_ENV = (
     r"C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot"
@@ -179,6 +178,21 @@ def test_update_and_archive_wiring_preserve_protected_environment() -> None:
     assert "-Values $environmentUpdates" in archive
     production_write = archive.split("if ($Production) {", 2)[-1]
     assert "Set-PrecisionToolsEnvironmentValues" in production_write
+
+
+def test_production_quote_runtime_paths_are_fixed_for_backup_and_restore() -> None:
+    common = _read("PrecisionToolsEnvironment.Common.ps1")
+    backup = _read("Backup-OrderPortal.ps1")
+    restore = _read("Restore-OrderPortal.ps1")
+
+    quote_db = r"C:\daiyujin\daiyujinweb\backend\data\quote_jobs.db"
+    quote_storage = r"C:\daiyujin\daiyujinweb\backend\uploads\quote-jobs"
+    for path in (quote_db, quote_storage):
+        assert path in common
+    assert "changes a fixed quote runtime path" in common
+    assert "Assert-QuoteRuntimeBackupCoverage" in backup
+    assert "Assert-QuoteRuntimeRestoreTargets" in restore
+    assert "must match the fixed transactional restore" in restore
 
 
 def test_production_executables_are_explicit_and_acl_validated() -> None:

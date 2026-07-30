@@ -575,6 +575,59 @@ function Assert-ProtectedEnvironmentFileAcl([string]$Path) {
     }
 }
 
+function Get-EnvironmentSetting {
+    param([Parameter(Mandatory = $true)][string]$Key)
+    $matches = @(
+        foreach ($line in Get-Content -LiteralPath $EnvironmentFile `
+            -Encoding UTF8) {
+            if (
+                $line -match (
+                    "^\s*" + [Regex]::Escape($Key) + "\s*=\s*(.*?)\s*$"
+                )
+            ) {
+                $Matches[1].Trim().Trim('"').Trim("'")
+            }
+        }
+    )
+    if ($matches.Count -gt 1) {
+        throw "Production environment contains a duplicate $Key setting"
+    }
+    if ($matches.Count -eq 0) {
+        return ""
+    }
+    return [string]$matches[0]
+}
+
+function Assert-QuoteRuntimeRestoreTargets {
+    foreach ($contract in @(
+        [pscustomobject]@{
+            Key = "QUOTE_JOBS_DB_PATH"
+            Expected = $QuoteJobsDbPath
+        },
+        [pscustomobject]@{
+            Key = "QUOTE_JOB_STORAGE_ROOT"
+            Expected = (Join-Path $BackendRoot "uploads\quote-jobs")
+        }
+    )) {
+        $configured = Get-EnvironmentSetting -Key $contract.Key
+        if ([string]::IsNullOrWhiteSpace($configured)) {
+            continue
+        }
+        if (
+            -not [IO.Path]::IsPathRooted($configured) -or
+            -not [IO.Path]::GetFullPath($configured).Equals(
+                [IO.Path]::GetFullPath([string]$contract.Expected),
+                [StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            throw (
+                "$($contract.Key) must match the fixed transactional restore " +
+                "target"
+            )
+        }
+    }
+}
+
 function Assert-ProtectedSecretsCsvAcl(
     [string]$Path,
     [string]$OperatorSid
@@ -939,7 +992,13 @@ function Expand-ProtectedArchive(
         -Label "Extracted protected backup payload"
 }
 
-function Invoke-SqliteCheck([string]$DatabasePath, [string]$MetaPath) {
+function Invoke-SqliteCheck {
+    param(
+        [Parameter(Mandatory = $true)][string]$DatabasePath,
+        [Parameter(Mandatory = $true)][string]$MetaPath,
+        [ValidateSet("portal", "quote_jobs")]
+        [string]$DatabaseKind = "portal"
+    )
     if (-not (Test-Path -LiteralPath $DatabasePath -PathType Leaf)) {
         throw "Restored database not found: $DatabasePath"
     }
@@ -956,33 +1015,42 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-REQUIRED = [
-    "portal_users",
-    "portal_orders",
-    "portal_order_updates",
-    "portal_order_media",
-    "portal_messages",
-    "portal_events",
-]
+REQUIRED = {
+    "portal": [
+        "portal_users",
+        "portal_orders",
+        "portal_order_updates",
+        "portal_order_media",
+        "portal_messages",
+        "portal_events",
+    ],
+    "quote_jobs": [
+        "quote_analysis_jobs",
+        "quote_analysis_parts",
+        "quote_worker_heartbeats",
+    ],
+}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--db", required=True)
 parser.add_argument("--meta", required=True)
+parser.add_argument("--kind", required=True, choices=sorted(REQUIRED))
 args = parser.parse_args()
+required_tables = REQUIRED[args.kind]
 
 con = sqlite3.connect(Path(args.db).resolve().as_uri() + "?mode=ro", uri=True)
 try:
     existing = {row[0] for row in con.execute(
         "SELECT name FROM sqlite_master WHERE type='table'"
     )}
-    missing = [table for table in REQUIRED if table not in existing]
+    missing = [table for table in required_tables if table not in existing]
     integrity = con.execute("PRAGMA integrity_check").fetchone()[0]
     counts = {
         table: (
             None if table not in existing
             else con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         )
-        for table in REQUIRED
+        for table in required_tables
     }
 finally:
     con.close()
@@ -990,6 +1058,7 @@ finally:
 meta = {
     "checked_at": datetime.now().astimezone().isoformat(),
     "db": args.db,
+    "database_kind": args.kind,
     "db_size_bytes": os.path.getsize(args.db),
     "sqlite_integrity_check": integrity,
     "missing_tables": missing,
@@ -998,7 +1067,7 @@ meta = {
 with open(args.meta, "w", encoding="utf-8") as stream:
     json.dump(meta, stream, ensure_ascii=False, indent=2)
 if missing:
-    raise SystemExit("Missing required portal tables: " + ", ".join(missing))
+    raise SystemExit("Missing required SQLite tables: " + ", ".join(missing))
 if integrity != "ok":
     raise SystemExit("SQLite integrity_check failed: " + integrity)
 '@
@@ -1006,7 +1075,8 @@ if integrity != "ok":
     Invoke-Native -FilePath $py -Arguments @(
         "-I", "-B", $scriptPath,
         "--db", $DatabasePath,
-        "--meta", $MetaPath
+        "--meta", $MetaPath,
+        "--kind", $DatabaseKind
     ) -Name "SQLite restore check"
     Assert-NoReparseTree -Path $DatabasePath `
         -Label "SQLite restore-check source"
@@ -1106,6 +1176,19 @@ function New-PreRestoreBackup {
     Invoke-SqliteBackup -SourceDb $DbPath -OutputDb $preDb
     $preMeta = Join-Path $RestoreRoot "pre-restore-db-check.json"
     Invoke-SqliteCheck -DatabasePath $preDb -MetaPath $preMeta
+    $quoteJobsIncluded = Test-Path -LiteralPath $QuoteJobsDbPath `
+        -PathType Leaf
+    if ($quoteJobsIncluded) {
+        $preQuoteJobsDb = Join-Path $prePayload `
+            "backend\data\quote_jobs.db"
+        Invoke-SqliteBackup -SourceDb $QuoteJobsDbPath `
+            -OutputDb $preQuoteJobsDb
+        Invoke-SqliteCheck -DatabasePath $preQuoteJobsDb `
+            -MetaPath (
+                Join-Path $RestoreRoot "pre-restore-quote-jobs-db-check.json"
+            ) `
+            -DatabaseKind "quote_jobs"
+    }
     foreach ($copy in @(
         @("backend\private\order_media", "backend\private\order_media"),
         @("backend\private\nextgen_handoff", "backend\private\nextgen_handoff"),
@@ -1125,6 +1208,14 @@ function New-PreRestoreBackup {
         backup_root = $BackupRoot
         db_path = "backend/data/daiyujin.db"
         sqlite_integrity_check = "ok"
+        quote_jobs_db_path = "backend/data/quote_jobs.db"
+        quote_jobs_db_included = [bool]$quoteJobsIncluded
+        quote_jobs_sqlite_integrity_check = if ($quoteJobsIncluded) {
+            "ok"
+        }
+        else {
+            $null
+        }
         package = $packageName
         sha256 = @{}
     }) -Path (Join-Path $prePayload "manifest.json")
@@ -1140,6 +1231,14 @@ function New-PreRestoreBackup {
         backup_root = $BackupRoot
         db_path = "backend/data/daiyujin.db"
         sqlite_integrity_check = "ok"
+        quote_jobs_db_path = "backend/data/quote_jobs.db"
+        quote_jobs_db_included = [bool]$quoteJobsIncluded
+        quote_jobs_sqlite_integrity_check = if ($quoteJobsIncluded) {
+            "ok"
+        }
+        else {
+            $null
+        }
         package = $packageName
         sha256 = @{ $packageName = $hash }
     }) -Path (Join-Path $preDir "pre-restore-$Stamp.manifest.json")
@@ -1169,11 +1268,91 @@ function Assert-InternalBackupContract([string]$Root, [string]$ArchivePath) {
     ) {
         throw "Backup payload internal manifest contract is invalid"
     }
-    foreach ($suffix in @("-wal", "-shm")) {
-        if (Test-Path -LiteralPath (
-            Join-Path $Root "backend\data\daiyujin.db$suffix"
-        )) {
-            throw "Backup payload must not include live SQLite sidecar files"
+    $hasQuoteJobsFlag = (
+        $manifest.PSObject.Properties.Name -contains
+            "quote_jobs_db_included"
+    )
+    $quoteJobsIncluded = (
+        $hasQuoteJobsFlag -and
+        [bool]$manifest.quote_jobs_db_included
+    )
+    $quoteJobsPayload = Join-Path $Root "backend\data\quote_jobs.db"
+    $quoteJobStoragePayload = Join-Path $Root "backend\uploads\quote-jobs"
+    if ($quoteJobsIncluded) {
+        if (
+            [string]$manifest.quote_jobs_db_path -cne
+                "backend/data/quote_jobs.db" -or
+            [string]$manifest.quote_jobs_sqlite_integrity_check -cne "ok" -or
+            -not (Test-Path -LiteralPath $quoteJobsPayload -PathType Leaf)
+        ) {
+            throw "Backup payload quote-jobs database contract is invalid"
+        }
+    }
+    elseif (Test-Path -LiteralPath $quoteJobsPayload) {
+        throw "Backup payload contains an undeclared quote-jobs database"
+    }
+    if (-not $quoteJobsIncluded -and (
+        Test-Path -LiteralPath $quoteJobStoragePayload
+    )) {
+        Assert-NoReparseTree -Path $quoteJobStoragePayload `
+            -Label "Extracted quote-job storage"
+        if (@(
+            Get-ChildItem -LiteralPath $quoteJobStoragePayload -Force
+        ).Count -gt 0) {
+            throw (
+                "Backup payload contains quote-job storage without its " +
+                "quote_jobs.db"
+            )
+        }
+    }
+    foreach ($databaseName in @("daiyujin.db", "quote_jobs.db")) {
+        foreach ($suffix in @("-wal", "-shm", "-journal")) {
+            if (Test-Path -LiteralPath (
+                Join-Path $Root "backend\data\$databaseName$suffix"
+            )) {
+                throw "Backup payload must not include live SQLite sidecar files"
+            }
+        }
+    }
+    return $quoteJobsIncluded
+}
+
+function Assert-QuoteRuntimeRestoreCompatibility(
+    [bool]$QuoteJobsIncluded
+) {
+    if ($QuoteJobsIncluded) {
+        return
+    }
+    foreach ($path in @(
+        $QuoteJobsDbPath,
+        "$QuoteJobsDbPath-wal",
+        "$QuoteJobsDbPath-shm",
+        "$QuoteJobsDbPath-journal"
+    )) {
+        if (Test-Path -LiteralPath $path) {
+            Assert-NoReparseTree -Path $path `
+                -Label "Existing quote-jobs database state"
+            throw (
+                "Selected backup predates quote-jobs state but the target " +
+                "already has a quote-jobs database; refusing a mixed restore"
+            )
+        }
+    }
+    $liveQuoteStorage = Join-Path $BackendRoot "uploads\quote-jobs"
+    if (Test-Path -LiteralPath $liveQuoteStorage) {
+        Assert-NoReparseTree -Path $liveQuoteStorage `
+            -Label "Existing quote-job storage"
+        if (-not (Test-Path -LiteralPath $liveQuoteStorage `
+            -PathType Container)) {
+            throw "Existing quote-job storage path is not a directory"
+        }
+        if (@(
+            Get-ChildItem -LiteralPath $liveQuoteStorage -Force
+        ).Count -gt 0) {
+            throw (
+                "Selected backup predates quote-jobs state but the target " +
+                "already has quote-job storage; refusing a mixed restore"
+            )
         }
     }
 }
@@ -1297,9 +1476,11 @@ function Assert-ApprovedWritersStopped {
         $DbPath,
         "$DbPath-wal",
         "$DbPath-shm",
+        "$DbPath-journal",
         $QuoteJobsDbPath,
         "$QuoteJobsDbPath-wal",
-        "$QuoteJobsDbPath-shm"
+        "$QuoteJobsDbPath-shm",
+        "$QuoteJobsDbPath-journal"
     )) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             continue
@@ -1511,6 +1692,7 @@ function Remove-LiveTransactionPath([string]$Path) {
     $projectPrefix = $ProjectRoot.TrimEnd("\") + "\"
     $approvedCommittedTargets = @(
         $DbPath,
+        $QuoteJobsDbPath,
         (Join-Path $BackendRoot "private\order_media"),
         (Join-Path $BackendRoot "private\nextgen_handoff"),
         (Join-Path $BackendRoot "uploads"),
@@ -1559,25 +1741,36 @@ function Remove-LiveTransactionPath([string]$Path) {
     }
 }
 
-function Prepare-DatabaseRestore([string]$SourceDb) {
+function Prepare-DatabaseRestore {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDb,
+        [string]$TargetDb = $DbPath,
+        [ValidateSet("portal", "quote_jobs")]
+        [string]$DatabaseKind = "portal"
+    )
     if (-not (Test-Path -LiteralPath $SourceDb -PathType Leaf)) {
-        throw "Backup payload missing backend\data\daiyujin.db"
+        throw "Backup payload is missing a required SQLite database"
     }
     Assert-NoReparseTree -Path $SourceDb `
         -Label "Extracted database restore source"
-    $parent = Split-Path -Parent $DbPath
+    $target = [IO.Path]::GetFullPath($TargetDb)
+    if ($target -notin @($DbPath, $QuoteJobsDbPath)) {
+        throw "SQLite restore target is outside the approved database set"
+    }
+    $databaseName = Split-Path -Leaf $target
+    $parent = Split-Path -Parent $target
     Ensure-Directory $parent
-    Assert-NoReparseComponents -Path $DbPath `
+    Assert-NoReparseComponents -Path $target `
         -Label "Production database target"
-    if (Test-Path -LiteralPath $DbPath) {
-        Assert-NoReparseTree -Path $DbPath `
+    if (Test-Path -LiteralPath $target) {
+        Assert-NoReparseTree -Path $target `
             -Label "Production database target"
     }
     $stage = Join-Path $parent (
-        ".daiyujin.db.restore-$TransactionId.staging"
+        ".$databaseName.restore-$TransactionId.staging"
     )
     $rollback = Join-Path $parent (
-        ".daiyujin.db.restore-$TransactionId.rollback"
+        ".$databaseName.restore-$TransactionId.rollback"
     )
     foreach ($path in @($stage, $rollback)) {
         if (Test-Path -LiteralPath $path) {
@@ -1594,7 +1787,10 @@ function Prepare-DatabaseRestore([string]$SourceDb) {
             throw "Transactional database staging copy hash mismatch"
         }
         Invoke-SqliteCheck -DatabasePath $stage `
-            -MetaPath (Join-Path $RestoreRoot "staged-db-check.json")
+            -MetaPath (
+                Join-Path $RestoreRoot "staged-$databaseName-check.json"
+            ) `
+            -DatabaseKind $DatabaseKind
     }
     catch {
         $stagingError = $_
@@ -1604,10 +1800,10 @@ function Prepare-DatabaseRestore([string]$SourceDb) {
         throw $stagingError
     }
     $sidecars = @(
-        foreach ($suffix in @("-wal", "-shm")) {
+        foreach ($suffix in @("-wal", "-shm", "-journal")) {
             [pscustomobject]@{
-                Live = "$DbPath$suffix"
-                Rollback = "$DbPath$suffix.restore-$TransactionId.rollback"
+                Live = "$target$suffix"
+                Rollback = "$target$suffix.restore-$TransactionId.rollback"
                 OriginalMoved = $false
             }
         }
@@ -1615,11 +1811,13 @@ function Prepare-DatabaseRestore([string]$SourceDb) {
     return [pscustomobject]@{
         Source = $SourceDb
         Stage = $stage
-        Target = $DbPath
+        Target = $target
         Rollback = $rollback
-        OriginalExists = [bool](Test-Path -LiteralPath $DbPath)
+        OriginalExists = [bool](Test-Path -LiteralPath $target)
         Installed = $false
         Sidecars = $sidecars
+        DatabaseKind = $DatabaseKind
+        DatabaseName = $databaseName
     }
 }
 
@@ -1650,7 +1848,12 @@ function Commit-DatabaseRestore([object]$State) {
     }
     $State.Installed = $true
     Invoke-SqliteCheck -DatabasePath $State.Target `
-        -MetaPath (Join-Path $RestoreRoot "committed-db-check.json")
+        -MetaPath (
+            Join-Path $RestoreRoot (
+                "committed-$($State.DatabaseName)-check.json"
+            )
+        ) `
+        -DatabaseKind $State.DatabaseKind
     Write-Log "Transactionally restored database: $($State.Target)"
 }
 
@@ -1731,10 +1934,13 @@ function Rollback-DirectoryRestores([object[]]$States) {
 }
 
 function Remove-TransactionArtifacts(
-    [object]$DatabaseState,
+    [object[]]$DatabaseStates,
     [object[]]$DirectoryStates
 ) {
-    if ($null -ne $DatabaseState) {
+    foreach ($DatabaseState in @($DatabaseStates)) {
+        if ($null -eq $DatabaseState) {
+            continue
+        }
         foreach ($path in @(
             $DatabaseState.Stage,
             $DatabaseState.Rollback
@@ -1761,6 +1967,7 @@ function Remove-TransactionArtifacts(
 $reenableTaskNames = @()
 $writerTasksDisabled = $false
 $databaseState = $null
+$quoteJobsDatabaseState = $null
 $directoryStates = @()
 $transactionCommitted = $false
 $rollbackFailed = $false
@@ -1815,6 +2022,7 @@ try {
         throw "Precision Tools external environment file was not found"
     }
     Assert-ProtectedEnvironmentFileAcl -Path $EnvironmentFile
+    Assert-QuoteRuntimeRestoreTargets
     $operatorSid = (
         [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     )
@@ -1886,11 +2094,22 @@ try {
     $expectedHash = Get-RequiredArchiveHash -ArchivePath $BackupZip
     Expand-ProtectedArchive -ArchivePath $BackupZip `
         -OutputPath $ExtractRoot -ExpectedSha256 $expectedHash
-    Assert-InternalBackupContract -Root $ExtractRoot `
-        -ArchivePath $BackupZip
+    $restoreQuoteJobs = [bool](Assert-InternalBackupContract `
+        -Root $ExtractRoot -ArchivePath $BackupZip)
+    Assert-QuoteRuntimeRestoreCompatibility `
+        -QuoteJobsIncluded $restoreQuoteJobs
     $restoredDb = Join-Path $ExtractRoot "backend\data\daiyujin.db"
     Invoke-SqliteCheck -DatabasePath $restoredDb `
         -MetaPath (Join-Path $RestoreRoot "restore-check.json")
+    $restoredQuoteJobsDb = Join-Path $ExtractRoot `
+        "backend\data\quote_jobs.db"
+    if ($restoreQuoteJobs) {
+        Invoke-SqliteCheck -DatabasePath $restoredQuoteJobsDb `
+            -MetaPath (
+                Join-Path $RestoreRoot "restore-quote-jobs-check.json"
+            ) `
+            -DatabaseKind "quote_jobs"
+    }
 
     if ($DryRun) {
         Write-Log "Dry-run restore validation succeeded; production was unchanged."
@@ -1937,6 +2156,12 @@ try {
         Write-Log "Skipped local media/runtime folder restore."
     }
     $databaseState = Prepare-DatabaseRestore -SourceDb $restoredDb
+    if ($restoreQuoteJobs) {
+        $quoteJobsDatabaseState = Prepare-DatabaseRestore `
+            -SourceDb $restoredQuoteJobsDb `
+            -TargetDb $QuoteJobsDbPath `
+            -DatabaseKind "quote_jobs"
+    }
 
     Assert-ApprovedWritersStopped
     try {
@@ -1944,11 +2169,22 @@ try {
             Commit-DirectoryRestore -State $state
         }
         Commit-DatabaseRestore -State $databaseState
+        if ($null -ne $quoteJobsDatabaseState) {
+            Commit-DatabaseRestore -State $quoteJobsDatabaseState
+        }
         $transactionCommitted = $true
     }
     catch {
         $commitError = $_
         $rollbackErrors = [System.Collections.Generic.List[string]]::new()
+        if ($null -ne $quoteJobsDatabaseState) {
+            try {
+                Rollback-DatabaseRestore -State $quoteJobsDatabaseState
+            }
+            catch {
+                $rollbackErrors.Add($_.Exception.Message)
+            }
+        }
         if ($null -ne $databaseState) {
             try {
                 Rollback-DatabaseRestore -State $databaseState
@@ -1973,7 +2209,8 @@ try {
         throw $commitError
     }
 
-    Remove-TransactionArtifacts -DatabaseState $databaseState `
+    Remove-TransactionArtifacts `
+        -DatabaseStates @($databaseState, $quoteJobsDatabaseState) `
         -DirectoryStates $directoryStates
     Write-Log (
         "Runtime secrets were not restored. Re-materialize the protected " +
@@ -2025,9 +2262,17 @@ finally {
         }
     }
     if (-not $transactionCommitted -and -not $rollbackFailed) {
-        if ($null -ne $databaseState -or $directoryStates.Count -gt 0) {
+        if (
+            $null -ne $databaseState -or
+            $null -ne $quoteJobsDatabaseState -or
+            $directoryStates.Count -gt 0
+        ) {
             try {
-                Remove-TransactionArtifacts -DatabaseState $databaseState `
+                Remove-TransactionArtifacts `
+                    -DatabaseStates @(
+                        $databaseState,
+                        $quoteJobsDatabaseState
+                    ) `
                     -DirectoryStates $directoryStates
             }
             catch {
@@ -2037,7 +2282,10 @@ finally {
             }
         }
     }
-    if ($writerTasksDisabled) {
+    if ($writerTasksDisabled -and $rollbackFailed) {
+        Write-Warning "Rollback failed; scheduled tasks disabled by this restore remain disabled. Inspect and recover the transaction before manually re-enabling approved writers."
+    }
+    elseif ($writerTasksDisabled) {
         try {
             Restore-ApprovedWriterTasks -TaskNames $reenableTaskNames
             $writerTasksDisabled = $false

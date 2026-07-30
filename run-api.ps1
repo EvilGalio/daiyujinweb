@@ -400,7 +400,7 @@ if (-not $Development) {
 
 & $BackendPython -E -B -c "import flask, sqlalchemy, waitress"
 if ($LASTEXITCODE -ne 0) {
-    throw "BACKEND_PYTHON cannot import the API dependencies. Run Update-Company-PC.ps1 to install backend\requirements.txt."
+    throw "BACKEND_PYTHON cannot import the API dependencies. Run Update-Company-PC.ps1 to install backend\requirements.lock."
 }
 
 & $BackendPython -E -m waitress "--listen=127.0.0.1:$ApiPort" "--threads=16" "--channel-timeout=300" app:app

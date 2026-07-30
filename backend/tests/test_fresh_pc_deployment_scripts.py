@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -39,6 +38,13 @@ def test_empty_fresh_pc_seed_uses_generated_admin_password() -> None:
         in installer
     )
     assert "No existing database or upload will be deleted" in installer
+    assert "$runtimeDataRoots" in installer
+    assert '"private\\order_media"' in installer
+    assert '"private\\nextgen_handoff"' in installer
+    assert '"uploads"' in installer
+    assert '"static\\thumbnails"' in installer
+    assert '"static\\stl"' in installer
+    assert "$existingRuntimeItems.Count -gt 0" in installer
     assert "ReferenceDataRoot" in installer
     assert "materialize_reference_data.py" in installer
     assert "--reference-root" in installer
@@ -257,6 +263,7 @@ def test_protected_backup_tasks_do_not_put_secret_on_command_line() -> None:
     )
     assert 'contract = "daiyujin-public-pilot-precision-tools-backup-v1"' in backup
     assert "New-SnapshotSqliteSource" in backup
+    assert '@("-wal", "-shm", "-journal")' in backup
     assert (
         'Join-Path $PayloadRoot "backend\\data\\$(Split-Path -Leaf $sidecar)"'
         not in backup
@@ -281,6 +288,104 @@ def test_protected_backup_tasks_do_not_put_secret_on_command_line() -> None:
     )
 
 
+def test_company_updater_uses_installed_protected_backup_contract() -> None:
+    updater = _read("Update-Company-PC.ps1")
+    wrapper = _read("Invoke-PrecisionToolsProtectedBackup.ps1")
+    backup_call = updater.split(
+        "function Backup-OrderPortalBeforeUpdate",
+        1,
+    )[1].split(
+        "function Pull-FrameworkChanges",
+        1,
+    )[0]
+
+    protected_runtime = (
+        "C:\\ProgramData\\Daiyujin\\Companies\\daiyujin-public-pilot\\"
+        "precision-tools\\backup-runtime"
+    )
+    protected_output = (
+        "C:\\ProgramData\\Daiyujin\\Companies\\daiyujin-public-pilot\\"
+        "precision-tools\\backup-output\\order_portal"
+    )
+    protected_secrets = (
+        "C:\\ProgramData\\Daiyujin\\Operator\\"
+        "daiyujin-fresh-pc-secrets.csv"
+    )
+
+    assert protected_runtime in updater
+    assert protected_output in updater
+    assert protected_secrets in updater
+    assert "Invoke-PrecisionToolsProtectedBackup.ps1" in backup_call
+    assert 'Join-Path $ProjectRoot "Backup-OrderPortal.ps1"' not in backup_call
+    assert '"-File", $protectedBackupWrapper' in backup_call
+    assert '"-RuntimeBundleRoot", $ProtectedBackupRuntimeRoot' in backup_call
+    assert '"-EnvironmentFile", $EnvFile' in backup_call
+    assert '"-SecretsCsvPath", $ProtectedBackupSecretsCsv' in backup_call
+    assert '"-OperatorSid", $OperatorSid' in backup_call
+    assert "[Parameter(Mandatory = $true)]" in backup_call
+    assert '"-BackupRoot"' not in backup_call
+    assert "Backup-OrderPortalBeforeUpdate -OperatorSid $operatorSid" in updater
+
+    assert protected_runtime in wrapper
+    assert protected_output in wrapper
+    assert protected_secrets in wrapper
+    assert "-OperatorSid $OperatorSid -BackupRoot $backupOutput" in wrapper
+
+
+def test_quote_jobs_are_only_captured_inside_the_encrypted_backup() -> None:
+    updater = _read("Update-Company-PC.ps1")
+    backup = _read("Backup-OrderPortal.ps1")
+    restore = _read("Restore-OrderPortal.ps1")
+
+    assert "function Backup-QuoteJobsBeforeUpdate" not in updater
+    assert "local_backups\\quote_jobs" not in updater
+    assert "$QuoteBackupRoot" not in updater
+    assert '"job-storage"' not in updater
+    assert 'Join-Path $DataRoot "quote_jobs.db"' in backup
+    assert '-DatabaseName "quote_jobs.db"' in backup
+    assert 'Join-Path $PayloadRoot "backend\\data\\quote_jobs.db"' in backup
+    assert '"quote-jobs-db-meta.json"' in backup
+    assert 'quote_jobs_db_path = "backend/data/quote_jobs.db"' in backup
+    assert "quote_jobs_db_included" in backup
+    assert "quote_job_storage_file_count" in backup
+    assert "function Assert-QuoteRuntimeBackupCoverage" in backup
+    assert '"QUOTE_JOBS_DB_PATH"' in backup
+    assert '"QUOTE_JOB_STORAGE_ROOT"' in backup
+    assert "fixed path covered by the" in backup
+    assert '@("backend\\uploads", "backend\\uploads")' in backup
+    assert "Compress-ProtectedArchive -SourceFolder $PayloadRoot" in backup
+    assert "$null -eq $quoteJobsSnapshot -and $quoteStorageHasItems" in backup
+    assert "refusing an incomplete protected backup" in backup
+    assert '"quote_analysis_jobs"' in restore
+    assert '"quote_analysis_parts"' in restore
+    assert '"quote_worker_heartbeats"' in restore
+    assert '"backend\\data\\quote_jobs.db"' in restore
+    assert "-TargetDb $QuoteJobsDbPath" in restore
+    assert '-DatabaseKind "quote_jobs"' in restore
+    assert "$quoteJobsDatabaseState" in restore
+    assert "function Assert-QuoteRuntimeRestoreCompatibility" in restore
+    assert "refusing a mixed restore" in restore
+    assert "$writerTasksDisabled -and $rollbackFailed" in restore
+    assert "remain disabled" in restore
+    writer_probe = restore.split(
+        "function Assert-ApprovedWritersStopped",
+        1,
+    )[1].split(
+        "function Disable-ApprovedWriterTasks",
+        1,
+    )[0]
+    assert '"$DbPath-journal"' in writer_probe
+    assert '"$QuoteJobsDbPath-journal"' in writer_probe
+    database_prepare = restore.split(
+        "function Prepare-DatabaseRestore",
+        1,
+    )[1].split(
+        "function Commit-DatabaseRestore",
+        1,
+    )[0]
+    assert '@("-wal", "-shm", "-journal")' in database_prepare
+
+
 def test_exchange_rate_task_runs_as_local_service_without_interactive_logon() -> None:
     source = _read("Install-Exchange-Rate-Task.ps1")
 
@@ -296,6 +401,8 @@ def test_exchange_rate_task_runs_as_local_service_without_interactive_logon() ->
 
 def test_precision_tools_production_dependencies_are_locked() -> None:
     requirements = _read("backend/requirements.lock")
+    updater = _read("Update-Company-PC.ps1")
+    archive = _read("backend/scripts/enable_archive_uploads.ps1")
 
     package_lines = [
         line for line in requirements.splitlines() if line and not line.startswith("#")
@@ -304,6 +411,9 @@ def test_precision_tools_production_dependencies_are_locked() -> None:
     assert all("==" in line for line in package_lines)
     assert "Flask==3.1.3" in requirements
     assert "SQLAlchemy==2.0.51" in requirements
+    for installer in (updater, archive):
+        assert 'Join-Path $BackendRoot "requirements.lock"' in installer
+        assert 'Join-Path $BackendRoot "requirements.txt"' not in installer
 
 
 def test_customer_portal_defaults_to_server_selected_daiyujin_company() -> None:

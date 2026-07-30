@@ -13,6 +13,22 @@ Recommended explicit runtimes on this machine:
 
 The two variables may point to the same environment, but the runtime roles must remain separate. Do not start Waitress with `OCC_PYTHON` unless it also intentionally serves as `BACKEND_PYTHON` and has the complete backend requirements installed.
 
+For production, the paths are not selectable:
+
+- `BACKEND_PYTHON` is
+  `C:\daiyujin\daiyujinweb\.venv\Scripts\python.exe`.
+- `OCC_PYTHON` is
+  `C:\ProgramData\Daiyujin\Dependencies\occ\python.exe`.
+- Quote jobs use `backend\data\quote_jobs.db` and
+  `backend\uploads\quote-jobs`; production backup fails closed if either
+  optional environment override points elsewhere.
+- Backend packages are installed from exact `backend\requirements.lock`
+  versions.
+
+Historic Anaconda locations such as `D:\anaconda` are development-only. They
+are not accepted by the production initializer, updater, archive setup, API,
+or worker launchers.
+
 ## Daiyujin public-pilot bridge
 
 The production Precision Tools API uses a loopback-only, server-to-server
@@ -44,12 +60,14 @@ origins fail closed.
 
 ## Phase 1A Quote Workflow
 
-Run these from the project root with `D:\anaconda\python.exe`:
+For a development checkout, run these from the project root with its virtual
+environment:
 
 ```powershell
-& 'D:\anaconda\python.exe' backend\scripts\seed_data.py
-& 'D:\anaconda\python.exe' backend\scripts\test_phase1a.py
-& 'D:\anaconda\python.exe' backend\app.py
+$backendPython = Join-Path $PWD ".venv\Scripts\python.exe"
+& $backendPython backend\scripts\seed_data.py
+& $backendPython backend\scripts\test_phase1a.py
+& $backendPython backend\app.py
 ```
 
 The quote calculator stores uploaded STEP files under `backend\uploads`, renders thumbnails under `backend\static\thumbnails`, and records estimate snapshots in `inquiries`.
@@ -59,6 +77,17 @@ Archive uploads support ZIP, 7Z, and RAR. The quote API scans every directory le
 ## Asynchronous Archive Worker
 
 Production uses only `C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\production.env`. Run `backend\scripts\enable_archive_uploads.ps1` with `-Production -EnvironmentFile` to validate both Python runtimes and the RAR extractor, repair allowed extensions, and initialize `quote_jobs.db`; its updates preserve the protected ACL and atomically replace the external file. Repository-local `backend\.env` is available only through an explicit `-Development` launch.
+
+`Initialize-PrecisionToolsFreshPc.ps1` is an empty-environment initializer, not
+an upgrade or migration command. It is plan-only until the exact
+`INITIALIZE_PRECISION_TOOLS_EMPTY_DATA` confirmation is supplied, and it
+refuses an existing database, production environment file, or other runtime
+data. Use it only with the reviewed private reference-data package on a new
+deployment.
+
+For an existing or legacy deployment, use the reviewed update,
+protected-backup/restore, or one-time data migration workflow. Do not copy old
+runtime data into a checkout and then run the fresh initializer.
 
 Use these root launchers after setup:
 
@@ -72,7 +101,19 @@ Use these root launchers after setup:
 Fresh-PC initialization leaves `QUOTE_ASYNC_ARCHIVES_ENABLED=0`. Enable it
 only after the LocalService Quote Worker task and worker-health gate pass.
 
-`Update-Company-PC.ps1` performs these steps idempotently, pauses new asynchronous uploads, stops the API and worker for a consistent quote-job database plus storage snapshot, and keeps the latest seven backup packages by default. If a later pull changes the updater itself, the script relaunches the pulled version automatically. It defaults `QUOTE_ASYNC_ARCHIVES_ENABLED` to `0` when the setting is absent.
+`Update-Company-PC.ps1` updates an existing company-PC deployment. Before its
+pull, it invokes the installed
+`C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\backup-runtime\Invoke-PrecisionToolsProtectedBackup.ps1`,
+passes the mandatory interactive operator SID, and writes the unified backup
+only under the fixed protected ProgramData backup output. It never executes
+the repository copy of `Backup-OrderPortal.ps1` directly. The updater also
+pauses new asynchronous uploads and stops the API and worker before the
+protected backup. The encrypted unified package includes `quote_jobs.db` plus
+job storage; no plaintext quote database or customer upload is copied under
+the public checkout. If a later pull changes the updater itself, the script
+relaunches the pulled version automatically. It defaults
+`QUOTE_ASYNC_ARCHIVES_ENABLED` to `0` when the setting is absent. Production
+dependency installation consumes `backend\requirements.lock`.
 
 For the first migration from an older updater, pull once before using the new flag because the already-running PowerShell process cannot acquire parameters that did not exist when it started:
 
@@ -95,25 +136,29 @@ Route new archives back to the legacy upload behavior without deleting active jo
 
 ## Phase 1B Freight Workflow
 
-Run these from the project root with `D:\anaconda\python.exe`:
+For development, run these from the project root with the checkout virtual
+environment:
 
 ```powershell
-& 'D:\anaconda\python.exe' backend\scripts\init_db.py
-& 'D:\anaconda\python.exe' backend\scripts\seed_data.py
-& 'D:\anaconda\python.exe' backend\scripts\import_freight_rates.py
-& 'D:\anaconda\python.exe' backend\scripts\test_phase1b.py
-& 'D:\anaconda\python.exe' backend\app.py
+$backendPython = Join-Path $PWD ".venv\Scripts\python.exe"
+& $backendPython backend\scripts\init_db.py
+& $backendPython backend\scripts\seed_data.py
+& $backendPython backend\scripts\import_freight_rates.py
+& $backendPython backend\scripts\test_phase1b.py
+& $backendPython backend\app.py
 ```
 
 The freight calculator reads rates from SQLite at runtime. The Excel workbook is only used by the import script.
 
 ## Phase 1C Tolerance Workflow
 
-Run the tolerance smoke test from the project root with `D:\anaconda\python.exe`:
+Run the development tolerance smoke test from the project root with the
+checkout virtual environment:
 
 ```powershell
-& 'D:\anaconda\python.exe' backend\scripts\test_phase1c.py
-& 'D:\anaconda\python.exe' backend\app.py
+$backendPython = Join-Path $PWD ".venv\Scripts\python.exe"
+& $backendPython backend\scripts\test_phase1c.py
+& $backendPython backend\app.py
 ```
 
 The tolerance calculator is a public API service. It currently covers the MVP fit zones used by the site: `H`, `JS`, `f`, `g`, `h`, `k`, and `p`.
