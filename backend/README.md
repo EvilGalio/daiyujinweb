@@ -27,12 +27,15 @@ QUOTE_HANDOFF_SIGNING_SECRET=
 ALLOWED_ORIGINS=https://mfg-solution.com,https://www.mfg-solution.com,https://gcnov.com,https://www.gcnov.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org
 ```
 
-`NEXTGEN_COMPANY_CODE` is deployment configuration. It must not be derived
-from the WordPress `site` or theme value. The browser never receives the
-legacy handoff secret, and its `return_url`, company, or file-reference fields
-are not forwarded by the bridge. A CAD file reference is emitted only when its
-UUID resolves to an actual server-created STEP/IGES object under an approved
-upload root and the Quote carries the matching HMAC-signed upload receipt.
+The bridge accepts only the reviewed `daiyujin` company, loopback API
+endpoint, and `https://portal.daiyujin.dpdns.org` public Portal.
+The company is bound by server-side deployment configuration and the bridge
+credential; it is never derived from the WordPress `site` or theme and is not
+sent as browser- or query-controlled metadata. The browser never receives the
+legacy handoff secret, and its `site`, `return_url`, company, or file-reference
+fields are not forwarded by the bridge. A CAD file reference is emitted only
+when its UUID resolves to an actual server-created STEP/IGES object under an
+approved upload root and the Quote carries the matching HMAC-signed upload receipt.
 The receipt is a browser-visible capability, not the signing secret, and is
 bound to one file UUID. `run-api.ps1` preserves an existing explicit
 `ALLOWED_ORIGINS` list only when every entry is an exact HTTPS origin;
@@ -55,12 +58,12 @@ Archive uploads support ZIP, 7Z, and RAR. The quote API scans every directory le
 
 ## Asynchronous Archive Worker
 
-Run `backend\scripts\enable_archive_uploads.ps1` once to install the complete backend requirements, validate both Python runtimes and the RAR extractor, repair allowed extensions, and initialize `quote_jobs.db`. The script writes explicit runtime paths and safe defaults to `backend\.env`.
+Production uses only `C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\production.env`. Run `backend\scripts\enable_archive_uploads.ps1` with `-Production -EnvironmentFile` to validate both Python runtimes and the RAR extractor, repair allowed extensions, and initialize `quote_jobs.db`; its updates preserve the protected ACL and atomically replace the external file. Repository-local `backend\.env` is available only through an explicit `-Development` launch.
 
 Use these root launchers after setup:
 
-- `run-api.ps1` starts Waitress with `BACKEND_PYTHON`.
-- `run-quote-worker.ps1` supervises the worker coordinator and uses `OCC_PYTHON` only for killable CAD child processes.
+- `run-api.ps1 -EnvironmentFile <fixed-production.env>` starts Waitress with `BACKEND_PYTHON`.
+- `run-quote-worker.ps1 -EnvironmentFile <fixed-production.env>` supervises the worker coordinator and uses `OCC_PYTHON` only for killable CAD child processes.
 - `Install-Quote-Worker-Task.ps1` first prints a plan. Re-run with
   `-RunAtStartupAsLocalService -Confirmation INSTALL_QUOTE_WORKER_TASK` from
   an elevated shell to register the production task. Removal has its own

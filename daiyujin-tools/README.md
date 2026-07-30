@@ -4,9 +4,17 @@ Embeds the Daiyujin quoting and engineering-entry tools into WordPress.
 
 ## Installation
 
-1. Zip the `daiyujin-tools/` folder.
+1. From the repository root, build the reviewed MFG artifact:
+
+   ```powershell
+   .\Build-DyjToolsZip.ps1 -Theme mfg
+   ```
+
 2. WordPress Admin → Plugins → Add New → Upload Plugin.
-3. Upload `daiyujin-tools.zip` → Install Now → Activate.
+3. Upload the ZIP reported by the builder → Install Now → Activate.
+
+Do not zip the source folder manually. The builder enforces the reviewed file
+allowlist, scans for credential-like content, and verifies the final archive.
 
 ## Usage
 
@@ -34,24 +42,22 @@ Use a full-width page template for best results.
 
 ## API Configuration
 
-The plugin reads the API base URL from a PHP constant. To override the default:
+The public-pilot plugin has a fixed API and Customer Portal boundary. Only the
+presentation theme is configurable:
 
 ```php
 // wp-config.php
-define('DYJ_TOOLS_API_BASE', 'https://api.your-domain.com');
-define('DYJ_TOOLS_CUSTOMER_PORTAL_URL', 'https://portal.daiyujin.dpdns.org');
-define('DYJ_TOOLS_CUSTOMER_COMPANY_CODE', 'daiyujin');
 define('DYJ_TOOLS_THEME', 'mfg');
 ```
 
-Production defaults:
+Production contract:
 
-- API: `https://api.daiyujin.dpdns.org`
-- Customer Portal: `https://portal.daiyujin.dpdns.org`
-- NextGen company: `daiyujin`
+- API: `https://api.daiyujin.dpdns.org` (fixed; no WordPress override)
+- Customer Portal: `https://portal.daiyujin.dpdns.org` (fixed)
+- NextGen company: `daiyujin` (server-bound; never sent in a browser query)
 
 The WordPress theme/site value (`mfg`) is source presentation metadata. It
-must never be used as the target NextGen company code.
+must never be used as the target NextGen company code or handoff input.
 
 ## Backend Requirements
 
@@ -71,4 +77,4 @@ CORS must allow the WordPress site origin (`ALLOWED_ORIGINS`).
 
 ## Version
 
-1.6.1
+1.6.2

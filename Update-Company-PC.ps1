@@ -20,6 +20,7 @@ param(
     [string]$CondaEnvName = "occ",
     [string]$BackendPython = "",
     [string]$OccPython = "",
+    [string]$EnvironmentFile = "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\production.env",
     [string]$GitProxy = "",
     [int]$ApiPort = 5000,
     [int]$QuoteBackupRetentionCount = 7,
@@ -61,13 +62,20 @@ if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
+$environmentCommon = Join-Path $ProjectRoot `
+    "PrecisionToolsEnvironment.Common.ps1"
+if (-not (Test-Path -LiteralPath $environmentCommon -PathType Leaf)) {
+    throw "Precision Tools environment contract script was not found"
+}
+. $environmentCommon
+$EnvFile = Assert-PrecisionToolsProductionEnvironmentFile `
+    -Path $EnvironmentFile
 $BackendRoot = Join-Path $ProjectRoot "backend"
 $LogPath = Join-Path $ProjectRoot "company-update.log"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $OrderPortalBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "order_portal"
 $UpdatePatchBackupRoot = Join-Path $OrderPortalBackupRoot "update_patches"
 $QuoteBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "quote_jobs"
-$EnvFile = Join-Path $BackendRoot ".env"
 $WorkerPidFile = Join-Path $BackendRoot "data\quote-worker-host.pid"
 $WorkerTaskName = "Daiyujin Quote Worker"
 $ApiTaskName = "Daiyujin Precision Tools API"
@@ -207,7 +215,8 @@ function Get-ExpectedWorkerTaskArguments {
         "-BackendPython", (Quote-ScheduledTaskArgument $Script:BackendPython),
         "-OccPython", (Quote-ScheduledTaskArgument $Script:OccPython),
         "-LogPath", (Quote-ScheduledTaskArgument $runtimeLog),
-        "-RuntimeTempRoot", (Quote-ScheduledTaskArgument $runtimeTemp)
+        "-RuntimeTempRoot", (Quote-ScheduledTaskArgument $runtimeTemp),
+        "-EnvironmentFile", (Quote-ScheduledTaskArgument $EnvFile)
     ) -join " "
 }
 
@@ -238,6 +247,7 @@ function Get-ExpectedApiTaskArguments {
         "-BackendPython", (Quote-ScheduledTaskArgument $Script:BackendPython),
         "-OccPython", (Quote-ScheduledTaskArgument $Script:OccPython),
         "-RuntimeTempRoot", (Quote-ScheduledTaskArgument $runtimeTemp),
+        "-EnvironmentFile", (Quote-ScheduledTaskArgument $EnvFile),
         "-ApiPort", $ApiPort
     ) -join " "
 }
@@ -358,29 +368,6 @@ function Save-TrackedLocalChanges {
     Run-Native -FilePath "git" -Arguments @("stash", "push", "-m", "company tracked code changes before update $Stamp", "--", ".") -Name "git stash tracked code changes"
 }
 
-function Find-Conda {
-    $paths = @()
-    $cmd = Get-Command conda -ErrorAction SilentlyContinue
-    if ($cmd) { $paths += $cmd.Source }
-
-    $paths += @(
-        "$env:USERPROFILE\miniconda3\Scripts\conda.exe",
-        "$env:LOCALAPPDATA\miniconda3\Scripts\conda.exe",
-        "$env:ProgramData\miniconda3\Scripts\conda.exe",
-        "$env:USERPROFILE\anaconda3\Scripts\conda.exe",
-        "$env:LOCALAPPDATA\anaconda3\Scripts\conda.exe",
-        "$env:ProgramData\anaconda3\Scripts\conda.exe",
-        "D:\anaconda\Scripts\conda.exe"
-    )
-
-    foreach ($p in $paths | Select-Object -Unique) {
-        if ($p -and (Test-Path -LiteralPath $p)) {
-            return (Resolve-Path -LiteralPath $p).Path
-        }
-    }
-    return $null
-}
-
 function Get-EnvValue {
     param(
         [string]$Path,
@@ -482,37 +469,11 @@ function Disable-QuoteMaintenance {
     Write-Note "Resumed asynchronous quote job creation."
 }
 
-function Get-CondaEnvironmentPython {
-    $conda = Find-Conda
-    if (-not $conda) {
-        return ""
-    }
-    try {
-        $json = & $conda env list --json 2>$null
-        if ($LASTEXITCODE -ne 0 -or -not $json) {
-            return ""
-        }
-        $environments = @((($json -join [Environment]::NewLine) | ConvertFrom-Json).envs)
-        foreach ($environmentPath in $environments) {
-            if ((Split-Path -Leaf $environmentPath) -eq $CondaEnvName) {
-                $candidate = Join-Path $environmentPath "python.exe"
-                if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-                    return (Resolve-Path -LiteralPath $candidate).Path
-                }
-            }
-        }
-    }
-    catch {
-        Write-Warn "Could not inspect Conda environments: $($_.Exception.Message)"
-    }
-    return ""
-}
-
 function Resolve-PythonRuntime {
     param(
         [string]$RequestedPath,
         [string]$EnvironmentName,
-        [string[]]$FallbackPaths,
+        [string[]]$AllowedRoots,
         [string]$ProbeCode = "import sys"
     )
 
@@ -520,21 +481,19 @@ function Resolve-PythonRuntime {
     if ($RequestedPath) {
         $candidates += $RequestedPath
     }
-    $processValue = [Environment]::GetEnvironmentVariable($EnvironmentName, "Process")
-    if ($processValue) {
-        $candidates += $processValue
-    }
     $fileValue = Get-EnvValue -Path $EnvFile -Key $EnvironmentName
     if ($fileValue) {
         $candidates += $fileValue
     }
-    $candidates += $FallbackPaths
 
     foreach ($candidate in $candidates | Select-Object -Unique) {
         if (-not $candidate -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
             continue
         }
-        $resolved = (Resolve-Path -LiteralPath $candidate).Path
+        $resolved = Assert-PrecisionToolsTrustedExecutable `
+            -Path $candidate `
+            -AllowedRoots $AllowedRoots `
+            -Label "Precision Tools $EnvironmentName"
         & $resolved -B -c $ProbeCode 2>$null | Out-Null
         if ($LASTEXITCODE -eq 0) {
             return $resolved
@@ -546,28 +505,14 @@ function Resolve-PythonRuntime {
 function Resolve-PythonRuntimes {
     Write-Step "Resolving explicit Python runtimes"
 
-    $condaPython = Get-CondaEnvironmentPython
-    $commonPaths = @(
-        (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),
-        (Join-Path $BackendRoot ".venv\Scripts\python.exe"),
-        $condaPython,
-        (Join-Path $env:USERPROFILE "miniconda3\envs\$CondaEnvName\python.exe"),
-        (Join-Path $env:USERPROFILE "anaconda3\envs\$CondaEnvName\python.exe"),
-        (Join-Path $env:ProgramFiles "Python313\python.exe"),
-        (Join-Path $env:ProgramFiles "Python312\python.exe"),
-        (Join-Path $env:LOCALAPPDATA "Programs\Python\Python313\python.exe"),
-        "D:\anaconda\envs\$CondaEnvName\python.exe",
-        "D:\anaconda\python.exe"
-    )
-
     $Script:BackendPython = Resolve-PythonRuntime `
         -RequestedPath $BackendPython `
         -EnvironmentName "BACKEND_PYTHON" `
-        -FallbackPaths $commonPaths
+        -AllowedRoots @((Join-Path $ProjectRoot ".venv"))
     $Script:OccPython = Resolve-PythonRuntime `
         -RequestedPath $OccPython `
         -EnvironmentName "OCC_PYTHON" `
-        -FallbackPaths (@($Script:BackendPython) + $commonPaths) `
+        -AllowedRoots @("C:\ProgramData\Daiyujin\Dependencies") `
         -ProbeCode "from OCC.Core.BRep import BRep_Tool"
 
     Write-Note "BACKEND_PYTHON: $($Script:BackendPython)"
@@ -913,6 +858,8 @@ function Configure-ArchiveRuntime {
         "-File", $enableScript,
         "-BackendPythonExe", $Script:BackendPython,
         "-OccPythonExe", $Script:OccPython,
+        "-EnvironmentFile", $EnvFile,
+        "-Production",
         "-SkipDependencyInstall",
         "-SkipBackup"
     )
@@ -959,7 +906,8 @@ function Restart-QuoteWorker {
         "-ExecutionPolicy", "Bypass",
         "-File", $runWorker,
         "-BackendPython", $Script:BackendPython,
-        "-OccPython", $Script:OccPython
+        "-OccPython", $Script:OccPython,
+        "-EnvironmentFile", $EnvFile
     )
     $argumentLine = ($arguments | ForEach-Object { ConvertTo-CommandLineArgument $_ }) -join " "
 
@@ -1040,7 +988,9 @@ function Register-QuoteWorkerStartupTask {
             "-ProjectRoot", $ProjectRoot,
             "-BackendPython", $Script:BackendPython,
             "-OccPython", $Script:OccPython,
-            "-TaskName", $WorkerTaskName
+            "-TaskName", $WorkerTaskName,
+            "-EnvironmentFile", $EnvFile,
+            "-Confirmation", "INSTALL_QUOTE_WORKER_TASK"
     )
     $arguments += "-RunAtStartupAsLocalService"
     Run-Native `
@@ -1133,6 +1083,7 @@ function Restart-Api {
         "-File", $runApi,
         "-BackendPython", $Script:BackendPython,
         "-OccPython", $Script:OccPython,
+        "-EnvironmentFile", $EnvFile,
         "-ApiPort", [string]$ApiPort
     )
     $argumentLine = ($arguments | ForEach-Object { ConvertTo-CommandLineArgument $_ }) -join " "

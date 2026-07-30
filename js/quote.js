@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     CONFIG.theme = currentSite();
     function formalQuoteUrl() { return CONFIG.formalQuoteUrl || "https://mfg-solution.com/request-quote/"; }
     function formalQuoteLabel() { return CONFIG.formalQuoteLabel || "Request Formal Quote"; }
-    function customerPortalUrl() { return CONFIG.customerPortalUrl || "https://portal.daiyujin.dpdns.org"; }
+    function customerPortalUrl() { return "https://portal.daiyujin.dpdns.org"; }
     function engineerContactUrl() { return CONFIG.engineerContactUrl || formalQuoteUrl(); }
     function engineerContactLabel() { return CONFIG.engineerContactLabel || "Contact our engineers"; }
 
@@ -1858,7 +1858,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 body: JSON.stringify({
                     quote_reference: quoteReference,
-                    site: currentSite(),
                 }),
             });
             const destination = new URL(response.sign_up_url);

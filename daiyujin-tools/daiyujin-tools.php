@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.6.1
+ * Version: 1.6.2
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,16 +11,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.6.1');
+define('DYJ_TOOLS_VERSION', '1.6.2');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
-/* Configurable API base */
+/* Public-pilot API boundary */
 
 function dyj_tools_api_base() {
-    return defined('DYJ_TOOLS_API_BASE')
-        ? DYJ_TOOLS_API_BASE
-        : 'https://api.daiyujin.dpdns.org';
+    return 'https://api.daiyujin.dpdns.org';
 }
 
 /* Theme detection */
@@ -89,28 +87,13 @@ function dyj_tools_order_prefix($theme = null) {
     return isset($prefixes[$theme]) ? $prefixes[$theme] : $prefixes['default'];
 }
 
-function dyj_tools_customer_company_code() {
-    $company_code = defined('DYJ_TOOLS_CUSTOMER_COMPANY_CODE')
-        ? DYJ_TOOLS_CUSTOMER_COMPANY_CODE
-        : 'daiyujin';
-    $company_code = sanitize_key($company_code);
-    return preg_match('/^[a-z][a-z0-9-]{1,39}$/', $company_code)
-        ? $company_code
-        : 'daiyujin';
-}
-
 function dyj_tools_customer_portal_url($theme = null) {
-    $theme = dyj_tools_normalize_theme($theme);
-    $url = defined('DYJ_TOOLS_CUSTOMER_PORTAL_URL')
-        ? DYJ_TOOLS_CUSTOMER_PORTAL_URL
-        : 'https://portal.daiyujin.dpdns.org';
-    return apply_filters('dyj_tools_customer_portal_url', rtrim($url, '/'), $theme);
+    return 'https://portal.daiyujin.dpdns.org';
 }
 
 function dyj_tools_portal_route($path, $theme = null, $source = '') {
-    $theme = dyj_tools_normalize_theme($theme);
     $url = dyj_tools_customer_portal_url($theme) . '/' . ltrim($path, '/');
-    $args = array('brand' => dyj_tools_customer_company_code());
+    $args = array();
     if ($source) {
         $args['source'] = sanitize_key($source);
     }
@@ -171,7 +154,6 @@ function dyj_tools_enqueue_common($theme_override = null) {
             'site' => $theme,
             'orderPrefix' => dyj_tools_order_prefix($theme),
             'brandLabel' => dyj_tools_brand_label($theme),
-            'customerPortalUrl' => dyj_tools_customer_portal_url($theme),
             'formalQuoteUrl' => dyj_tools_formal_quote_url($theme),
             'formalQuoteLabel' => dyj_tools_formal_quote_label($theme),
             'engineerContactUrl' => dyj_tools_formal_quote_url($theme),

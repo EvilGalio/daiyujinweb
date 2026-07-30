@@ -56,7 +56,7 @@ def test_precision_tools_api_task_is_loopback_low_privilege_and_restartable() ->
     assert '-UserId "S-1-5-19"' in source
     assert "-RunLevel Limited" in source
     assert "GetOwnerSid" in source
-    assert 'listenerOwner.Sid -ne "S-1-5-19"' in source
+    assert '[string]$owner.Sid -ne "S-1-5-19"' in source
     assert "LocalService runtime ACL" in acl
     assert 'SecurityIdentifier]::new("S-1-5-19")' in acl
     assert 'Join-Path $backendRoot "private\\order_media"' in acl
@@ -99,10 +99,72 @@ def test_quote_worker_startup_uses_local_service_and_protected_runtime_logs() ->
     assert "requires -RunAtStartupAsLocalService" in installer
 
 
+def test_quote_worker_task_replacement_is_owned_and_race_safe() -> None:
+    installer = _read("Install-Quote-Worker-Task.ps1")
+
+    ownership = installer.split(
+        "function Test-OwnedQuoteWorkerTask",
+        1,
+    )[1].split(
+        "function Test-ExpectedWorkerHostProcess",
+        1,
+    )[0]
+    assert "$Task.Description" in ownership
+    assert "$Task.Principal.UserId" in ownership
+    assert "$actions[0].Execute -eq $powerShell" in ownership
+    assert "$actions[0].WorkingDirectory -eq $ProjectRoot" in ownership
+    assert "$actions[0].Arguments -eq $argumentLine" in ownership
+
+    removal = installer.split("if ($Remove) {", 1)[1].split(
+        'Write-Host "Precision Tools quote-worker scheduled-task plan"',
+        1,
+    )[0]
+    assert "Test-OwnedQuoteWorkerTask" in removal
+    assert "Wait-OwnedQuoteWorkerStopped" in removal
+    assert "Clear-StaleOwnedWorkerState -OwnedTaskVerified" in removal
+    assert "-like" not in removal
+
+    replacement = installer.split(
+        '$existing = Get-ScheduledTask -TaskName $TaskName -TaskPath "\\"',
+    )[-1]
+    assert "Test-OwnedQuoteWorkerTask" in replacement
+    assert "Wait-OwnedQuoteWorkerStopped" in replacement
+    assert "Clear-StaleOwnedWorkerState -OwnedTaskVerified" in replacement
+    assert "$startRequestedUtc = [DateTime]::UtcNow" in replacement
+    assert "$candidate.CreationDate" in replacement
+    assert "Test-ExpectedWorkerHostProcess" in replacement
+    assert '[string]$stableTask.State -ne "Running"' in replacement
+    assert "did not remain running" in replacement
+
+
+def test_fresh_pc_mutations_are_contained_and_reparse_checked() -> None:
+    initializer = _read("Initialize-PrecisionToolsFreshPc.ps1")
+    acl = _read("Set-PrecisionToolsRuntimeAcl.ps1")
+
+    assert "Assert-PrecisionToolsBootstrapSource" in initializer
+    assert "-CommonPath $environmentCommon" in initializer
+    assert "Assert-PrecisionToolsPathContained" in initializer
+    assert "-ContainmentRoot $backendRoot" in initializer
+    assert "Assert-PrecisionToolsNoReparsePoints -Path $ReferenceDataRoot" in initializer
+    cleanup = initializer.split("if (-not $initializationSucceeded)", 1)[1]
+    assert 'Label "Precision Tools cleanup data directory"' in cleanup
+    assert "Assert-PrecisionToolsNoReparsePoints -Path $envPath" in cleanup
+
+    runtime_acl_writer = acl.split("function Set-RuntimeDirectoryAcl", 1)[1].split(
+        "function Assert-ProtectedSecretsCsvAcl",
+        1,
+    )[0]
+    assert "Assert-PrecisionToolsTrustedMutationAncestors" in runtime_acl_writer
+    assert runtime_acl_writer.count("Assert-PrecisionToolsPathContained") >= 2
+    assert "New-Item -ItemType Directory -Path $resolved" in runtime_acl_writer
+    assert "Set-Acl -LiteralPath $resolved" in runtime_acl_writer
+
+
 def test_protected_backup_tasks_do_not_put_secret_on_command_line() -> None:
     wrapper = _read("Invoke-PrecisionToolsProtectedBackup.ps1")
     installer = _read("Install-PrecisionToolsBackupTasks.ps1")
     backup = _read("Backup-OrderPortal.ps1")
+    restore = _read("Restore-OrderPortal.ps1")
 
     assert '"PRECISION_TOOLS_BACKUP_PASSWORD"' in wrapper
     assert "EnvironmentVariableTarget]::Process" in wrapper
@@ -115,21 +177,121 @@ def test_protected_backup_tasks_do_not_put_secret_on_command_line() -> None:
     assert "MSFT_TaskWeeklyTrigger" in installer
     assert "Resolve-PrincipalSid" in installer
     assert '"S-1-5-18"' in installer
-    assert '"t", $ZipPath, "-p$password", "-y"' in backup
-    assert "7-Zip archive verification" in backup
+    assert "protected_backup_archive.py" in backup
+    assert "Protected archive verification" in backup
+    assert '"--archive", $ArchivePath' in backup
+    assert "-p$password" not in backup
+    assert "SevenZipPath" not in backup
+    assert "7z.exe" not in backup
+    assert "ProtectedWorkRoot" in backup
+    assert "fixed Precision Tools backup-work path" in backup
+    assert "ProtectedWorkRoot" in restore
+    assert "fixed Precision Tools restore-work path" in restore
+    assert 'Join-Path (Join-Path $ProjectRoot ".tmp")' not in backup
+    assert 'Join-Path (Join-Path $BackupRoot "restore_tests")' not in restore
+    external_environment = (
+        "C:\\ProgramData\\Daiyujin\\Companies\\daiyujin-public-pilot\\"
+        "precision-tools\\production.env"
+    )
+    assert external_environment in backup
+    assert external_environment in restore
+    assert external_environment in wrapper
+    assert external_environment in installer
+    assert "backend\\.env" not in backup
+    assert "backend\\.env" not in restore
+    assert "Environment restore is disabled" in restore
+
+    protected_runtime = (
+        "C:\\ProgramData\\Daiyujin\\Companies\\daiyujin-public-pilot\\"
+        "precision-tools\\backup-runtime"
+    )
+    assert protected_runtime in installer
+    assert protected_runtime in wrapper
+    assert "bundle-manifest.json" in installer
+    assert "bundle-manifest.json" in wrapper
+    assert "Get-FileHash" in installer
+    assert "Get-FileHash" in wrapper
+    assert "Assert-ProtectedRuntimeBundle" in wrapper
+    assert "Assert-ExactProtectedFileAcl" in installer
+    assert "Assert-ProtectedSecretsCsv" in wrapper
+    assert "-WorkingDirectory $runtime" in installer
+    assert "-File\", (Quote-Argument $installedWrapper)" in installer
+    assert "-BackendPython" not in installer
+    assert "python-base" in installer
+    assert "Get-TreeItemsWithoutReparse" in installer
+
+    assert "Assert-NoReparseTree -Path $Source" in backup
+    assert "exact protected backup runtime interpreter" in backup
+    assert "Select-String" not in backup
+    assert "anaconda" not in backup.lower()
+    assert "miniconda" not in backup.lower()
+    assert "New-ImmutableProjectVolumeSnapshot" in backup
+    assert "Win32_ShadowCopy" in backup
+    assert "Daiyujin.BackupDosDevice" in backup
+    assert "DefineDosDevice" in backup
+    assert "Assert-NoReparseSnapshotTree" in backup
+    assert "Remove-ImmutableProjectVolumeSnapshot" in backup
+    assert "Protected backup cleanup failed" in backup
+    assert "Initialize-ProtectedBackupOutput" in backup
+    assert "grants untrusted mutation rights" in backup
+    protected_output = (
+        "C:\\ProgramData\\Daiyujin\\Companies\\daiyujin-public-pilot\\"
+        "precision-tools\\backup-output\\order_portal"
+    )
+    assert protected_output in backup
+    assert "fixed protected ProgramData output" in restore
+    assert (
+        "Restore archive must remain inside the protected backup output root"
+        in restore
+    )
+    assert "local_backups" not in backup
+    assert "Get-LegacyCandidates" not in backup
+    assert "Privileged legacy cleanup is disabled" in backup
+    assert "-OperatorSid $OperatorSid" in wrapper
+    assert "backend\\private\\nextgen_handoff" in backup
+    assert "backend\\private\\nextgen_handoff" in restore
+    assert "Remove-ProtectedBackupWorkTree" in backup
+    assert (
+        "Remove-Item -LiteralPath $RunRoot -Recurse -Force"
+        not in backup
+    )
+    assert 'contract = "daiyujin-public-pilot-precision-tools-backup-v1"' in backup
+    assert "New-SnapshotSqliteSource" in backup
+    assert (
+        'Join-Path $PayloadRoot "backend\\data\\$(Split-Path -Leaf $sidecar)"'
+        not in backup
+    )
+
+    assert "--expected-sha256" in restore
+    assert "Assert-InternalBackupContract" in restore
+    assert '"pre_restore"' in restore
+    assert "Assert-ApprovedWritersStopped" in restore
+    assert "Assert-ApprovedWriterTaskDefinition" in restore
+    assert "An unowned task uses an approved SQLite writer task name" in restore
+    assert "Disable-ApprovedWriterTasks" in restore
+    assert "Get-CimInstance -ClassName Win32_Process" in restore
+    assert "[IO.FileShare]::None" in restore
+    assert "[IO.File]::Replace" in restore
+    assert "Rollback-DatabaseRestore" in restore
+    assert "Rollback-DirectoryRestores" in restore
+    assert "Remove-ProtectedRestoreWorkTree" in restore
+    assert (
+        "Remove-Item -LiteralPath $RestoreRoot -Recurse -Force"
+        not in restore
+    )
 
 
-def test_exchange_rate_task_can_run_without_interactive_logon() -> None:
+def test_exchange_rate_task_runs_as_local_service_without_interactive_logon() -> None:
     source = _read("Install-Exchange-Rate-Task.ps1")
 
-    assert "[switch]$RunAsSystem" in source
-    assert '-UserId "SYSTEM"' in source
+    assert "[switch]$RunAsLocalService" in source
+    assert '-UserId "S-1-5-19"' in source
     assert "ServiceAccount" in source
     assert "An unowned scheduled task" in source
     assert "Exchange-rate scheduled task verification failed" in source
     assert "INSTALL_EXCHANGE_RATE_TASK" in source
     assert 'if ($Confirmation -cne "INSTALL_EXCHANGE_RATE_TASK")' in source
-    assert "requires -RunAsSystem" in source
+    assert "requires -RunAsLocalService" in source
 
 
 def test_precision_tools_production_dependencies_are_locked() -> None:
@@ -156,10 +318,9 @@ def test_customer_portal_defaults_to_server_selected_daiyujin_company() -> None:
     assert expected_portal in plugin
     assert expected_portal in quote_js
     assert expected_portal in packaged_quote_js
-    assert "dyj_tools_customer_company_code" in portal_route
-    assert "'brand'" in portal_route
-    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" in plugin
-    assert ": 'daiyujin'" in plugin
+    assert "dyj_tools_customer_company_code" not in portal_route
+    assert "'brand'" not in portal_route
+    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" not in plugin
     assert '"file_receipt": payload.get("file_receipt")' in pricing
 
 
