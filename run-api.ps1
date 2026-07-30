@@ -122,7 +122,58 @@ if ([string]::IsNullOrWhiteSpace($env:QUOTE_ASYNC_ARCHIVES_ENABLED)) {
 if ([string]::IsNullOrWhiteSpace($env:QUOTE_CAD_CONCURRENCY)) {
     $env:QUOTE_CAD_CONCURRENCY = "2"
 }
-$env:ALLOWED_ORIGINS = "https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500"
+$defaultAllowedOrigins = @(
+    "https://mfg-solution.com",
+    "https://www.mfg-solution.com",
+    "https://gcnov.com",
+    "https://www.gcnov.com",
+    "https://gcindus.com",
+    "https://www.gcindus.com",
+    "https://daiyujin.dpdns.org"
+)
+if ([string]::IsNullOrWhiteSpace($env:ALLOWED_ORIGINS)) {
+    $env:ALLOWED_ORIGINS = $defaultAllowedOrigins -join ","
+}
+$validatedAllowedOrigins = @()
+foreach ($configuredOrigin in $env:ALLOWED_ORIGINS.Split(",")) {
+    $origin = $configuredOrigin.Trim()
+    $parsedOrigin = $null
+    if (
+        [string]::IsNullOrWhiteSpace($origin) -or
+        $origin.Contains("*") -or
+        $origin -match "\s" -or
+        -not [Uri]::TryCreate(
+            $origin,
+            [UriKind]::Absolute,
+            [ref]$parsedOrigin
+        ) -or
+        $parsedOrigin.Scheme -cne "https" -or
+        [string]::IsNullOrWhiteSpace($parsedOrigin.Host) -or
+        $parsedOrigin.IsLoopback -or
+        $parsedOrigin.IdnHost -notmatch (
+            "^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$"
+        ) -or
+        $parsedOrigin.IdnHost.Contains("..") -or
+        $parsedOrigin.UserInfo -or
+        $parsedOrigin.AbsolutePath -ne "/" -or
+        $parsedOrigin.Query -or
+        $parsedOrigin.Fragment -or
+        $origin -cnotin @(
+            $parsedOrigin.GetLeftPart([UriPartial]::Authority),
+            $parsedOrigin.GetLeftPart([UriPartial]::Authority) + "/"
+        )
+    ) {
+        throw "ALLOWED_ORIGINS must contain only explicit HTTPS origins"
+    }
+    $validatedAllowedOrigins += $parsedOrigin.GetLeftPart(
+        [UriPartial]::Authority
+    )
+}
+$validatedAllowedOrigins = @($validatedAllowedOrigins | Select-Object -Unique)
+if ($validatedAllowedOrigins.Count -eq 0) {
+    throw "ALLOWED_ORIGINS must contain at least one HTTPS origin"
+}
+$env:ALLOWED_ORIGINS = $validatedAllowedOrigins -join ","
 
 Set-Location -LiteralPath $BackendRoot
 

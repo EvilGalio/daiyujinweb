@@ -134,6 +134,7 @@ def _record_inquiry(
                 {
                     "model_version": result.get("pricing_model_version", "v2.2_estimate"),
                     "file_id": payload.get("file_id"),
+                    "file_receipt": payload.get("file_receipt"),
                     "stp_filename": payload.get("stp_filename"),
                     "site": payload.get("site") or payload.get("theme"),
                     "batch": {

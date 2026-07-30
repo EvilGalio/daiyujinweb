@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import threading
-import time
 import zipfile
 from pathlib import Path
 
@@ -52,6 +51,7 @@ def test_worker_extracts_nested_archive_and_runs_two_parts_concurrently(monkeypa
     store.activate_job(job_id, token)
 
     lock = threading.Lock()
+    both_started = threading.Event()
     active = 0
     maximum_active = 0
 
@@ -60,9 +60,13 @@ def test_worker_extracts_nested_archive_and_runs_two_parts_concurrently(monkeypa
         with lock:
             active += 1
             maximum_active = max(maximum_active, active)
-        time.sleep(0.08)
-        with lock:
-            active -= 1
+            if active == 2:
+                both_started.set()
+        try:
+            assert both_started.wait(timeout=2)
+        finally:
+            with lock:
+                active -= 1
         return {
             "success": True,
             "data": {

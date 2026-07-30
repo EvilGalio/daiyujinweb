@@ -24,6 +24,7 @@ def async_api(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("QUOTE_ASYNC_ARCHIVES_ENABLED", "1")
     monkeypatch.setenv("QUOTE_REQUIRE_WORKER_HEALTH", "1")
     monkeypatch.setenv("QUOTE_JOB_MIN_FREE_BYTES", "0")
+    monkeypatch.setenv("QUOTE_HANDOFF_SIGNING_SECRET", "q" * 32)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'main.db'}")
 
     import app as app_module
@@ -170,7 +171,7 @@ def test_worker_inventory_and_part_result_are_visible_incrementally(async_api, t
                 "position": position,
                 "source_filename": name,
                 "source_format": "STEP",
-                "file_id": f"file-{position}",
+                "file_id": str(uuid.uuid4()),
                 "stored_path": path,
                 "size": 4,
             }
@@ -193,6 +194,11 @@ def test_worker_inventory_and_part_result_are_visible_incrementally(async_api, t
     assert payload["job"]["counts"]["queued"] == 1
     assert payload["parts"][0]["status"] == "ready"
     assert payload["parts"][0]["analysis"]["volume_mm3"] == 12.5
+    from services.nextgen_handoff import verify_file_receipt
+
+    assert verify_file_receipt(payload["parts"][0]["file_receipt"]) == (
+        payload["parts"][0]["file_id"]
+    )
 
 
 def test_invalid_signature_and_unhealthy_worker_are_rejected(async_api, monkeypatch) -> None:
@@ -445,6 +451,50 @@ def test_cors_exposes_polling_headers(async_api) -> None:
     exposed = response.headers.get("Access-Control-Expose-Headers", "").lower()
     assert "etag" in exposed
     assert "retry-after" in exposed
+
+
+def test_cors_rejects_unlisted_and_unsafe_origins(
+    async_api,
+    monkeypatch,
+) -> None:
+    app_module, store, client = async_api
+    response = client.options(
+        "/api/public/quote/handoff",
+        headers={
+            "Origin": "https://attacker.example",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Access-Control-Allow-Origin" not in response.headers
+
+    for unsafe_origin in (
+        "*",
+        "https://*.mfg-solution.com",
+        "https://mfg-solution$.com",
+        "http://127.0.0.1:5500",
+        "https://127.0.0.2",
+        "https://localhost",
+        "https://mfg-solution.com//",
+        "https://mfg-solution.com/path",
+        "https://mfg-solution.com?redirect=https://attacker.example",
+        "https://user@mfg-solution.com",
+        "https://mfg-solution.com:invalid",
+    ):
+        monkeypatch.setenv("ALLOWED_ORIGINS", unsafe_origin)
+        with pytest.raises(RuntimeError, match="explicit HTTPS origins"):
+            app_module._cors_origins()
+
+    monkeypatch.setenv(
+        "ALLOWED_ORIGINS",
+        "https://mfg-solution.com/,https://www.mfg-solution.com",
+    )
+    assert app_module._cors_origins() == [
+        "https://mfg-solution.com",
+        "https://www.mfg-solution.com",
+    ]
 
 
 def test_quote_options_exposes_async_archive_capability(async_api, monkeypatch, tmp_path: Path) -> None:
