@@ -167,7 +167,7 @@ else {
 }
 $RepairScript = Join-Path $PSScriptRoot "repair_allowed_extensions.py"
 $WorkerScript = Join-Path $PSScriptRoot "run_quote_worker.py"
-$Requirements = Join-Path $BackendRoot "requirements.txt"
+$Requirements = Join-Path $BackendRoot "requirements.lock"
 if ($Production) {
     foreach ($sourcePath in @($RepairScript, $WorkerScript, $Requirements)) {
         [void](Assert-PrecisionToolsTrustedSourceFile `

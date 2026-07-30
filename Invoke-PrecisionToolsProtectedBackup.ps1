@@ -342,10 +342,7 @@ Assert-ProtectedEnvironmentFile -Path $environment
 
 $runtimePython = Join-Path $runtime ".venv\Scripts\python.exe"
 $backupScript = Join-Path $runtime "Backup-OrderPortal.ps1"
-$backupOutput = (
-    "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\" +
-    "precision-tools\backup-output\order_portal"
-)
+$backupOutput = "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\backup-output\order_portal"
 foreach ($path in @($runtimePython, $backupScript)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Protected backup runtime input was not found: $path"

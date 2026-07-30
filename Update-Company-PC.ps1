@@ -4,12 +4,14 @@ Pull framework/code changes on the company PC while preserving local data.
 Usage:
   .\Update-Company-PC.ps1
 
-Before pulling code, this script creates one unified Order Portal backup via
-Backup-OrderPortal.ps1. Backup packages live under:
-  local_backups/order_portal
+Before pulling code, this script invokes the installed, hash-verified backup
+wrapper from the fixed protected ProgramData runtime. Unified backup packages
+live under:
+  C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\
+    backup-output\order_portal
 
-The async quote job database and its referenced job storage are packaged under:
-  local_backups/quote_jobs
+Temporary update-patch snapshots remain under:
+  local_backups/order_portal/update_patches
 #>
 
 [CmdletBinding()]
@@ -23,7 +25,6 @@ param(
     [string]$EnvironmentFile = "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\production.env",
     [string]$GitProxy = "",
     [int]$ApiPort = 5000,
-    [int]$QuoteBackupRetentionCount = 7,
     [switch]$SkipDependencyInstall,
     [switch]$SkipDatabaseBackup,
     [switch]$SkipInitDb,
@@ -55,9 +56,6 @@ $Script:InitialSelfHash = (Get-FileHash -LiteralPath $Script:UpdateScriptPath -A
 if ($EnableAsyncArchives -and $DisableAsyncArchives) {
     throw "EnableAsyncArchives and DisableAsyncArchives cannot be used together."
 }
-if ($QuoteBackupRetentionCount -lt 1) {
-    throw "QuoteBackupRetentionCount must be at least 1."
-}
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
@@ -75,11 +73,13 @@ $LogPath = Join-Path $ProjectRoot "company-update.log"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $OrderPortalBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "order_portal"
 $UpdatePatchBackupRoot = Join-Path $OrderPortalBackupRoot "update_patches"
-$QuoteBackupRoot = Join-Path (Join-Path $ProjectRoot "local_backups") "quote_jobs"
 $WorkerPidFile = Join-Path $BackendRoot "data\quote-worker-host.pid"
 $WorkerTaskName = "Daiyujin Quote Worker"
 $ApiTaskName = "Daiyujin Precision Tools API"
 $PrecisionRuntimeRoot = "C:\ProgramData\Daiyujin\PrecisionTools\runtime"
+$ProtectedBackupRuntimeRoot = "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\backup-runtime"
+$ProtectedBackupOutputRoot = "C:\ProgramData\Daiyujin\Companies\daiyujin-public-pilot\precision-tools\backup-output\order_portal"
+$ProtectedBackupSecretsCsv = "C:\ProgramData\Daiyujin\Operator\daiyujin-fresh-pc-secrets.csv"
 $Script:GitProxyResolved = $false
 $Script:ResolvedGitProxy = ""
 $Script:BackendPython = ""
@@ -618,117 +618,42 @@ function Stop-QuoteWorker {
     $Script:WorkerProcessWasStopped = $true
 }
 
-function Backup-QuoteJobsBeforeUpdate {
-    if ($SkipDatabaseBackup) {
-        Write-Warn "Skipping quote job database backup before update."
-        return
-    }
-
-    $configuredPath = Get-EnvValue -Path $EnvFile -Key "QUOTE_JOBS_DB_PATH"
-    if ($configuredPath) {
-        if ([System.IO.Path]::IsPathRooted($configuredPath)) {
-            $quoteDb = $configuredPath
-        }
-        else {
-            $quoteDb = Join-Path $BackendRoot $configuredPath
-        }
-    }
-    else {
-        $quoteDb = Join-Path $BackendRoot "data\quote_jobs.db"
-    }
-
-    $configuredStorage = Get-EnvValue -Path $EnvFile -Key "QUOTE_JOB_STORAGE_ROOT"
-    if ($configuredStorage) {
-        if ([System.IO.Path]::IsPathRooted($configuredStorage)) {
-            $quoteStorage = $configuredStorage
-        }
-        else {
-            $quoteStorage = Join-Path $BackendRoot $configuredStorage
-        }
-    }
-    else {
-        $quoteStorage = Join-Path $BackendRoot "uploads\quote-jobs"
-    }
-
-    $hasDatabase = Test-Path -LiteralPath $quoteDb -PathType Leaf
-    $hasStorage = Test-Path -LiteralPath $quoteStorage -PathType Container
-    if (-not $hasDatabase -and -not $hasStorage) {
-        Write-Note "No quote job database or job storage exists yet; no quote job backup is needed."
-        return
-    }
-
-    New-Item -ItemType Directory -Force -Path $QuoteBackupRoot | Out-Null
-    $backupDir = Join-Path $QuoteBackupRoot "quote-jobs-$Stamp"
-    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-
-    if ($hasDatabase) {
-        $backupPath = Join-Path $backupDir "quote_jobs.db"
-        $backupCode = "import sqlite3,sys; source=sqlite3.connect(sys.argv[1]); target=sqlite3.connect(sys.argv[2]); source.backup(target); target.close(); source.close()"
-        Run-Native `
-            -FilePath $Script:BackendPython `
-            -Arguments @("-B", "-c", $backupCode, $quoteDb, $backupPath) `
-            -Name "Creating safe quote job database snapshot"
-    }
-
-    if ($hasStorage) {
-        $storageBackup = Join-Path $backupDir "job-storage"
-        New-Item -ItemType Directory -Force -Path $storageBackup | Out-Null
-        Get-ChildItem -LiteralPath $quoteStorage -Force | ForEach-Object {
-            Copy-Item -LiteralPath $_.FullName -Destination $storageBackup -Recurse -Force
-        }
-    }
-
-    $manifest = [ordered]@{
-        created_at = (Get-Date).ToString("o")
-        database_source = [System.IO.Path]::GetFullPath($quoteDb)
-        storage_source = [System.IO.Path]::GetFullPath($quoteStorage)
-        database_included = [bool]$hasDatabase
-        storage_included = [bool]$hasStorage
-    } | ConvertTo-Json
-    [System.IO.File]::WriteAllText(
-        (Join-Path $backupDir "manifest.json"),
-        $manifest,
-        $Utf8NoBom
-    )
-    Write-Note "Quote job backup package: $backupDir"
-
-    $resolvedBackupRoot = [System.IO.Path]::GetFullPath($QuoteBackupRoot).TrimEnd("\")
-    $backupPrefix = $resolvedBackupRoot + "\"
-    $expiredBackups = @(
-        Get-ChildItem -LiteralPath $QuoteBackupRoot -Directory -Filter "quote-jobs-*" |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -Skip $QuoteBackupRetentionCount
-    )
-    foreach ($expiredBackup in $expiredBackups) {
-        $resolvedExpired = [System.IO.Path]::GetFullPath($expiredBackup.FullName)
-        if (-not $resolvedExpired.StartsWith($backupPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to remove quote backup outside the backup root: $resolvedExpired"
-        }
-        Remove-Item -LiteralPath $resolvedExpired -Recurse -Force
-        Write-Note "Removed expired quote job backup: $resolvedExpired"
-    }
-}
-
 function Backup-OrderPortalBeforeUpdate {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OperatorSid
+    )
+
     if ($SkipDatabaseBackup) {
         Write-Warn "Skipping unified Order Portal backup before update."
         return
     }
 
-    $backupScript = Join-Path $ProjectRoot "Backup-OrderPortal.ps1"
-    if (-not (Test-Path -LiteralPath $backupScript)) {
-        throw "Backup-OrderPortal.ps1 not found. Refusing to update without a unified production backup."
+    if ($OperatorSid -notmatch "^S-1-5-21-(?:\d+-){3}\d+$") {
+        throw "OperatorSid must identify the interactive update operator."
+    }
+    $protectedBackupWrapper = Join-Path $ProtectedBackupRuntimeRoot `
+        "Invoke-PrecisionToolsProtectedBackup.ps1"
+    if (-not (Test-Path -LiteralPath $protectedBackupWrapper -PathType Leaf)) {
+        throw (
+            "Protected backup wrapper not found. Install the reviewed backup " +
+            "runtime before updating: $protectedBackupWrapper"
+        )
     }
 
-    New-Item -ItemType Directory -Force -Path $OrderPortalBackupRoot | Out-Null
     $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Write-Note "Protected backup output: $ProtectedBackupOutputRoot"
     Run-Native -FilePath $ps -Arguments @(
         "-NoProfile",
+        "-NonInteractive",
         "-ExecutionPolicy", "Bypass",
-        "-File", $backupScript,
+        "-File", $protectedBackupWrapper,
+        "-Mode", "Daily",
         "-ProjectRoot", $ProjectRoot,
-        "-BackupRoot", $OrderPortalBackupRoot,
-        "-Mode", "Daily"
+        "-RuntimeBundleRoot", $ProtectedBackupRuntimeRoot,
+        "-EnvironmentFile", $EnvFile,
+        "-SecretsCsvPath", $ProtectedBackupSecretsCsv,
+        "-OperatorSid", $OperatorSid
     ) -Name "Creating unified Order Portal backup before update"
 }
 
@@ -824,7 +749,10 @@ function Install-Dependencies {
         return
     }
 
-    $requirements = Join-Path $BackendRoot "requirements.txt"
+    $requirements = Join-Path $BackendRoot "requirements.lock"
+    if (-not (Test-Path -LiteralPath $requirements -PathType Leaf)) {
+        throw "Locked backend requirements were not found: $requirements"
+    }
     Run-Native `
         -FilePath $Script:BackendPython `
         -Arguments @("-m", "pip", "install", "--disable-pip-version-check", "-r", $requirements) `
@@ -1137,22 +1065,28 @@ try {
 
     Ensure-RuntimeDirectories
     Resolve-PythonRuntimes
-    $canCreateQuoteSnapshot = `
+    $canQuiesceWritersForBackup = `
         -not $SkipDatabaseBackup `
         -and -not $DisableAsyncArchives `
         -and -not $SkipApiRestart `
         -and -not $SkipWorkerRestart
-    if ($canCreateQuoteSnapshot) {
+    if ($canQuiesceWritersForBackup) {
         Enable-QuoteMaintenance
         Wait-ForQuoteUploadsToDrain
         Stop-Api
         Stop-QuoteWorker
-        Backup-QuoteJobsBeforeUpdate
         Disable-QuoteMaintenance
+        Write-Note (
+            "API and quote-worker writes are stopped; the protected unified " +
+            "backup will include quote_jobs.db and job storage."
+        )
     }
     else {
         if (-not $SkipDatabaseBackup) {
-            Write-Warn "Skipping the quote job snapshot because API and worker writes cannot both be paused with the selected switches."
+            Write-Warn (
+                "API and worker writes cannot both be paused with the selected " +
+                "switches; the protected VSS backup remains crash-consistent."
+            )
         }
         if (-not $SkipApiRestart) {
             Stop-Api
@@ -1170,7 +1104,10 @@ try {
             Write-Warn "Leaving the currently running quote worker unchanged."
         }
     }
-    Backup-OrderPortalBeforeUpdate
+    $operatorSid = (
+        [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    )
+    Backup-OrderPortalBeforeUpdate -OperatorSid $operatorSid
     Pull-FrameworkChanges
     Restart-WithUpdatedScriptIfNeeded
     Ensure-RuntimeDirectories

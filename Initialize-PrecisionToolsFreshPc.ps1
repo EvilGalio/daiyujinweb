@@ -240,6 +240,20 @@ $dataRoot = Assert-PrecisionToolsPathContained `
     -Path (Join-Path $backendRoot "data") `
     -Root $backendRoot `
     -Label "Precision Tools initialization data directory"
+$runtimeDataRoots = @(
+    $dataRoot,
+    (Join-Path $backendRoot "private\order_media"),
+    (Join-Path $backendRoot "private\nextgen_handoff"),
+    (Join-Path $backendRoot "uploads"),
+    (Join-Path $backendRoot "static\thumbnails"),
+    (Join-Path $backendRoot "static\stl")
+)
+for ($index = 1; $index -lt $runtimeDataRoots.Count; $index++) {
+    $runtimeDataRoots[$index] = Assert-PrecisionToolsPathContained `
+        -Path $runtimeDataRoots[$index] `
+        -Root $backendRoot `
+        -Label "Precision Tools empty-environment runtime directory"
+}
 $databasePath = Join-Path $dataRoot "daiyujin.db"
 $runtimeAclScript = Join-Path $root "Set-PrecisionToolsRuntimeAcl.ps1"
 $materializeScript = Join-Path $root "backend\scripts\materialize_reference_data.py"
@@ -292,16 +306,26 @@ if ($Confirmation -cne "INITIALIZE_PRECISION_TOOLS_EMPTY_DATA") {
     Write-Host "Plan only. Re-run with -Confirmation INITIALIZE_PRECISION_TOOLS_EMPTY_DATA"
     exit 0
 }
-$existingDataItems = if (Test-Path -LiteralPath $dataRoot -PathType Container) {
-    @(Get-ChildItem -LiteralPath $dataRoot -Force -ErrorAction Stop)
-}
-else {
-    @()
-}
+$existingRuntimeItems = @(
+    foreach ($runtimeDataRoot in $runtimeDataRoots) {
+        if (Test-Path -LiteralPath $runtimeDataRoot) {
+            Assert-PrecisionToolsNoReparsePoints -Path $runtimeDataRoot
+            $runtimeRootItem = Get-Item -LiteralPath $runtimeDataRoot `
+                -Force -ErrorAction Stop
+            if ($runtimeRootItem.PSIsContainer) {
+                Get-ChildItem -LiteralPath $runtimeDataRoot -Force `
+                    -ErrorAction Stop
+            }
+            else {
+                $runtimeRootItem
+            }
+        }
+    }
+)
 if (
     (Test-Path -LiteralPath $databasePath -PathType Leaf) -or
     (Test-Path -LiteralPath $envPath -PathType Leaf) -or
-    $existingDataItems.Count -gt 0
+    $existingRuntimeItems.Count -gt 0
 ) {
     throw (
         "Precision Tools runtime data or environment already exists. " +
