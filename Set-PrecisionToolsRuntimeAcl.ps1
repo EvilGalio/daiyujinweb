@@ -569,7 +569,10 @@ function Assert-ProtectedSecretsCsvAcl {
             throw "Precision Tools operator secrets CSV is missing protected FullControl"
         }
     }
-    $operatorRights = [int64][Security.AccessControl.FileSystemRights]::Modify
+    $operatorRights = [int64](
+        [Security.AccessControl.FileSystemRights]::Modify -bor
+        [Security.AccessControl.FileSystemRights]::Synchronize
+    )
     if (
         -not $observedRights.ContainsKey($OperatorSid.Value) -or
         (([int64]$observedRights[$OperatorSid.Value] -band $operatorRights) -ne `

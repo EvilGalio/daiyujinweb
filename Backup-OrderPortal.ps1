@@ -280,10 +280,16 @@ function Assert-ProtectedBackupOutputItemAcl([string]$Path) {
         throw "Protected backup output item ACL/owner contract is invalid"
     }
     $operatorRights = if ($item.PSIsContainer) {
-        [int64][Security.AccessControl.FileSystemRights]::ReadAndExecute
+        [int64](
+            [Security.AccessControl.FileSystemRights]::ReadAndExecute -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     else {
-        [int64][Security.AccessControl.FileSystemRights]::Read
+        [int64](
+            [Security.AccessControl.FileSystemRights]::Read -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     $expected = @{
         "S-1-5-18" = [int64][Security.AccessControl.FileSystemRights]::FullControl
