@@ -13,6 +13,32 @@ Recommended explicit runtimes on this machine:
 
 The two variables may point to the same environment, but the runtime roles must remain separate. Do not start Waitress with `OCC_PYTHON` unless it also intentionally serves as `BACKEND_PYTHON` and has the complete backend requirements installed.
 
+## Daiyujin public-pilot bridge
+
+The production Precision Tools API uses a loopback-only, server-to-server
+handoff to the Daiyujin NextGen deployment:
+
+```dotenv
+NEXTGEN_API_BASE_URL=http://127.0.0.1:5400/api/v2
+NEXTGEN_COMPANY_CODE=daiyujin
+NEXTGEN_CUSTOMER_PORTAL_URL=https://portal.daiyujin.dpdns.org
+NEXTGEN_LEGACY_HANDOFF_SECRET=
+QUOTE_HANDOFF_SIGNING_SECRET=
+ALLOWED_ORIGINS=https://mfg-solution.com,https://www.mfg-solution.com,https://gcnov.com,https://www.gcnov.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org
+```
+
+`NEXTGEN_COMPANY_CODE` is deployment configuration. It must not be derived
+from the WordPress `site` or theme value. The browser never receives the
+legacy handoff secret, and its `return_url`, company, or file-reference fields
+are not forwarded by the bridge. A CAD file reference is emitted only when its
+UUID resolves to an actual server-created STEP/IGES object under an approved
+upload root and the Quote carries the matching HMAC-signed upload receipt.
+The receipt is a browser-visible capability, not the signing secret, and is
+bound to one file UUID. `run-api.ps1` preserves an existing explicit
+`ALLOWED_ORIGINS` list only when every entry is an exact HTTPS origin;
+regex/wildcard, HTTP, localhost, credential-bearing, query, fragment, and path
+origins fail closed.
+
 ## Phase 1A Quote Workflow
 
 Run these from the project root with `D:\anaconda\python.exe`:
@@ -35,7 +61,13 @@ Use these root launchers after setup:
 
 - `run-api.ps1` starts Waitress with `BACKEND_PYTHON`.
 - `run-quote-worker.ps1` supervises the worker coordinator and uses `OCC_PYTHON` only for killable CAD child processes.
-- `Install-Quote-Worker-Task.ps1` registers a hidden current-user logon task with bounded restart settings. Use `-RunAtStartupAsLocalService` from an elevated shell when the worker must start before user logon.
+- `Install-Quote-Worker-Task.ps1` first prints a plan. Re-run with
+  `-RunAtStartupAsLocalService -Confirmation INSTALL_QUOTE_WORKER_TASK` from
+  an elevated shell to register the production task. Removal has its own
+  plan and exact `REMOVE_QUOTE_WORKER_TASK` confirmation.
+
+Fresh-PC initialization leaves `QUOTE_ASYNC_ARCHIVES_ENABLED=0`. Enable it
+only after the LocalService Quote Worker task and worker-health gate pass.
 
 `Update-Company-PC.ps1` performs these steps idempotently, pauses new asynchronous uploads, stops the API and worker for a consistent quote-job database plus storage snapshot, and keeps the latest seven backup packages by default. If a later pull changes the updater itself, the script relaunches the pulled version automatically. It defaults `QUOTE_ASYNC_ARCHIVES_ENABLED` to `0` when the setting is absent.
 

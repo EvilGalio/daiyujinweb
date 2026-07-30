@@ -83,7 +83,7 @@ Write-Host "Precision Tools API scheduled-task plan"
 Write-Host "  Task: $TaskName"
 Write-Host "  Origin: http://127.0.0.1:$ApiPort"
 Write-Host "  Principal: LocalService (S-1-5-19)"
-if ($Confirmation -ne "INSTALL_PRECISION_TOOLS_API_TASK") {
+if ($Confirmation -cne "INSTALL_PRECISION_TOOLS_API_TASK") {
     Write-Host "Plan only. Re-run with -Confirmation INSTALL_PRECISION_TOOLS_API_TASK"
     exit 0
 }

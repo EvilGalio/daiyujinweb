@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     CONFIG.theme = currentSite();
     function formalQuoteUrl() { return CONFIG.formalQuoteUrl || "https://mfg-solution.com/request-quote/"; }
     function formalQuoteLabel() { return CONFIG.formalQuoteLabel || "Request Formal Quote"; }
-    function customerPortalUrl() { return CONFIG.customerPortalUrl || "https://portal.mfg-solution.com"; }
+    function customerPortalUrl() { return CONFIG.customerPortalUrl || "https://portal.daiyujin.dpdns.org"; }
     function engineerContactUrl() { return CONFIG.engineerContactUrl || formalQuoteUrl(); }
     function engineerContactLabel() { return CONFIG.engineerContactLabel || "Contact our engineers"; }
 
@@ -414,7 +414,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
         }
         if (!resp.success || !resp.data) throw new Error(resp.error || resp.message || "CAD analysis failed.");
-        return { archive: false, analysis: { file_id: resp.file_id, source_filename: resp.source_filename || file.name, source_format: resp.source_format || "", ...resp.data } };
+        return { archive: false, analysis: { file_id: resp.file_id, source_filename: resp.source_filename || file.name, source_format: resp.source_format || "", ...resp.data, file_receipt: resp.file_receipt || resp.data.file_receipt || "" } };
     }
 
     function normalizeLegacyArchiveAnalysis(item) {
@@ -424,6 +424,7 @@ document.addEventListener("DOMContentLoaded", () => {
             source_filename: item.source_filename || data.source_filename || data.name || "CAD part",
             source_format: item.source_format || data.source_format || "",
             ...data,
+            file_receipt: item.file_receipt || data.file_receipt || "",
         };
     }
 
@@ -591,6 +592,7 @@ document.addEventListener("DOMContentLoaded", () => {
             source_filename: item.source_filename || data.source_filename || data.name || "CAD part",
             source_format: item.source_format || data.source_format || "",
             ...data,
+            file_receipt: item.file_receipt || data.file_receipt || "",
         };
     }
 
@@ -1530,7 +1532,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     site,
                     theme: site,
                     batch_id: state.batchId, batch_item_id: part.id, batch_item_index: part.index + 1, batch_item_count: state.parts.length,
-                    file_id: part.analysis.file_id, part_name: part.analysis.name, stp_filename: part.fullFileName || part.fileName,
+                    file_id: part.analysis.file_id, file_receipt: part.analysis.file_receipt || "", part_name: part.analysis.name, stp_filename: part.fullFileName || part.fileName,
                     volume_mm3: part.analysis.volume_mm3, obb_dimensions_mm: part.analysis.obb_dimensions_mm,
                     material_category: part.settings.material_category, material_id: part.settings.material_id,
                     process: part.settings.process || state.defaults.process,
@@ -1857,13 +1859,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     quote_reference: quoteReference,
                     site: currentSite(),
-                    return_url: /^https?:$/.test(window.location.protocol) ? window.location.origin : null,
                 }),
             });
             const destination = new URL(response.sign_up_url);
             const expected = new URL(customerPortalUrl());
-            const localDestination = ["127.0.0.1", "localhost"].includes(destination.hostname);
-            if (destination.origin !== expected.origin && !localDestination) {
+            if (destination.origin !== expected.origin) {
                 throw new Error("The Customer Portal returned an unexpected destination.");
             }
             window.location.assign(destination.href);

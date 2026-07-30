@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daiyujin Precision Tools
  * Description: Embeds instant quoting, freight calculator, ISO tolerance lookup, material standards, and weight calculator into WordPress pages via shortcodes.
- * Version: 1.6.0
+ * Version: 1.6.1
  * Author: Daiyujin
  * License: Proprietary
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DYJ_TOOLS_VERSION', '1.6.0');
+define('DYJ_TOOLS_VERSION', '1.6.1');
 define('DYJ_TOOLS_DIR', plugin_dir_path(__FILE__));
 define('DYJ_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -89,23 +89,28 @@ function dyj_tools_order_prefix($theme = null) {
     return isset($prefixes[$theme]) ? $prefixes[$theme] : $prefixes['default'];
 }
 
-function dyj_tools_brand_code($theme = null) {
-    $theme = dyj_tools_normalize_theme($theme);
-    return $theme === 'default' ? 'mfg' : $theme;
+function dyj_tools_customer_company_code() {
+    $company_code = defined('DYJ_TOOLS_CUSTOMER_COMPANY_CODE')
+        ? DYJ_TOOLS_CUSTOMER_COMPANY_CODE
+        : 'daiyujin';
+    $company_code = sanitize_key($company_code);
+    return preg_match('/^[a-z][a-z0-9-]{1,39}$/', $company_code)
+        ? $company_code
+        : 'daiyujin';
 }
 
 function dyj_tools_customer_portal_url($theme = null) {
     $theme = dyj_tools_normalize_theme($theme);
     $url = defined('DYJ_TOOLS_CUSTOMER_PORTAL_URL')
         ? DYJ_TOOLS_CUSTOMER_PORTAL_URL
-        : 'https://portal.mfg-solution.com';
+        : 'https://portal.daiyujin.dpdns.org';
     return apply_filters('dyj_tools_customer_portal_url', rtrim($url, '/'), $theme);
 }
 
 function dyj_tools_portal_route($path, $theme = null, $source = '') {
     $theme = dyj_tools_normalize_theme($theme);
     $url = dyj_tools_customer_portal_url($theme) . '/' . ltrim($path, '/');
-    $args = array('brand' => dyj_tools_brand_code($theme));
+    $args = array('brand' => dyj_tools_customer_company_code());
     if ($source) {
         $args['source'] = sanitize_key($source);
     }

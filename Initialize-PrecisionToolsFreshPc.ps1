@@ -131,7 +131,7 @@ Write-Host "  Database: $databasePath"
 Write-Host "  Reference data: $ReferenceDataRoot"
 Write-Host "  Existing database: $(Test-Path -LiteralPath $databasePath -PathType Leaf)"
 Write-Host "  No existing database or upload will be deleted."
-if ($Confirmation -ne "INITIALIZE_PRECISION_TOOLS_EMPTY_DATA") {
+if ($Confirmation -cne "INITIALIZE_PRECISION_TOOLS_EMPTY_DATA") {
     Write-Host "Plan only. Re-run with -Confirmation INITIALIZE_PRECISION_TOOLS_EMPTY_DATA"
     exit 0
 }
@@ -172,6 +172,7 @@ $rows = @(Import-Csv -LiteralPath $SecretsCsvPath -Encoding UTF8)
 $secretKey = Get-CsvSecret $rows "PRECISION_TOOLS_SECRET_KEY" 32
 $adminSecretKey = Get-CsvSecret $rows "PRECISION_TOOLS_ADMIN_SECRET_KEY" 32
 $adminPassword = Get-CsvSecret $rows "PRECISION_TOOLS_ADMIN_PASSWORD" 24
+$backupPassword = Get-CsvSecret $rows "PRECISION_TOOLS_BACKUP_PASSWORD" 24
 $quoteSigningSecret = Get-CsvSecret $rows "QUOTE_HANDOFF_SIGNING_SECRET" 32
 $bridgeSecret = Get-CsvSecret $rows "NEXTGEN_LEGACY_HANDOFF_SECRET" 32
 
@@ -193,7 +194,19 @@ $envLines = @(
     "QUOTE_HANDOFF_SIGNING_SECRET=$quoteSigningSecret",
     "NEXTGEN_LEGACY_HANDOFF_SECRET=$bridgeSecret",
     "NEXTGEN_API_BASE_URL=http://127.0.0.1:5400/api/v2",
-    "QUOTE_ASYNC_ARCHIVES_ENABLED=1",
+    "NEXTGEN_COMPANY_CODE=daiyujin",
+    "NEXTGEN_CUSTOMER_PORTAL_URL=https://portal.daiyujin.dpdns.org",
+    (
+        "ALLOWED_ORIGINS=" +
+        "https://mfg-solution.com," +
+        "https://www.mfg-solution.com," +
+        "https://gcnov.com," +
+        "https://www.gcnov.com," +
+        "https://gcindus.com," +
+        "https://www.gcindus.com," +
+        "https://daiyujin.dpdns.org"
+    ),
+    "QUOTE_ASYNC_ARCHIVES_ENABLED=0",
     "QUOTE_CAD_CONCURRENCY=2"
 )
 $temporaryEnv = Join-Path $dataRoot (
@@ -240,6 +253,7 @@ finally {
 finally {
     Remove-Item Env:PRECISION_TOOLS_ADMIN_PASSWORD -ErrorAction SilentlyContinue
     $adminPassword = $null
+    $backupPassword = $null
     if (-not $initializationSucceeded) {
         Remove-Item -LiteralPath $envPath -Force -ErrorAction SilentlyContinue
         $expectedDataRoot = [IO.Path]::GetFullPath(

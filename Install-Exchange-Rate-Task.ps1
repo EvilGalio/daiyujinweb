@@ -1,7 +1,8 @@
 param(
     [string]$TaskName = "Daiyujin Exchange Rate Update",
     [string]$At = "09:00",
-    [switch]$RunAsSystem
+    [switch]$RunAsSystem,
+    [string]$Confirmation = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +27,21 @@ function Resolve-PrincipalSid {
 
 if (-not (Test-Path -LiteralPath $RunScript)) {
     throw "Run script not found: $RunScript"
+}
+
+Write-Host "Precision Tools exchange-rate scheduled-task plan"
+Write-Host "  Task: $TaskName"
+Write-Host "  Daily: $At"
+Write-Host "  Principal: $(if ($RunAsSystem) { 'SYSTEM' } else { 'Current user' })"
+if ($Confirmation -cne "INSTALL_EXCHANGE_RATE_TASK") {
+    Write-Host "Plan only. Re-run with -Confirmation INSTALL_EXCHANGE_RATE_TASK"
+    exit 0
+}
+if (-not $RunAsSystem) {
+    throw (
+        "Production installation requires -RunAsSystem so exchange-rate " +
+        "refresh does not depend on an interactive login."
+    )
 }
 
 $powerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"

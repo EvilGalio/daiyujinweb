@@ -4,8 +4,10 @@ import base64
 import binascii
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -23,7 +25,9 @@ from services.freight import calculate_freight, get_countries, get_freight_summa
 from services.pricing import calculate_quote, get_quote_options, recalculate_weight, request_formal_quote
 from services.nextgen_handoff import (
     QuoteBridgeUnavailable,
+    QuoteHandoffError,
     QuoteReferenceError,
+    create_file_receipt,
     create_nextgen_handoff,
 )
 from services.tolerance import calculate_tolerance, get_tolerance_presets, get_tolerance_zones, get_tolerance_capabilities
@@ -138,12 +142,18 @@ def _site_from_request(request, candidate: str | None = None) -> str:
 
 
 def _occ_python_path():
+    configured = os.environ.get("OCC_PYTHON", "").strip()
+    if configured:
+        return Path(configured)
     env_file = BACKEND_ROOT / ".env"
-    if env_file.exists():
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            if line.startswith("OCC_PYTHON="):
-                return Path(line.split("=", 1)[1].strip())
-    return Path(os.environ.get("OCC_PYTHON", r"D:\anaconda\envs\occ\python.exe"))
+    try:
+        if env_file.is_file():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                if line.startswith("OCC_PYTHON="):
+                    return Path(line.split("=", 1)[1].strip())
+    except OSError:
+        pass
+    return Path(r"D:\anaconda\envs\occ\python.exe")
 
 DEFAULT_OCC_PYTHON = _occ_python_path()
 
@@ -243,6 +253,13 @@ def _save_direct_cad(uploaded, suffix: str) -> tuple[str, Path]:
     return file_id, saved_path
 
 
+def _file_receipt_if_configured(file_id: str) -> str | None:
+    try:
+        return create_file_receipt(file_id)
+    except QuoteHandoffError:
+        return None
+
+
 def _env_enabled(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -337,6 +354,16 @@ def _save_quote_archive(uploaded, job_id: str, suffix: str) -> tuple[Path, str, 
 
 def _quote_job_response(snapshot: dict, status: int = 200):
     payload = {key: value for key, value in snapshot.items() if key != "etag"}
+    if isinstance(payload.get("parts"), list):
+        parts = []
+        for source_part in payload["parts"]:
+            part = dict(source_part)
+            if part.get("status") == "ready" and part.get("file_id"):
+                receipt = _file_receipt_if_configured(str(part["file_id"]))
+                if receipt:
+                    part["file_receipt"] = receipt
+            parts.append(part)
+        payload["parts"] = parts
     payload["error"] = False
     response = jsonify(payload)
     response.status_code = status
@@ -372,10 +399,63 @@ def _refresh_exchange_rates_if_stale() -> None:
 
 
 def _cors_origins():
-    raw = os.environ.get("ALLOWED_ORIGINS", "*")
-    if raw.strip() == "*":
-        return "*"
-    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
+    raw = os.environ.get(
+        "ALLOWED_ORIGINS",
+        (
+            "https://mfg-solution.com,"
+            "https://www.mfg-solution.com,"
+            "https://gcnov.com,"
+            "https://www.gcnov.com,"
+            "https://gcindus.com,"
+            "https://www.gcindus.com,"
+            "https://daiyujin.dpdns.org"
+        ),
+    )
+    origins: list[str] = []
+    for configured in raw.split(","):
+        candidate = configured.strip()
+        if not candidate:
+            continue
+        try:
+            parsed = urlparse(candidate)
+            parsed_port = parsed.port
+        except ValueError as exc:
+            raise RuntimeError(
+                "ALLOWED_ORIGINS must contain only explicit HTTPS origins"
+            ) from exc
+        hostname = (parsed.hostname or "").rstrip(".").lower()
+        dns_or_ipv4_host = re.fullmatch(
+            r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?",
+            hostname,
+        )
+        try:
+            loopback_host = ipaddress.ip_address(hostname).is_loopback
+        except ValueError:
+            loopback_host = hostname == "localhost" or hostname.endswith(".localhost")
+        origin = f"https://{parsed.netloc}"
+        if (
+            parsed.scheme != "https"
+            or not hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path not in {"", "/"}
+            or parsed.params
+            or parsed.query
+            or parsed.fragment
+            or parsed_port == 0
+            or loopback_host
+            or dns_or_ipv4_host is None
+            or ".." in hostname
+            or "*" in candidate
+            or any(character.isspace() for character in candidate)
+            or candidate not in {origin, f"{origin}/"}
+        ):
+            raise RuntimeError("ALLOWED_ORIGINS must contain only explicit HTTPS origins")
+        if origin not in origins:
+            origins.append(origin)
+    if not origins:
+        raise RuntimeError("ALLOWED_ORIGINS must contain at least one HTTPS origin")
+    return origins
 
 
 def create_app() -> Flask:
@@ -747,6 +827,9 @@ def create_app() -> Flask:
                         "warnings": analysis.get("warnings", []),
                     }
                     if analysis.get("success"):
+                        receipt = _file_receipt_if_configured(item.file_id)
+                        if receipt:
+                            part["file_receipt"] = receipt
                         part["data"] = analysis.get("data")
                     else:
                         part["error"] = analysis.get("error") or "CAD analysis failed"
@@ -779,6 +862,9 @@ def create_app() -> Flask:
             return api_error("file_too_large", str(exc), 413)
         analysis = _run_cad_analysis(app, saved_path, uploaded.filename, uploaded.filename, site=site)
         analysis["file_id"] = file_id
+        receipt = _file_receipt_if_configured(file_id)
+        if receipt:
+            analysis["file_receipt"] = receipt
         if not analysis.get("success"):
             return api_error("cad_analysis_failed", analysis.get("error") or "CAD analysis failed", 500)
         return api_ok(analysis)
@@ -877,14 +963,9 @@ def create_app() -> Flask:
                 "A Quote reference is required.",
                 400,
             )
-        site = _site_from_request(request, payload.get("site") or payload.get("theme"))
-        brand_code = site if site in {"mfg", "gcindus", "gcnov"} else "mfg"
-        return_url = str(payload.get("return_url") or "").strip() or None
         try:
             result = create_nextgen_handoff(
                 quote_reference=quote_reference,
-                brand_code=brand_code,
-                return_url=return_url,
             )
         except QuoteReferenceError as exc:
             return api_error("invalid_quote_reference", str(exc), 400)

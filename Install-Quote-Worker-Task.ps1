@@ -12,6 +12,7 @@ param(
     [string]$SecretsCsvPath = (
         "C:\ProgramData\Daiyujin\Operator\daiyujin-fresh-pc-secrets.csv"
     ),
+    [string]$Confirmation = "",
     [switch]$Remove
 )
 
@@ -24,6 +25,12 @@ $OutputEncoding = $Utf8NoBom
 [Console]::OutputEncoding = $Utf8NoBom
 
 if ($Remove) {
+    Write-Host "Precision Tools quote-worker removal plan"
+    Write-Host "  Task: $TaskName"
+    if ($Confirmation -cne "REMOVE_QUOTE_WORKER_TASK") {
+        Write-Host "Plan only. Re-run with -Confirmation REMOVE_QUOTE_WORKER_TASK"
+        exit 0
+    }
     $existing = Get-ScheduledTask -TaskName $TaskName -TaskPath "\" `
         -ErrorAction SilentlyContinue
     if ($existing) {
@@ -71,6 +78,27 @@ foreach ($runtime in @($BackendPython, $OccPython)) {
     if ([string]::IsNullOrWhiteSpace($runtime) -or -not (Test-Path -LiteralPath $runtime -PathType Leaf)) {
         throw "Both BackendPython and OccPython must be usable absolute paths."
     }
+}
+
+Write-Host "Precision Tools quote-worker scheduled-task plan"
+Write-Host "  Task: $TaskName"
+Write-Host "  Principal: $(
+    if ($RunAtStartupAsLocalService) {
+        'LocalService (S-1-5-19)'
+    }
+    else {
+        'Current interactive user'
+    }
+)"
+if ($Confirmation -cne "INSTALL_QUOTE_WORKER_TASK") {
+    Write-Host "Plan only. Re-run with -Confirmation INSTALL_QUOTE_WORKER_TASK"
+    exit 0
+}
+if (-not $RunAtStartupAsLocalService) {
+    throw (
+        "Production installation requires -RunAtStartupAsLocalService so the " +
+        "worker does not depend on an interactive login."
+    )
 }
 
 function Quote-Argument {

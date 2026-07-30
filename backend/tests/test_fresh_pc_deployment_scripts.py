@@ -23,6 +23,21 @@ def test_empty_fresh_pc_seed_uses_generated_admin_password() -> None:
     assert "INITIALIZE_PRECISION_TOOLS_EMPTY_DATA" in installer
     assert "NEXTGEN_LEGACY_HANDOFF_SECRET" in installer
     assert "http://127.0.0.1:5400/api/v2" in installer
+    assert '"NEXTGEN_COMPANY_CODE=daiyujin"' in installer
+    assert (
+        '"NEXTGEN_CUSTOMER_PORTAL_URL=https://portal.daiyujin.dpdns.org"'
+        in installer
+    )
+    assert '"PRECISION_TOOLS_BACKUP_PASSWORD"' in installer
+    assert "https://mfg-solution.com" in installer
+    assert "https://www.mfg-solution.com" in installer
+    assert "http://127.0.0.1:5500" not in installer
+    assert '"QUOTE_ASYNC_ARCHIVES_ENABLED=0"' in installer
+    assert '"QUOTE_ASYNC_ARCHIVES_ENABLED=1"' not in installer
+    assert (
+        'if ($Confirmation -cne "INITIALIZE_PRECISION_TOOLS_EMPTY_DATA")'
+        in installer
+    )
     assert "No existing database or upload will be deleted" in installer
     assert "ReferenceDataRoot" in installer
     assert "materialize_reference_data.py" in installer
@@ -73,6 +88,15 @@ def test_quote_worker_startup_uses_local_service_and_protected_runtime_logs() ->
     assert 'Disable-ScheduledTask -TaskName $ApiTaskName -TaskPath "\\"' in updater
     assert "The production quote worker LocalService task is missing" in updater
     assert "The production Precision Tools API LocalService task is missing" in updater
+    api_installer = _read("Install-PrecisionToolsApiTask.ps1")
+    assert (
+        'if ($Confirmation -cne "INSTALL_PRECISION_TOOLS_API_TASK")'
+        in api_installer
+    )
+    assert "INSTALL_QUOTE_WORKER_TASK" in installer
+    assert 'if ($Confirmation -cne "INSTALL_QUOTE_WORKER_TASK")' in installer
+    assert "REMOVE_QUOTE_WORKER_TASK" in installer
+    assert "requires -RunAtStartupAsLocalService" in installer
 
 
 def test_protected_backup_tasks_do_not_put_secret_on_command_line() -> None:
@@ -103,6 +127,9 @@ def test_exchange_rate_task_can_run_without_interactive_logon() -> None:
     assert "ServiceAccount" in source
     assert "An unowned scheduled task" in source
     assert "Exchange-rate scheduled task verification failed" in source
+    assert "INSTALL_EXCHANGE_RATE_TASK" in source
+    assert 'if ($Confirmation -cne "INSTALL_EXCHANGE_RATE_TASK")' in source
+    assert "requires -RunAsSystem" in source
 
 
 def test_precision_tools_production_dependencies_are_locked() -> None:
@@ -115,3 +142,39 @@ def test_precision_tools_production_dependencies_are_locked() -> None:
     assert all("==" in line for line in package_lines)
     assert "Flask==3.1.3" in requirements
     assert "SQLAlchemy==2.0.51" in requirements
+
+
+def test_customer_portal_defaults_to_server_selected_daiyujin_company() -> None:
+    plugin = _read("daiyujin-tools/daiyujin-tools.php")
+    quote_js = _read("js/quote.js")
+    packaged_quote_js = _read("daiyujin-tools/assets/js/quote.js")
+    pricing = _read("backend/services/pricing.py")
+    portal_route = plugin.split("function dyj_tools_portal_route", 1)[1]
+    portal_route = portal_route.split("function dyj_tools_instant_quote_url", 1)[0]
+
+    expected_portal = "https://portal.daiyujin.dpdns.org"
+    assert expected_portal in plugin
+    assert expected_portal in quote_js
+    assert expected_portal in packaged_quote_js
+    assert "dyj_tools_customer_company_code" in portal_route
+    assert "'brand'" in portal_route
+    assert "DYJ_TOOLS_CUSTOMER_COMPANY_CODE" in plugin
+    assert ": 'daiyujin'" in plugin
+    assert '"file_receipt": payload.get("file_receipt")' in pricing
+
+
+def test_api_launcher_preserves_only_explicit_https_cors_origins() -> None:
+    launcher = _read("run-api.ps1")
+
+    assert "IsNullOrWhiteSpace($env:ALLOWED_ORIGINS)" in launcher
+    assert "$validatedAllowedOrigins" in launcher
+    assert '"https://mfg-solution.com"' in launcher
+    assert '"https://www.mfg-solution.com"' in launcher
+    assert '"https://gcnov.com"' in launcher
+    assert '"https://gcindus.com"' in launcher
+    assert "http://127.0.0.1:5500" not in launcher
+    assert "http://daiyujin.dpdns.org" not in launcher
+    assert "explicit HTTPS origins" in launcher
+    assert '$origin.Contains("*")' in launcher
+    assert "$parsedOrigin.IsLoopback" in launcher
+    assert "[UriPartial]::Authority" in launcher
