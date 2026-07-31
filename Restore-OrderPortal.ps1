@@ -540,7 +540,10 @@ function Assert-ProtectedEnvironmentFileAcl([string]$Path) {
     $expected = @{
         "S-1-5-18" = [int64][Security.AccessControl.FileSystemRights]::FullControl
         "S-1-5-32-544" = [int64][Security.AccessControl.FileSystemRights]::FullControl
-        "S-1-5-19" = [int64][Security.AccessControl.FileSystemRights]::Read
+        "S-1-5-19" = [int64](
+            [Security.AccessControl.FileSystemRights]::Read -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     $observed = @{}
     foreach ($rule in $acl.GetAccessRules(
@@ -653,7 +656,10 @@ function Assert-ProtectedSecretsCsvAcl(
     $expected = @{
         $script:SystemSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
         $script:AdministratorsSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
-        $OperatorSid = [int64][Security.AccessControl.FileSystemRights]::Modify
+        $OperatorSid = [int64](
+            [Security.AccessControl.FileSystemRights]::Modify -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     $observed = @{}
     foreach ($rule in $acl.GetAccessRules(

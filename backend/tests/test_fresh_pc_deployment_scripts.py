@@ -1,12 +1,27 @@
 from __future__ import annotations
 
+import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def _assert_synchronized_allow_mask(source: str, right: str) -> None:
+    assert re.search(
+        (
+            rf"\[Security\.AccessControl\.FileSystemRights\]::{right}\s+-bor\s+"
+            r"\[Security\.AccessControl\.FileSystemRights\]::Synchronize"
+        ),
+        source,
+    )
 
 
 def test_empty_fresh_pc_seed_uses_generated_admin_password() -> None:
@@ -74,6 +89,115 @@ def test_precision_tools_api_task_is_loopback_low_privilege_and_restartable() ->
     assert "RestartCount 10" in source
     assert "http://127.0.0.1:$ApiPort/api/health" in source
     assert "INSTALL_PRECISION_TOOLS_API_TASK" in source
+
+
+def test_exact_windows_allow_acl_masks_include_automatic_synchronize() -> None:
+    runtime_acl = _read("Set-PrecisionToolsRuntimeAcl.ps1")
+    backup_installer = _read("Install-PrecisionToolsBackupTasks.ps1")
+    backup_wrapper = _read("Invoke-PrecisionToolsProtectedBackup.ps1")
+    backup = _read("Backup-OrderPortal.ps1")
+    restore = _read("Restore-OrderPortal.ps1")
+
+    secrets_acl = runtime_acl.split(
+        "function Assert-ProtectedSecretsCsvAcl",
+        1,
+    )[1]
+    _assert_synchronized_allow_mask(secrets_acl, "Modify")
+
+    _assert_synchronized_allow_mask(backup_installer, "Modify")
+    _assert_synchronized_allow_mask(backup_installer, "Read")
+    _assert_synchronized_allow_mask(backup_wrapper, "Modify")
+    _assert_synchronized_allow_mask(backup_wrapper, "Read")
+
+    output_acl = backup.split(
+        "function Assert-ProtectedBackupOutputItemAcl",
+        1,
+    )[1].split(
+        "function Set-ProtectedBackupOutputItemAcl",
+        1,
+    )[0]
+    _assert_synchronized_allow_mask(output_acl, "ReadAndExecute")
+    _assert_synchronized_allow_mask(output_acl, "Read")
+
+    environment_acl = restore.split(
+        "function Assert-ProtectedEnvironmentFileAcl",
+        1,
+    )[1].split(
+        "function Get-EnvironmentSetting",
+        1,
+    )[0]
+    _assert_synchronized_allow_mask(environment_acl, "Read")
+
+    restore_secrets_acl = restore.split(
+        "function Assert-ProtectedSecretsCsvAcl",
+        1,
+    )[1].split(
+        "function Get-ProtectedBackupPassword",
+        1,
+    )[0]
+    _assert_synchronized_allow_mask(restore_secrets_acl, "Modify")
+
+
+def test_windows_allow_ace_round_trip_adds_only_synchronize() -> None:
+    powershell = shutil.which("powershell.exe")
+    if powershell is None:
+        pytest.skip("Windows PowerShell is unavailable")
+    command = r"""
+$sid = [Security.Principal.SecurityIdentifier]::new("S-1-5-19")
+$allow = [Security.AccessControl.AccessControlType]::Allow
+$inheritance = (
+    [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+    [Security.AccessControl.InheritanceFlags]::ObjectInherit
+)
+foreach ($base in @(
+    [Security.AccessControl.FileSystemRights]::Modify,
+    [Security.AccessControl.FileSystemRights]::Read,
+    [Security.AccessControl.FileSystemRights]::ReadAndExecute
+)) {
+    $approved = (
+        $base -bor [Security.AccessControl.FileSystemRights]::Synchronize
+    )
+    foreach ($directoryRule in @($false, $true)) {
+        $rule = if ($directoryRule) {
+            [Security.AccessControl.FileSystemAccessRule]::new(
+                $sid,
+                $base,
+                $inheritance,
+                [Security.AccessControl.PropagationFlags]::None,
+                $allow
+            )
+        }
+        else {
+            [Security.AccessControl.FileSystemAccessRule]::new(
+                $sid,
+                $base,
+                $allow
+            )
+        }
+        if ([int64]$rule.FileSystemRights -ne [int64]$approved) {
+            exit 1
+        }
+    }
+}
+exit 0
+"""
+    completed = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            command,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_quote_worker_startup_uses_local_service_and_protected_runtime_logs() -> None:

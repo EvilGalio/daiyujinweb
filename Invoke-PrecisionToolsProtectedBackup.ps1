@@ -276,7 +276,10 @@ function Assert-ProtectedSecretsCsv {
     $rights = @{
         $script:SystemSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
         $script:AdministratorsSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
-        $operator.Value = [int64][Security.AccessControl.FileSystemRights]::Modify
+        $operator.Value = [int64](
+            [Security.AccessControl.FileSystemRights]::Modify -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     Assert-ExactProtectedAcl -Path $Path -ExpectedRights $rights `
         -Label "Precision Tools operator secrets CSV" -RequireProtected
@@ -290,7 +293,10 @@ function Assert-ProtectedEnvironmentFile {
     $rights = @{
         $script:SystemSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
         $script:AdministratorsSid = [int64][Security.AccessControl.FileSystemRights]::FullControl
-        $script:LocalServiceSid = [int64][Security.AccessControl.FileSystemRights]::Read
+        $script:LocalServiceSid = [int64](
+            [Security.AccessControl.FileSystemRights]::Read -bor
+            [Security.AccessControl.FileSystemRights]::Synchronize
+        )
     }
     Assert-ExactProtectedAcl -Path $Path -ExpectedRights $rights `
         -Label "Precision Tools production environment" -RequireProtected

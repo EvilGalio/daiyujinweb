@@ -451,14 +451,20 @@ Assert-ExactProtectedFileAcl -Path $secretsCsv -Label (
 ) -ExpectedRights @{
     $script:SystemSid = $full
     $script:AdministratorsSid = $full
-    $operatorSid = [int64][Security.AccessControl.FileSystemRights]::Modify
+    $operatorSid = [int64](
+        [Security.AccessControl.FileSystemRights]::Modify -bor
+        [Security.AccessControl.FileSystemRights]::Synchronize
+    )
 }
 Assert-ExactProtectedFileAcl -Path $environment -Label (
     "Precision Tools production environment"
 ) -ExpectedRights @{
     $script:SystemSid = $full
     $script:AdministratorsSid = $full
-    $script:LocalServiceSid = [int64][Security.AccessControl.FileSystemRights]::Read
+    $script:LocalServiceSid = [int64](
+        [Security.AccessControl.FileSystemRights]::Read -bor
+        [Security.AccessControl.FileSystemRights]::Synchronize
+    )
 }
 
 Write-Host "Precision Tools protected backup task plan"
