@@ -1,0 +1,19 @@
+HELIXWARD ASSAY SERVICES / Transfer Review
+Fictional research company. Research-use-only demonstration.
+
+A documented comparison between the method you have and the handover you need.
+
+WHAT TO BRING
+The current written method and its version
+Instrument settings and the calculation convention
+A labelled example output with known limitations
+
+HANDOVER
+A source-to-receiving-method comparison
+A record of missing settings and assumptions
+A proposed discussion sequence before any lab work
+
+LIMIT
+A document review is not proof that two instruments or laboratories produce equivalent results. Any further work needs a separately agreed scope.
+
+No clinical testing, live laboratory work, upload, message, sample acceptance, quotation or regulatory submission.

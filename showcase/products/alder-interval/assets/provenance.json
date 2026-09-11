@@ -1,0 +1,29 @@
+[
+  {
+    "name": "harbour-reading-room",
+    "prompt": "Create a photorealistic architectural editorial photograph, landscape 3:2, for a fictional modest Danish architecture practice. Subject: interior of Harbour Reading Room, an adaptive reuse of a 220 square metre one-storey old boat store in Faaborg. A long retained red-brick rectangular room under exposed dark timber pitched roof trusses, no mezzanine. Three tall timber-framed windows along the left wall cast soft cool daylight. Freestanding low oak bookcases define a quiet reading edge without reaching the roof; a continuous oak window bench; one shared oak reading table and restrained stackable chairs. Brick and ceiling retain slight age, new oak insertions are precise. Looking diagonally from the entrance toward the far gable, human-eye 24mm architectural lens, straight verticals. A glimpse of muted Danish waterfront grey sky beyond the windows, not a famous location. Calm, lived-in, not luxury, no people, no signs, no readable words, no logos or watermarks. Colour palette natural reddish brick, pale oak, muted blue-grey daylight. Make the building and its honest material choices clear; photographic rather than glossy CGI. Frame with enough edges for a website wide crop.",
+    "tool": "Built-in image_gen",
+    "generatedSource": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-5e3930be-1fea-4771-bccc-39c16d9b97e4.png",
+    "retainedOriginal": "docs/qa/client-delivery/alder-interval/originals/harbour-reading-room.png",
+    "published": "assets/harbour-reading-room.webp",
+    "status": "Visually inspected; original fictional architectural scene. No reference-site assets copied."
+  },
+  {
+    "name": "courtyard-house",
+    "prompt": "Create one original photorealistic architectural editorial photograph, landscape 3:2. A fictional compact one-storey 148 square metre L-shaped courtyard home near Roskilde, Denmark. View from the planted courtyard toward the low pale-cream brick wings, natural oak framed full-height glazing under simple flat dark metal roof edges. Through glass, modest family dining area, oak table and small pendant; no second floor, no swimming pool, no luxury resort. Foreground a small rain-damp gravel and brick terrace, hardy meadow planting and one slender multi-stem birch. The L shape clearly embraces the garden; bedroom wing is quieter with narrower window bays. Soft Scandinavian overcast daylight, documentary architectural photography, straight verticals, exact believable construction joins and lived-in scale. No people, no text, no logo, no famous building. Neutral pale brick, warm wood and grey-green plants. One coherent image, not a collage or drawing, suitable as a featured architecture project photograph.",
+    "tool": "Built-in image_gen",
+    "generatedSource": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-669712d9-134f-444d-9c20-5990d13dbd49.png",
+    "retainedOriginal": "docs/qa/client-delivery/alder-interval/originals/courtyard-house.png",
+    "published": "assets/courtyard-house.webp",
+    "status": "Visually inspected; original fictional architectural scene. No reference-site assets copied."
+  },
+  {
+    "name": "brick-workshop",
+    "prompt": "Create one original photorealistic architectural editorial photograph, landscape 3:2. Fictional Brick Workshop, 360 square metre community craft-room design inside a former one-storey repair hall in Odense, Denmark. Interior oblique eye-level view showing retained worn red-brick walls and exposed steel roof trusses, soft sawtooth/rooflight daylight, a substantial central communal oak worktable with stools and a few simple wood-making hand tools. At one side a clearly defined timber-and-glass teaching room partition, at the other low open storage shelves; the hall remains visually open. A broad old industrial opening is glazed; original concrete slab retained. Warm modest civic setting, clean but not sterile, no heavy dangerous machinery, no people, no brands, no readable text, no luxury office furniture, no giant decorative tree. Believable architectural photograph with material texture and straight verticals; weathered brick and charcoal roof, new pale timber insertions. No logos, watermarks or signage.",
+    "tool": "Built-in image_gen",
+    "generatedSource": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-c9c97cfb-68b8-4c15-965c-5a745432e899.png",
+    "retainedOriginal": "docs/qa/client-delivery/alder-interval/originals/brick-workshop.png",
+    "published": "assets/brick-workshop.webp",
+    "status": "Visually inspected; original fictional architectural scene. No reference-site assets copied."
+  }
+]

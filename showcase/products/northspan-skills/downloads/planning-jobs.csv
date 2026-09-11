@@ -1,0 +1,4 @@
+job,part,quantity,unit_minutes,setup_minutes,total_minutes,available_slot_minutes
+N101,brackets,40,3,20,140,360
+N102,covers,25,5,15,140,360
+N103,spacers,60,2,10,130,360

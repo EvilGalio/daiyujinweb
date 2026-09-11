@@ -1,0 +1,49 @@
+{
+  "company": "Cairnfield Equipment",
+  "kind": "Fictional company; original generated product and walking images",
+  "images": [
+    {
+      "key": "walk",
+      "original": "docs/qa/client-delivery/cairnfield-equipment/originals/walk.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-896894b9-87b1-41de-b098-2cf65c4e57ec.png",
+      "tool": "built-in image_gen",
+      "promptRecord": "docs/qa/client-delivery/cairnfield-equipment/image-prompts.json"
+    },
+    {
+      "key": "ridge-22",
+      "original": "docs/qa/client-delivery/cairnfield-equipment/originals/ridge-22.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-6975f6af-e21b-4fbe-9f9d-6ab702c3a075.png",
+      "tool": "built-in image_gen",
+      "promptRecord": "docs/qa/client-delivery/cairnfield-equipment/image-prompts.json"
+    },
+    {
+      "key": "moor-8",
+      "original": "docs/qa/client-delivery/cairnfield-equipment/originals/moor-8.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-52e660fa-bd4f-4f11-9400-08e6aeb776bb.png",
+      "tool": "built-in image_gen",
+      "promptRecord": "docs/qa/client-delivery/cairnfield-equipment/image-prompts.json"
+    },
+    {
+      "key": "fold-sit-pad",
+      "original": "docs/qa/client-delivery/cairnfield-equipment/originals/fold-sit-pad.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-4406b4a2-bc9e-4126-90c5-6b7f3006b591.png",
+      "tool": "built-in image_gen",
+      "promptRecord": "docs/qa/client-delivery/cairnfield-equipment/image-prompts.json"
+    }
+  ],
+  "fonts": [
+    {
+      "name": "Manrope",
+      "license": "fonts/Manrope-OFL.txt"
+    },
+    {
+      "name": "IBM Plex Mono",
+      "license": "fonts/Plex-OFL.txt"
+    }
+  ],
+  "references": [
+    "https://alpkit.com/pages/equipment",
+    "https://www.klattermusen.com/en-gb/"
+  ],
+  "referenceAssetsCopied": false
+}

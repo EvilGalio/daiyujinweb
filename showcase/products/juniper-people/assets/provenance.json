@@ -1,0 +1,57 @@
+{
+  "company": "Juniper People",
+  "fictional": true,
+  "generatedOn": "2026-09-11",
+  "images": [
+    {
+      "name": "cover",
+      "prompt": "Create one original editorial photograph for Juniper People, a fictional small regional recruiting company in Austin Texas. Landscape 4:3 image. Candid unposed office collaboration between three believable adult colleagues, two women and one man of varied backgrounds, early thirties to fifties, seated at a generous warm wood table in a sunlit modest central Texas creative office, discussing a simple weekly work sheet, subtle relaxed smiles and engaged listening, naturally imperfect and human. Main grouping to middle/right, one olive green linen shirt, one cream shirt and a clay-brown knit top. Tall rectangular windows and leafy courtyard, warm plaster wall, loose papers with only abstract lines, no readable text, no logos. Premium documentary film photography, daylight, soft grain, warm pale highlights and deep forest shadows, honest regional business scale, not glamorous executives, not stock handshake, not laptop glamour shot. Natural hands and facial anatomy, unobstructed faces, image should visibly express practical work and collaboration. No captions, no borders, no watermarks.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-4f348778-422a-4a06-8b9d-314e35ef6d5a.png",
+      "original": "docs/qa/client-delivery/juniper-people/originals/cover.png",
+      "usage": "Original generated concept photograph; no real person, client, vacancy or premises represented. Responsive derivatives without upscaling."
+    },
+    {
+      "name": "conversation",
+      "prompt": "Create one original candid editorial photograph for Juniper People, a fictional regional recruitment practice. Landscape 4:3. Two adult people seated across a small round oak table having a calm conversational meeting in a modest Austin office: a woman in her forties with short dark hair wearing a muted sage blouse and a younger Black male candidate wearing a navy casual shirt. Side three-quarter camera angle, both faces visible as they listen and exchange a single sheet of blank abstract notes. Muted terracotta chair, bookshelves with unreadable book spines, small plant, cream plaster and large soft window light. Human equal-footing conversation, no interview interrogation, no handshake, no formal suits, no identifiable personal documents or readable words. Premium editorial analogue photography, truthful non-showy work setting, lovely natural skin and hands, warm cream and forest/sage palette. No branding, no text overlays, no watermark.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-b5166407-e447-4edf-827a-e697aa381659.png",
+      "original": "docs/qa/client-delivery/juniper-people/originals/conversation.png",
+      "usage": "Original generated concept photograph; no real person, client, vacancy or premises represented. Responsive derivatives without upscaling."
+    },
+    {
+      "name": "workshop",
+      "prompt": "Create one original documentary editorial photograph for Juniper People, a fictional small Central Texas people and hiring practice. Landscape 4:3. Four adult managers of mixed backgrounds around a rectangular oak table in a small daylight Austin meeting room, practical workshop discussing team handovers, a standing woman in terracotta shirt arranging a few plain unlettered paper rectangles on a wall while three seated colleagues look toward her. One person has a notebook, a closed simple laptop at side. Warm plaster, deep green door, soft sage upholstery, ordinary office scale with realistic daylight and one green plant. Candid human expressions and anatomically natural hands, premium film photograph, warm subtle grain, clear visual storytelling. No corporate handshake, no giant presentation screen, no identifiable personal information, no text that can be read, no logos, no badges, no watermark, no captions.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-83b63f73-258d-4d38-aa66-4611fd07d411.png",
+      "original": "docs/qa/client-delivery/juniper-people/originals/workshop.png",
+      "usage": "Original generated concept photograph; no real person, client, vacancy or premises represented. Responsive derivatives without upscaling."
+    }
+  ],
+  "fonts": [
+    {
+      "family": "Newsreader",
+      "files": [
+        "newsreader.woff2",
+        "newsreader-italic.woff2"
+      ],
+      "license": "SIL Open Font License 1.1; NEWSREADER-LICENSE.txt",
+      "source": "Existing licensed tidefold-house assets/fonts"
+    },
+    {
+      "family": "Manrope",
+      "files": [
+        "manrope.woff2"
+      ],
+      "license": "SIL Open Font License 1.1; MANROPE-LICENSE.txt",
+      "source": "Existing licensed tidefold-house assets/fonts"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://murrayresources.com/",
+      "use": "Regional business categories and separate employer/candidate entry points; read, no assets or claims copied."
+    },
+    {
+      "url": "https://hirewell.com/",
+      "use": "People imagery and audience paths; actually viewed through BrowserUse, no assets or branding copied."
+    }
+  ]
+}

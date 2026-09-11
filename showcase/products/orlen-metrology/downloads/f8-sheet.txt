@@ -1,0 +1,18 @@
+ORLEN METROLOGY / F8
+Fictional company and concept instrument sheet
+
+A handwheel-operated stand paired with a matched force gauge for straightforward push and pull comparisons. Fixtures define how force is applied to your sample.
+
+Matched force gauge: 0–500 N range
+Crosshead travel: 200 mm
+Base footprint: 250 × 300 mm
+Actuation: Manual handwheel
+Fixtures: Selected for the sample
+Results: Peak force on gauge; manual record
+
+Setup: Define the loading direction and anticipated force, then select grips or contact fixtures. The demonstration considers alignment, sample support and the operator's test method.
+Included: Manual stand with a matched 500 N gauge. A fixture proposal is prepared with the sample; specialised grips are scoped separately.
+Limits: The stand alone does not measure force; the matched gauge does. This kit does not offer automated fatigue cycling, a force/displacement trace or materials certification. The usable sample space depends on installed fixtures.
+Support: Fixture adapters and replacement contact tools are matched to the agreed kit. Sensor checks and calibration are separate from mechanical stand support.
+
+All specifications are fictional selection data. No calibrated accuracy, uncertainty, certification or compliance claim is made. Samples and display readings in images are illustrative.

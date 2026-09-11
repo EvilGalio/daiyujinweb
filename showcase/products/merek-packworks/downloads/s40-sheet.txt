@@ -1,0 +1,18 @@
+MEREK PACKWORKS | S40
+Fictional company / concept equipment sheet
+
+An operator-fed top and bottom tape sealer for lines where people still place the product. Handwheel settings make the change between planned carton batches explicit.
+
+Operation: Operator-fed top/bottom tape
+Carton length: 200–600 mm
+Carton width: 150–500 mm
+Carton height: 120–500 mm
+Loaded case: Up to 20 kg
+Planning rate: Up to 20 cases/min; operator dependent
+Machine body: 1,200 × 900 mm
+
+Operation: Set the width and head height for a carton batch, then feed closed cases through the side belts. Tape adhesion and carton presentation are checked together before the machine is selected.
+Selection limits: A fit for a fixed case size within each run. It does not adjust itself to a stream of randomly sized boxes.
+Support: Top tape head and belt access are demonstrated to the maintenance team; wear-part references are included in the handover pack.
+
+All specifications are illustrative and require project-specific review. Machine footprint excludes access and connected equipment. No compliance or certified performance claim is made.

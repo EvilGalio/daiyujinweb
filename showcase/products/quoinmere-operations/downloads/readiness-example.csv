@@ -1,0 +1,4 @@
+workstream,state,receiving_owner,next_action,boundary
+Goods receipt,Draft complete,Receiving lead,Rehearse intake record,Fictional coordination example only
+Returns,Open,Customer-service lead,Confirm receiving role,Not technical or safety approval
+Dispatch,Ready for review,Dispatch lead,Schedule handover review,Not an opening decision

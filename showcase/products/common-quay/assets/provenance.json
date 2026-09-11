@@ -1,0 +1,19 @@
+{
+  "notice": "Generated fictional buildings, not photographs of rentable properties. Original PNGs are retained in docs/qa/client-delivery/common-quay/originals. No source website assets were copied.",
+  "generator": "OpenAI image generation",
+  "generatedAt": "2026-09-11",
+  "images": [
+    [
+      "dock-court",
+      "Create one original photorealistic commercial-property editorial photograph, landscape 3:2. Fictional Dock Court in the Hamburg metropolitan area: a modest restored four-storey red-brick mixed-use courtyard block, ground floor retail shopfront glazing and three levels of regular office windows. View diagonally through a broad open passage into the cobbled shared court, with the brick facades, separate retail entrances and a few planters clearly visible. Warm late-morning daylight after light rain, subtle everyday signs of use such as parked bicycles and one or two distant indistinct adults, no readable signs, no logos, no identifiable real landmark or address. The building is commercial, not a hotel or luxury condominium. Straight architectural verticals, believable materials, understated northern German city character. Composition sufficiently wide for a homepage banner, retain clear foreground and generous view of the four-storey mass. No diagram, collage, fake text, watermarks or glossy CGI."
+    ],
+    [
+      "linden-yard",
+      "Create one original photorealistic commercial-property editorial photograph, landscape 3:2. A fictional three-storey yellow-brick mixed-use courtyard property called Linden Yard, in a generic Hamburg metropolitan setting. Ground-level small retail studio entrances with glazed timber-metal doors, two upper levels of modest office windows. A planted shared yard with a mature linden-like tree, low green beds, a bench and practical bicycle stands. Camera at the courtyard entrance looking across the yard toward two wings of the three-storey building. Soft natural daylight, quiet everyday work setting with one distant person carrying a tote, no dwelling balconies or hotel signs. Realistic brick, painted window frames and stone paving, not luxury. No real landmark, address, visible branding, readable text or watermark. Documentary architecture photograph, straight verticals, one coherent scene."
+    ],
+    [
+      "platform-house",
+      "Create one original photorealistic commercial-property editorial photograph, landscape 3:2. Fictional Platform House, a practical contemporary five-storey mixed-use commercial block in an invented Hamburg metropolitan district. Pale precast concrete facade with charcoal metal window bands, ground-floor glazed showroom units and a clearly visible shared reception entrance, four upper office storeys. Broad paved forecourt, a few low planters, bicycle parking and three tiny indistinct adult passers-by for scale. Street-level diagonal view showing the full modest five-storey building, not a skyscraper, not a residential block. Overcast bright northern-European daylight with realistic reflections, professionally photographed straight verticals and tactile construction details. No visible place name, public transport line, identifiable landmark, logos, signage, readable words, watermarks, luxury cars or speculative futuristic effects. One coherent building image, not a collage."
+    ]
+  ]
+}

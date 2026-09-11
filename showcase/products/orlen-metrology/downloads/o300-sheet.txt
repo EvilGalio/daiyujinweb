@@ -1,0 +1,18 @@
+ORLEN METROLOGY / O300
+Fictional company and concept instrument sheet
+
+A horizontal optical comparator for viewing the external silhouette of a small part on a projection screen. Use the manual XY stage and readout to explore a defined feature.
+
+Projection screen: 300 mm diameter
+XY stage travel: 150 × 100 mm
+Lens options: 10× / 20×
+Stage load: Up to 5 kg
+Bench footprint: 760 × 520 mm
+Results: Digital XY readout; manual record
+
+Setup: Hold a representative part so the feature is visible in silhouette. The demonstration considers orientation, lighting, magnification and how the operator identifies the edge.
+Included: Comparator, selected lens and XY readout. Workholding and any additional lens are scoped with the application.
+Limits: Stage travel is not a guaranteed sample envelope. Fixture size and lens field of view change what can be inspected. Internal features, full 3D geometry and automatic report export sit outside this configuration.
+Support: Discuss illumination modules, lens care accessories and fixture interfaces with the supplying distributor.
+
+All specifications are fictional selection data. No calibrated accuracy, uncertainty, certification or compliance claim is made. Samples and display readings in images are illustrative.

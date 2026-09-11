@@ -1,0 +1,49 @@
+{
+  "company": "Latchline Objects",
+  "images": [
+    {
+      "key": "arc-stand",
+      "original": "docs/qa/client-delivery/latchline-objects/originals/arc-stand.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-cbcb5190-d7bd-4995-91da-50829df9c23b.png",
+      "promptRecord": "docs/qa/client-delivery/latchline-objects/image-prompts.json",
+      "tool": "built-in image_gen"
+    },
+    {
+      "key": "dock-tray",
+      "original": "docs/qa/client-delivery/latchline-objects/originals/dock-tray.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-a0139613-e24a-41d4-918c-1af703d24799.png",
+      "promptRecord": "docs/qa/client-delivery/latchline-objects/image-prompts.json",
+      "tool": "built-in image_gen"
+    },
+    {
+      "key": "fold-pouch",
+      "original": "docs/qa/client-delivery/latchline-objects/originals/fold-pouch.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-d7d2cfb6-c00e-4fae-a80d-5e7c7f01d28d.png",
+      "promptRecord": "docs/qa/client-delivery/latchline-objects/image-prompts.json",
+      "tool": "built-in image_gen"
+    },
+    {
+      "key": "desk-scene",
+      "original": "docs/qa/client-delivery/latchline-objects/originals/desk-scene.png",
+      "generatedSource": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-4f214b05-9b34-44f4-86eb-2c35a03bb276.png",
+      "promptRecord": "docs/qa/client-delivery/latchline-objects/image-prompts.json",
+      "tool": "built-in image_gen"
+    }
+  ],
+  "fonts": [
+    {
+      "name": "Manrope",
+      "license": "fonts/Manrope-OFL.txt"
+    },
+    {
+      "name": "Space Grotesk",
+      "license": "fonts/Space-Grotesk-OFL.txt"
+    }
+  ],
+  "nativeDiagrams": "Original SVG nominal dimensions and finish studies, no third-party code",
+  "references": [
+    "https://grovemade.com/",
+    "https://www.orbitkey.com/"
+  ],
+  "referenceAssetsCopied": false
+}

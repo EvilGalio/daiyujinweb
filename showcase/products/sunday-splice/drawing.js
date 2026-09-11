@@ -1,0 +1,8 @@
+function spliceDrawing(garment,size){
+ const width=size.values[0];const ink='#293146';let shape='';
+ if(garment.id==='trouser'){shape='<path d="M98 40H302L319 300H225L200 134L175 300H81Z" fill="#c7bba5" stroke="'+ink+'" stroke-width="2"/><path d="M99 64H303M200 42V132M123 67L102 92M277 67L302 92M152 66L145 121M248 66L255 121" fill="none" stroke="'+ink+'"/>';}
+ else{const long=garment.id==='overshirt';shape=`<path d="M155 45Q200 72 245 45L${long?'299 64L361 281L310 297L274 157L282 306H118L126 157L90 297L39 281L101 64':'303 83L281 137L253 128L260 306H140L147 128L119 137L97 83'}Z" fill="${long?'#ad6955':'#baacc9'}" stroke="${ink}" stroke-width="2"/>`;if(long)shape+=`<path d="M200 63V305M155 45L169 92L200 65L230 92L245 45M145 106h37v36h-37zM217 106h37v36h-37zM47 263L96 278M353 263L304 278" fill="none" stroke="${ink}"/>`;}
+ const measuringLine=garment.id==='trouser'?'<path d="M98 25H302" stroke="'+ink+'" stroke-width="1.5"/>':'<path d="M130 167H270M130 159v16M270 159v16" stroke="'+ink+'" stroke-width="1.5" stroke-dasharray="4 3"/>';
+ return `<svg viewBox="0 0 400 390" role="img" aria-label="${garment.name} illustrative measurement diagram, ${garment.measure.toLowerCase()} ${width} centimetres"><g>${shape}</g>${measuringLine}<text x="200" y="17" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="${ink}">${garment.measure}: ${width} cm</text><text x="200" y="346" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="${ink}">Size ${size.id} · nominal garment dimensions</text><text x="200" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="${ink}">Illustrative outline, not a cutting pattern or body-fit guarantee</text></svg>`;
+}
+globalThis.spliceDrawing=spliceDrawing;

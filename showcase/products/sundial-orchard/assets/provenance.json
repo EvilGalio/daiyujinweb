@@ -1,0 +1,45 @@
+{
+  "company": "sundial-orchard",
+  "kind": "Fictional company / concept images",
+  "generatedWith": "OpenAI ImageGen",
+  "date": "2026-09-11",
+  "images": [
+    {
+      "file": "blood-orange.webp",
+      "original": "docs/qa/client-delivery/sundial-orchard/originals/blood-orange.png",
+      "promptFile": "docs/qa/client-delivery/sundial-orchard/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "pear-ginger.webp",
+      "original": "docs/qa/client-delivery/sundial-orchard/originals/pear-ginger.png",
+      "promptFile": "docs/qa/client-delivery/sundial-orchard/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "lemon-myrtle.webp",
+      "original": "docs/qa/client-delivery/sundial-orchard/originals/lemon-myrtle.png",
+      "promptFile": "docs/qa/client-delivery/sundial-orchard/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "sunny-three.webp",
+      "original": "docs/qa/client-delivery/sundial-orchard/originals/sunny-three.png",
+      "promptFile": "docs/qa/client-delivery/sundial-orchard/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    }
+  ],
+  "fonts": [
+    {
+      "name": "Space Grotesk",
+      "licence": "SIL Open Font License 1.1",
+      "notice": "Retained in assets/fonts/"
+    }
+  ],
+  "references": "docs/clients/17-sundial-orchard.md",
+  "copiedReferenceAssets": false
+}

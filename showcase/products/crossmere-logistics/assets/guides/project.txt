@@ -1,0 +1,10 @@
+CROSSMERE LOGISTICS / FICTIONAL CONCEPT
+Project Stock
+Separately identified campaign stock, staged release batches and an organised close-out.
+
+Fit: A defined rollout or campaign with stock reserved by project and release batches agreed in advance.
+Inputs: A project stock list, release sequence, batch owners and a plan for residual stock.
+Output: A project stock index, batch release checklist and campaign close-out record.
+Starting check: Assign each release batch an owner and agree the treatment of unallocated stock.
+
+Customer owns goods classification, stock master and carrier arrangement. No quote, capacity confirmation, shipment, customs or dangerous-goods service. Nothing is sent through this website.

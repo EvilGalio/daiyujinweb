@@ -1,0 +1,9 @@
+function formsteadDrawing(piece,size,finish='natural'){
+ const colour=finish==='brown'?'#815b43':'#c9ad7f';const scale=Math.min(510/size.l,225/size.h);const w=size.l*scale;const h=size.h*scale;const x=(720-w)/2;const y=290-h;const thickness=(piece.id==='fold'?30:28)*scale;
+ const board=(bx,by,bw,bh)=>`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="${colour}" stroke="#444942" stroke-width="1.5"/>`;
+ let shape='';
+ if(piece.id==='lowline'){shape=board(x,y,thickness,h)+board(x+w-thickness,y,thickness,h)+board(x+thickness,y,w-2*thickness,thickness)+board(x+thickness,y+h/2-thickness/2,w-2*thickness,thickness)+board(x+thickness,y+h-thickness,w-2*thickness,thickness);}
+ else{shape=board(x,y,w,thickness)+`<path d="M${x+w*.13} ${y+thickness}h${w*.12}l${w*.035} ${h-thickness}h${-w*.19}zM${x+w*.75} ${y+thickness}h${w*.12}l${w*.06} ${h-thickness}h${-w*.19}z" fill="${colour}" stroke="#444942" stroke-width="1.5"/>`+board(x+w*.23,y+h*.73,w*.54,Math.max(8,h*.07));}
+ return `<svg viewBox="0 0 720 410" role="img" aria-label="${piece.name} schematic front elevation, ${size.l} millimetres long and ${size.h} millimetres high, ${finish==='brown'?'Warm brown oak':'Natural oak'}"><line x1="40" y1="290" x2="675" y2="290" stroke="#adb1a8" stroke-width="1"/>${shape}<g stroke="#7c4c3b" fill="none" stroke-width="1"><path d="M${x} 310v35M${x+w} 310v35M${x} 332H${x+w}"/><path d="M${x-28} ${y}h-20M${x-28} 290h-20M${x-38} ${y}V290"/></g><g font-family="Arial,sans-serif" font-size="19" fill="#272b29"><text x="360" y="362" text-anchor="middle">${size.l} mm</text><text x="${x-45}" y="${y+h/2}" text-anchor="end">${size.h}</text><text x="360" y="396" text-anchor="middle" font-size="14">Schematic front elevation · depth ${size.d} mm · not an installation drawing</text></g></svg>`;
+}
+globalThis.formsteadDrawing=formsteadDrawing;

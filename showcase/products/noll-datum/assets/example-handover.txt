@@ -1,0 +1,22 @@
+NOLL DATUM / ILLUSTRATIVE BATCH HANDOVER
+FICTIONAL COMPANY - CONCEPT DOCUMENT - NOT A CERTIFICATE
+
+Example component: ND-14 manifold body
+Drawing: Example revision B (not a manufacturing drawing)
+Material specified: Aluminium 6082-T6
+Illustrative batch quantity: 100 pieces
+
+A real agreed handover would identify:
+- Job and batch reference, accepted drawing revision and supplied quantity.
+- The features included in the inspection scope and the agreed sample plan.
+- Actual measured results and the equipment/method used, where ordered.
+- Material supplier documentation when specifically ordered and available.
+- Externally coordinated finishing when included in the quotation.
+- Approved deviations, if any, clearly separated from standard results.
+
+No measurements, certificates, approved deviations or real customer data
+are included in this illustrative document. It does not certify a part,
+a process or a quality management system.
+
+This file is downloaded locally from a concept website. Nothing is sent.
+

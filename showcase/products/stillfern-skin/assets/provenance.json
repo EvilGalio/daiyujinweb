@@ -1,0 +1,35 @@
+{
+  "created": "2026-09-11",
+  "method": "Original OpenAI image generation for a fictional commission; no third-party photographs copied.",
+  "review": "All four originals visually inspected: coherent labels, volumes, pack forms and lighting. No real people, certification or testimonial claims.",
+  "assets": [
+    {
+      "name": "ritual",
+      "prompt": "Create a single photorealistic wide editorial product photograph, landscape 3:2, for the original fictional British cosmetic brand Stillfern Skin. Three exact products on an aged pale limestone bathroom ledge in warm natural window daylight, long soft diagonal shadows, one rumpled oat linen cloth, subtle out of focus fern at far edge. Product 1: tall matte ivory 150 ml cylindrical pump bottle, ivory pump, forest green restrained typography with exact text 'stillfern', 'Gentle Cleanser', '150 ml'. Product 2: low muted clay peach 50 ml cylindrical cream jar with same coloured flat lid, dark forest green exact text 'stillfern', 'Daily Moisture', '50 ml'. Product 3: upright muted olive green 60 ml hand cream squeeze tube with broad ivory cap at base, ivory exact text 'stillfern', 'Hand Balm', '60 ml'. All three packs beautiful plausible cosmetic pack proportions, entire products fully visible, central composition but breathing room, clearly legible simple labels, tactile matte surfaces, extremely subtle grain, no humans, no other products, no certificates, no badges, no text outside labels, no graphics, no watermarks. This is original fictional pack photography, not a recreation of any existing brand.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-38b233ca-4674-4cc8-a063-a4e84a5dfb7f.png",
+      "file": "assets/ritual.webp",
+      "original": "docs/qa/client-delivery/stillfern-skin/originals/ritual.png"
+    },
+    {
+      "name": "cleanser",
+      "prompt": "Single photorealistic cosmetic ecommerce pack portrait, vertical 4:5 composition, entire tall matte ivory cylindrical pump bottle 150 ml, ivory pump, generous pale oatmeal studio background with low soft daylight shadow, subtle warm limestone base. Original fictional brand label in dark forest green, exact elegant text 'stillfern', smaller 'Gentle Cleanser', bottom '150 ml'. Minimal clear legible labelling. Pump bottle centred, fills 65 percent height. No additional text, no brand imitations, no prop bottles, no certification marks, no hands, no watermark. Tactile editorial product photography.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-87eeb453-4903-42f2-b755-ec1359e07086.png",
+      "file": "assets/cleanser.webp",
+      "original": "docs/qa/client-delivery/stillfern-skin/originals/cleanser.png"
+    },
+    {
+      "name": "moisture",
+      "prompt": "Single photorealistic cosmetic ecommerce pack portrait, vertical 4:5 composition, entire low cylindrical matte muted peach clay cosmetic cream jar 50 ml, matching flat closed lid, generous pale oatmeal studio background, warm directional natural light and soft shadow, subtle limestone base. Original fictional brand label in dark forest green, exact elegant text 'stillfern', smaller 'Daily Moisture', bottom '50 ml'. Minimal clear legible labelling. Jar centred at lower middle, fills 55 percent width, breathing room above. No extra text, no brand imitations, no additional products, no certification marks, no hands, no watermark. Tactile editorial product photograph.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-3523f63f-7e45-4544-945e-982922a8f3e9.png",
+      "file": "assets/moisture.webp",
+      "original": "docs/qa/client-delivery/stillfern-skin/originals/moisture.png"
+    },
+    {
+      "name": "balm",
+      "prompt": "Single photorealistic cosmetic ecommerce pack portrait, vertical 4:5 composition, entire upright matte muted olive green 60 ml squeeze tube with broad ivory flip cap at its base, generous pale oatmeal studio background with soft daylight shadow, subtle limestone base. Original fictional brand label in ivory, exact elegant text 'stillfern', smaller 'Hand Balm', bottom '60 ml'. Minimal clear legible labelling. Tube centred, fills 65 percent height. No extra text, no brand imitations, no additional products, no certification marks, no hands, no watermark. Tactile editorial product photograph.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-6ea1977d-8f5f-4015-ad93-39260e72c8ab.png",
+      "file": "assets/balm.webp",
+      "original": "docs/qa/client-delivery/stillfern-skin/originals/balm.png"
+    }
+  ]
+}

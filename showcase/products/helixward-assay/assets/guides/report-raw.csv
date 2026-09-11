@@ -1,0 +1,9 @@
+report,record,reading_1,reading_2,reading_3,mean,units
+HW-DEMO-01_SYNTHETIC,BLK,48,50,52,50,arbitrary_response
+HW-DEMO-01_SYNTHETIC,REF,480,500,520,500,arbitrary_response
+HW-DEMO-01_SYNTHETIC,A01,148,150,152,150,arbitrary_response
+HW-DEMO-01_SYNTHETIC,A02,245,250,255,250,arbitrary_response
+HW-DEMO-01_SYNTHETIC,A03,340,350,360,350,arbitrary_response
+HW-DEMO-01_SYNTHETIC,B01,430,450,470,450,arbitrary_response
+HW-DEMO-01_SYNTHETIC,B02,530,550,570,550,arbitrary_response
+HW-DEMO-01_SYNTHETIC,B03,620,650,680,650,arbitrary_response

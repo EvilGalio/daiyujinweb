@@ -1,0 +1,10 @@
+CROSSMERE LOGISTICS / FICTIONAL CONCEPT
+Storage Start
+Pallet receiving, agreed storage locations and release instructions for regular B2B inventory.
+
+Fit: Packaged stock held in pallet quantities, with a defined owner and a predictable release pattern.
+Inputs: A stock master, pallet dimensions and weights, arrival outline and authorised release contacts.
+Output: An opening stock record, agreed location method and a pallet release handover.
+Starting check: Confirm pallet identity and receiving discrepancies before the starting stock record is agreed.
+
+Customer owns goods classification, stock master and carrier arrangement. No quote, capacity confirmation, shipment, customs or dangerous-goods service. Nothing is sent through this website.

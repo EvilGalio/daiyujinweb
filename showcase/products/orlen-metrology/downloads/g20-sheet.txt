@@ -1,0 +1,18 @@
+ORLEN METROLOGY / G20
+Fictional company and concept instrument sheet
+
+A compact contact height gauge for accessible faces on a stable workpiece. Set it on a suitable surface plate and bring the probe to the feature you need to compare.
+
+Vertical travel: 0–300 mm
+Display increment: 0.01 mm
+Base footprint: 210 × 160 mm
+Method: Contact probe
+Reference surface: Suitable surface plate required
+Results: Operator-read; manual record
+
+Setup: Agree the reference face, support the workpiece and choose an accessible contact point. The demonstration looks at the complete setup, including the surface plate and workholding.
+Included: G20 body and standard contact probe. Surface plate, reference artifacts and application-specific tips are selected separately.
+Limits: The display increment describes the screen step; it is not a calibrated accuracy or uncertainty statement. Soft samples, inaccessible surfaces and dimensions beyond the travel need a different review.
+Support: Probe tips and compatible contact accessories are identified by the instrument reference. Calibration is arranged through the customer's chosen qualified provider.
+
+All specifications are fictional selection data. No calibrated accuracy, uncertainty, certification or compliance claim is made. Samples and display readings in images are illustrative.

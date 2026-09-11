@@ -1,0 +1,43 @@
+{
+  "createdAt": "2026-09-11T11:48:45.536Z",
+  "tool": "Built-in OpenAI image_gen",
+  "originalsActuallyViewed": true,
+  "description": "Original fictional laboratory and people imagery. No outside reference photos, real staff, clinical evidence or copied assets. Local Sharp derivatives.",
+  "assets": [
+    {
+      "name": "bench",
+      "prompt": "Use case: photorealistic-natural. Create one original documentary editorial photograph for fictional Helixward Assay Services, a small Cambridge Massachusetts research-only laboratory. Landscape 4:3. Close wide view of a clean ordinary laboratory bench in soft cool daylight: a transparent rectangular microplate with an orderly 8 by 12 grid of small circular wells is closed and resting flat at a slight diagonal, a blue plastic rack of capped empty sample tubes sits behind it, and a plain compact white plate-reader instrument is partly visible further back. Accurate ordinary proportions, no glowing particles or dramatic science-fiction. Off-white worktop with subtle real texture, muted teal-blue equipment accents, softly out-of-focus glass partition and daylight lab behind. No active experiment, liquid dispensing, cultures, blood, body tissue or procedural setup. No text, labels, logos, manufacturer marks, certificates, data, hands or people. Photographic material detail: transparent plastic edge and light reflections, familiar modest research workspace, naturally imperfect documentary composition. Hero image for a website about carefully scoped assay studies and traceable reports. Fully fictional original image.",
+      "generatedPath": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-705dd4fd-3eca-40f4-a8e7-22beccc48e6a.png",
+      "width": 1448,
+      "height": 1086,
+      "original": "docs/qa/client-delivery/helixward-assay/originals/bench.png"
+    },
+    {
+      "name": "discussion",
+      "prompt": "Use case: photorealistic-natural. Original editorial documentary photograph for fictional Helixward Assay Services, small research-only laboratory in Cambridge Massachusetts. Landscape 4:3. Two adult colleagues, a woman around40 wearing a plain pale blue shirt and a man around35 with a dark grey shirt, sit at a light grey office table adjacent to a glass partition looking into an ordinary small laboratory. They are discussing a simple paper report together. Paper has only a few faint generic lines and no legible data or personal information. A closed dark teal notebook and laptop angled away on the table. No lab procedure, medical uniforms, treatment, handshakes, staged stock poses, credentials, logos or readable text. Natural expressions of listening and thoughtful discussion, normal hands/anatomy fully plausible. Cool clear window light with warm skin tones, muted teal and paper white setting, original fictional staff and room, observational photography at seated height. Show the collaborative project scoping and handover side of a research service.",
+      "generatedPath": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-ac086ad4-dc86-4511-88ab-307b1d5953b0.png",
+      "width": 1448,
+      "height": 1086,
+      "original": "docs/qa/client-delivery/helixward-assay/originals/discussion.png"
+    },
+    {
+      "name": "laboratory",
+      "prompt": "Use case: photorealistic-natural. Original architectural editorial photograph of fictional Helixward Assay Services in Cambridge Massachusetts, a modest 26-person research provider. Landscape 4:3. View into one unoccupied light-filled laboratory room: plain pale grey workbenches, closed compact white microplate reader without branding, a few orderly blue plastic racks with capped empty tubes, a stack of transparent empty microplates, glass partitions and tall rectangular windows. Modest scientific workplace, not a hospital or factory. Open safe circulation, clean but naturally lived-in, subtle texture, no clinical equipment, no blood, no cultures, no active procedure, no chemicals with labels, no people, no biohazard signs, no certifications, no logos or readable text. Off-white, deep teal-blue and soft natural grey palette with neutral daylight. Realistic 28mm architectural perspective, restrained documentary imagery for a website explaining project scope, methods and data handover. Wholly fictional space.",
+      "generatedPath": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-e379a2c1-8638-44e6-b0eb-57f60de4cb57.png",
+      "width": 1448,
+      "height": 1086,
+      "original": "docs/qa/client-delivery/helixward-assay/originals/laboratory.png"
+    }
+  ],
+  "fonts": [
+    "Space Grotesk",
+    "Manrope",
+    "IBM Plex Mono"
+  ],
+  "fontLicense": "Local complete SIL OFL notices in assets/fonts/",
+  "references": [
+    "https://www.bioagilytix.com/solutions/capabilities/",
+    "https://www.bioagilytix.com/solutions/capabilities/sample-analysis/",
+    "https://cellcarta.com/capabilities/biomarkers/"
+  ]
+}

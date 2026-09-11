@@ -1,0 +1,22 @@
+NORTHSPAN SKILLS - WORKSHOP DRAWING READING
+Fictional course / original classroom exercise
+
+Use plate-exercise.svg alongside this worksheet.
+The sample plate is 100 x 60 mm. The two holes have diameter 10 mm.
+Hole centres are (20,30) and (80,30), measured from the bottom-left corner.
+
+1. Mark the overall dimensions and identify the unit.
+2. What is the distance between the hole centres?
+3. What information would you still need before making the part?
+4. Write three specific clarification questions.
+
+Discussion notes:
+The centre-to-centre distance is 60 mm.
+Material, thickness and tolerances are not specified.
+Other requirements must be clarified for the intended use.
+This is an introductory reading exercise, not a manufacturing drawing,
+safety instruction, machine-operation guide or professional qualification.
+
+Course: one day, six taught hours; reference fee GBP 135 per learner.
+Demonstration dates: 16 October or 13 November 2026, 09:30-16:30.
+No seat is reserved and no enquiry is sent by downloading this file.

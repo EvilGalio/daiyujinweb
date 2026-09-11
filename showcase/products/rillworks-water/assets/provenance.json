@@ -1,0 +1,28 @@
+{
+  "generator": "Built-in ImageGen",
+  "date": "2026-09-10",
+  "notice": "Original AI-generated fictional concept imagery. No third-party brand assets copied. Not engineering drawings.",
+  "images": [
+    {
+      "name": "nursery-station",
+      "prompt": "Use case: photorealistic-natural. Create an original editorial photograph for the fictional Rillworks Water regional water-treatment website. Landscape 3:2, wide environmental composition. A modest ornamental plant nursery in the Waikato region of New Zealand, long rows of young shrubs and glasshouse roofs, low green hills, soft pale cloudy morning sky. On the RIGHT half is the clear main subject: a practical sheltered water station with two large muted blue-grey rainwater storage tanks, a small stainless filtration rack, orderly pipes and blue-handled valves, physically grounded and plausible. No people needed. Left half is quiet darker nursery foliage and unobtrusive shed, with visual breathing space where website heading will be overlaid by code. Natural olive, blue-grey, weathered concrete and zinc. Premium documentary architectural photography, believable scale and real materials, no CGI sheen. Not a giant water utility plant. No text, logos, safety badges, certification marks, water drinking glasses, futuristic equipment or exaggerated pipes. Concept project subject, not an identifiable real company.",
+      "source": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-46d938c8-59f2-42a1-8c0e-9e337d33bf8e.png",
+      "published": "nursery-station.webp",
+      "transformation": "Resize and WebP encoding only"
+    },
+    {
+      "name": "sediment-rack",
+      "prompt": "Use case: product-mockup. Original photorealistic catalogue photograph of the fictional Rillworks Water Sediment Rack SR-20: a compact freestanding practical stainless-steel frame on workshop floor holding two vertical cylindrical stainless water filter housings, clear inlet/outlet piping with blue lever isolation valves and two small round pressure gauges. Clean mechanically plausible pipe routing and connections. Three-quarter view with full equipment visible, generous margins, landscape 4:3. Workshop backdrop in very pale blue-grey, soft daylight, gentle real shadows, brushed metal textures, sober engineering product photograph. No brand logo, text, readable gauge numbers, labels, certifications, fake compliance marks, transparent sci-fi chamber, people or extra machines. Image is illustrative concept hardware, not a fabrication drawing.",
+      "source": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-980f4553-b7dc-45c1-baf4-a7d1ca4d9983.png",
+      "published": "sediment-rack.webp",
+      "transformation": "Resize and WebP encoding only"
+    },
+    {
+      "name": "carbon-stage",
+      "prompt": "Use case: product-mockup. Original photorealistic catalogue photograph for fictional Rillworks Water: Carbon Stage CS-40 concept assembly, two medium-height cylindrical water-treatment media pressure vessels in muted mineral blue, domed tops with simple black control valve assemblies, standing side by side on a low metal base, a tidy grey manifold and blue isolation valve handles on one side. Practical modest regional industrial equipment, visible full product three-quarter view. Landscape 4:3 composition, generous margin, very pale blue-grey workshop background with soft daylight and gentle shadows. Real material textures and plausible scale. No brand logos, text, certification marks, fake badges, people, floating objects, sci-fi transparent vessels or unrelated machinery. This is a fictional concept image, not an engineering drawing.",
+      "source": "C:/Users/mfg0707/.codex/generated_images/01a086d9-eee8-73c2-a3db-aec47cf25e13/exec-fba277d7-7da2-432e-9536-e6caebec56b0.png",
+      "published": "carbon-stage.webp",
+      "transformation": "Resize and WebP encoding only"
+    }
+  ]
+}

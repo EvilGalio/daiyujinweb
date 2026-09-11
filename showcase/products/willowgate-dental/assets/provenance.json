@@ -1,0 +1,28 @@
+{
+  "created": "2026-09-11",
+  "method": "Original OpenAI image generation for a fictional neighbourhood dental practice. No real patient or employee is represented.",
+  "review": "All three original photos actually viewed. Natural hands/faces, consistent oak/lavender premises, no procedures, patient documents, credentials or treatment results.",
+  "assets": [
+    {
+      "name": "welcome",
+      "prompt": "Create one photorealistic editorial photograph for an original fictional neighbourhood dental practice in Cambridge England. Vertical 4:5 composition. A warm approachable fictional adult female patient coordinator in her thirties with short dark curls, natural face, ordinary lavender knit top, speaking at a pale oak reception desk with a fictional adult visitor in a rust-coloured shirt, seen in gentle three-quarter profile. Natural relaxed expressions, not exaggerated smiles, normal unstylised teeth. Daylight through a tall arched window, pale lavender waiting chairs and warm white walls, tasteful indoor plant in background. Inclusive everyday British neighbourhood atmosphere, human conversation and practical welcome, not luxury spa, no dental procedure. Clean believable interior, understated grain, natural soft light. No text, logos, credentials, certificates, badges, real persons, before-after or clinical claims. Keep both people visible with breathing room and hands anatomically natural.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-4fa8f1a1-4ba6-4888-8159-dbed43f14081.png",
+      "file": "assets/welcome.webp",
+      "original": "docs/qa/client-delivery/willowgate-dental/originals/welcome.png"
+    },
+    {
+      "name": "room",
+      "prompt": "Single photorealistic editorial architectural photograph of an empty consultation and treatment room for a fictional small neighbourhood dental practice in Cambridge England, horizontal 3:2. A clean modern understated pale blush dental chair at rest, articulated task lamp and ordinary dental unit, no instruments in use, no blood, no humans, no procedure. Warm white walls, pale oak cabinet fronts with easy-clean white worktop, high arched window with privacy glazing, subtle lavender trim. A realistic accessible ground-floor room with an uncluttered route to the chair, calm daylight. Camera at standing eye level, believable medical room rather than a spa, equipment geometrically plausible. No text, logo, credential plaques or advertisements.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-08643921-da3a-418e-85b2-8d01a0bb82ab.png",
+      "file": "assets/room.webp",
+      "original": "docs/qa/client-delivery/willowgate-dental/originals/room.png"
+    },
+    {
+      "name": "conversation",
+      "prompt": "Single photorealistic editorial photograph for a fictional neighbourhood dental practice, horizontal 3:2. Two fictional adults seated at a small pale oak consultation desk having a calm conversation BEFORE any examination: a woman in simple plum scrub top and an older male visitor in a navy cardigan, fully clothed, normal natural expressions, no posed perfect smile, all hands resting naturally. A closed blank folder on desk, no legible documents or patient data. Bright warm white room with pale lavender wall detail and a tall softly lit window. The interaction is attentive and ordinary, not promotional. No dental tools in mouths, no procedure, no visible treatment results. No name tags, credentials, text, logos, badges or certificates. Original fictional people and premises, documentary-style composition with breathing room.",
+      "source": "C:\\Users\\mfg0707\\.codex\\generated_images\\01a086d9-eee8-73c2-a3db-aec47cf25e13\\exec-0ff881c4-3635-4636-b660-bbd759151474.png",
+      "file": "assets/conversation.webp",
+      "original": "docs/qa/client-delivery/willowgate-dental/originals/conversation.png"
+    }
+  ]
+}

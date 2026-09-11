@@ -1,0 +1,10 @@
+CROSSMERE LOGISTICS / FICTIONAL CONCEPT
+Pick & Pack
+Carton-level order preparation for defined stock lines, with agreed picking and pack rules.
+
+Fit: Small B2B orders that combine stock lines and need a consistent carton handover.
+Inputs: SKU and variant labels, order examples, packing instructions and the customer’s carrier requirements.
+Output: A documented pick/pack method, sample order walkthrough and dispatch handover checklist.
+Starting check: Agree the SKU-to-carton rules and how order discrepancies are returned for a decision.
+
+Customer owns goods classification, stock master and carrier arrangement. No quote, capacity confirmation, shipment, customs or dangerous-goods service. Nothing is sent through this website.

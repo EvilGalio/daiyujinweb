@@ -1,0 +1,50 @@
+{
+  "company": "ember-table",
+  "kind": "Fictional company / concept images",
+  "generatedWith": "OpenAI ImageGen",
+  "date": "2026-09-11",
+  "images": [
+    {
+      "file": "table-spread.webp",
+      "original": "docs/qa/client-delivery/ember-table/originals/table-spread.png",
+      "promptFile": "docs/qa/client-delivery/ember-table/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "cabbage.webp",
+      "original": "docs/qa/client-delivery/ember-table/originals/cabbage.png",
+      "promptFile": "docs/qa/client-delivery/ember-table/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "pear.webp",
+      "original": "docs/qa/client-delivery/ember-table/originals/pear.png",
+      "promptFile": "docs/qa/client-delivery/ember-table/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    },
+    {
+      "file": "dining-room.webp",
+      "original": "docs/qa/client-delivery/ember-table/originals/dining-room.png",
+      "promptFile": "docs/qa/client-delivery/ember-table/image-prompts.json",
+      "use": "Original concept photography; not a real company or commercially available product",
+      "processing": "WebP encoding only; original PNG retained"
+    }
+  ],
+  "fonts": [
+    {
+      "name": "Source Serif 4",
+      "licence": "SIL Open Font License 1.1",
+      "notice": "Retained in assets/fonts/"
+    },
+    {
+      "name": "Space Grotesk",
+      "licence": "SIL Open Font License 1.1",
+      "notice": "Retained in assets/fonts/"
+    }
+  ],
+  "references": "docs/clients/15-ember-table.md",
+  "copiedReferenceAssets": false
+}

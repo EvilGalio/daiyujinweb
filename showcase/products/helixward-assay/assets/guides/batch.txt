@@ -1,0 +1,19 @@
+HELIXWARD ASSAY SERVICES / Research Batch
+Fictional research company. Research-use-only demonstration.
+
+A bounded set of research items, run against a method already agreed for the project.
+
+WHAT TO BRING
+The agreed method and calculation version
+A coded item manifest with no personal information
+The reporting structure and exception rules
+
+HANDOVER
+A labelled run record and raw values
+A calculation sheet linked to the source records
+An exception register and project handover note
+
+LIMIT
+Repeated readings do not establish clinical meaning, product performance or regulatory suitability. Exceptions remain visible in the handover.
+
+No clinical testing, live laboratory work, upload, message, sample acceptance, quotation or regulatory submission.

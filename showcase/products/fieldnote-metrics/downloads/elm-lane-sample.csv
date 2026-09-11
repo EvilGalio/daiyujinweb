@@ -1,0 +1,37 @@
+row_id,week_start,store,sku,product,category,units_sold,net_sales_cad,closing_units
+001,2026-08-31,junction,HG-01,Stoneware Mug,home,32,576,22
+002,2026-08-31,junction,HG-02,Cotton Tea Towel,home,26,364,58
+003,2026-08-31,junction,PA-01,House Blend 250g,pantry,48,768,29
+004,2026-08-31,junction,PA-02,Citrus Marmalade,pantry,24,264,60
+005,2026-08-31,junction,ST-01,Weekly Pad,stationery,35,420,18
+006,2026-08-31,junction,ST-02,Pocket Notebook,stationery,41,328,76
+007,2026-08-31,riverside,HG-01,Stoneware Mug,home,22,396,46
+008,2026-08-31,riverside,HG-02,Cotton Tea Towel,home,31,434,20
+009,2026-08-31,riverside,PA-01,House Blend 250g,pantry,56,896,35
+010,2026-08-31,riverside,PA-02,Citrus Marmalade,pantry,29,319,66
+011,2026-08-31,riverside,ST-01,Weekly Pad,stationery,21,252,39
+012,2026-08-31,riverside,ST-02,Pocket Notebook,stationery,34,272,22
+013,2026-08-31,market,HG-01,Stoneware Mug,home,40,720,25
+014,2026-08-31,market,HG-02,Cotton Tea Towel,home,19,266,42
+015,2026-08-31,market,PA-01,House Blend 250g,pantry,36,576,68
+016,2026-08-31,market,PA-02,Citrus Marmalade,pantry,33,363,26
+017,2026-08-31,market,ST-01,Weekly Pad,stationery,28,336,63
+018,2026-08-31,market,ST-02,Pocket Notebook,stationery,52,416,39
+019,2026-08-24,junction,HG-01,Stoneware Mug,home,28,504,49
+020,2026-08-24,junction,HG-02,Cotton Tea Towel,home,22,308,66
+021,2026-08-24,junction,PA-01,House Blend 250g,pantry,43,688,47
+022,2026-08-24,junction,PA-02,Citrus Marmalade,pantry,27,297,69
+023,2026-08-24,junction,ST-01,Weekly Pad,stationery,31,372,42
+024,2026-08-24,junction,ST-02,Pocket Notebook,stationery,38,304,87
+025,2026-08-24,riverside,HG-01,Stoneware Mug,home,25,450,59
+026,2026-08-24,riverside,HG-02,Cotton Tea Towel,home,24,336,41
+027,2026-08-24,riverside,PA-01,House Blend 250g,pantry,49,784,73
+028,2026-08-24,riverside,PA-02,Citrus Marmalade,pantry,25,275,90
+029,2026-08-24,riverside,ST-01,Weekly Pad,stationery,18,216,51
+030,2026-08-24,riverside,ST-02,Pocket Notebook,stationery,31,248,42
+031,2026-08-24,market,HG-01,Stoneware Mug,home,34,612,65
+032,2026-08-24,market,HG-02,Cotton Tea Towel,home,21,294,57
+033,2026-08-24,market,PA-01,House Blend 250g,pantry,39,624,76
+034,2026-08-24,market,PA-02,Citrus Marmalade,pantry,26,286,48
+035,2026-08-24,market,ST-01,Weekly Pad,stationery,23,276,77
+036,2026-08-24,market,ST-02,Pocket Notebook,stationery,44,352,72

@@ -1,0 +1,4 @@
+dataset,sku,description,unit,units_per_carton,handling_review
+CM-DEMO_SYNTHETIC,HW-01,Packaged homeware,carton,6,fragile-item packing review
+CM-DEMO_SYNTHETIC,MP-02,Non-hazardous metal spare part,carton,12,unit weight and identification
+CM-DEMO_SYNTHETIC,TX-03,Packaged textile variant,carton,24,size and variant labels
