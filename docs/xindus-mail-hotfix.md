@@ -11,11 +11,12 @@ X IND 内部通知收件人为 `johnson@x-indus.com`，通知默认启用，回�
 - `backend/app.py`：识别 `xindus` 和两个精确域名，已知来源决定站点，防止请求参数将邮件路由到其他站点。
 - `backend/services/settings.py`：注册 X IND 的网址、品牌和私有邮件设置。
 - `backend/static/admin/admin.js`：添加 X IND 设置选项卡。
-- `run-api.ps1`：仅在原有 `ALLOWED_ORIGINS` 字符串末尾追加 `https://x-indus.com` 和 `https://www.x-indus.com`。旧脚本会覆盖该环境变量，因此这一行需要随代码更新。
 - `backend/scripts/configure_xindus_quote_email.py`：使用现有 SQLite 数据库，事务内只配置 X IND 收件人和通知开关，并写入审计记录；不执行数据库初始化或结构迁移。
 - 配套回归测试验证路由、模拟 SMTP、原站点设置保留及配置脚本事务行为。
 
 此分支不升级 Python 或依赖，不改变运行账户、ACL、worker、数据库模型、生产环境校验或现有启动流程。基线之后的安全性更新不在本分支历史中。
+
+`run-api.ps1` 与稳定提交的版本完全一致，服务器自行维护的 CORS 修改应保留在本地。请确认其实际 `ALLOWED_ORIGINS` 包含 `https://x-indus.com` 和 `https://www.x-indus.com`。旧启动脚本会覆盖 .env 中的域名名单，因此应检查实际启动脚本或实际启动配置。测试中的 X IND CORS 名单显式模拟这一服务器配置，不代表仓库默认名单已经包含这些域名。
 
 ## API 电脑部署
 
@@ -27,6 +28,8 @@ git status --short
 ```
 
 首次部署时 HEAD 应为上述稳定提交。如果有未提交修改，先保留并核对这些修改，尤其是曾为恢复启动而调整的文件。不要强制重置、覆盖冲突或自动清理文件。建议部署前记录原分支名称，并使用该服务器现有的备份方式备份数据库。
+
+如果唯一改动是服务器的 `run-api.ps1` CORS 配置，重新 fetch 本分支最新版本后即可直接切换；本分支最终版本的该文件与稳定基线相同，Git 会保留本地修改。无需 stash、restore 或覆盖该文件。如果还有其他文件冲突，停止并先核对差异。
 
 暂停旧 API 后，获取独立修复分支并切换：
 
@@ -45,7 +48,7 @@ git switch --create codex/xindus-mail-77ccdc4 --track origin/codex/xindus-mail-7
 
 该数据库路径与本稳定版 `run-api.ps1` 的设置一致。如果实际服务使用自定义启动方式和其他数据库，必须改为实际路径。配置脚本要求数据库已经存在。不要把开发电脑的数据库、.env 或 SMTP 凭据覆盖到服务器。
 
-然后通过服务器目前能够正常运行的方式启动 API。SMTP 发件账户继续使用服务器原有配置。如果不通过 `run-api.ps1` 启动，需在实际启动配置的原有 `ALLOWED_ORIGINS` 中追加 X IND 两个域名。
+然后通过服务器目前能够正常运行的方式启动 API。SMTP 发件账户继续使用服务器原有配置；保留服务器原有 CORS 域名，并确认两个 X IND 域名已经加入实际启动配置。
 
 ## 验证与回退
 

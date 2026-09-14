@@ -42,7 +42,12 @@ def xindus_api(monkeypatch, tmp_path: Path):
         flags=re.MULTILINE,
     )
     assert len(startup_origins) == 1
-    monkeypatch.setenv("ALLOWED_ORIGINS", startup_origins[0])
+    # Simulate server-local CORS overrides without changing the tracked launcher.
+    server_origins = [origin.strip() for origin in startup_origins[0].split(",")]
+    for origin in ("https://x-indus.com", "https://www.x-indus.com"):
+        if origin not in server_origins:
+            server_origins.append(origin)
+    monkeypatch.setenv("ALLOWED_ORIGINS", ",".join(server_origins))
     monkeypatch.delenv("PRECISION_TOOLS_PRODUCTION", raising=False)
 
     import database
