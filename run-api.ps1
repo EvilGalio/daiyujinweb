@@ -112,7 +112,7 @@ if ([string]::IsNullOrWhiteSpace($env:QUOTE_ASYNC_ARCHIVES_ENABLED)) {
 if ([string]::IsNullOrWhiteSpace($env:QUOTE_CAD_CONCURRENCY)) {
     $env:QUOTE_CAD_CONCURRENCY = "2"
 }
-$env:ALLOWED_ORIGINS = "https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500"
+$env:ALLOWED_ORIGINS = "https://gcnov.com,https://mfg-solution.com,https://www.mfg-solution.com,https://gcindus.com,https://www.gcindus.com,https://daiyujin.dpdns.org,http://daiyujin.dpdns.org,http://127.0.0.1:5500,https://x-indus.com,https://www.x-indus.com"
 
 Set-Location -LiteralPath $BackendRoot
 

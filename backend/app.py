@@ -109,27 +109,30 @@ def _client_real_ip(request) -> str:
 
 def _normalize_site(site: str | None) -> str:
     value = str(site or "").strip().lower()
-    return value if value in {"default", "mfg", "gcindus", "gcnov"} else ""
+    return value if value in {"default", "mfg", "gcindus", "gcnov", "xindus"} else ""
 
 
 def _site_from_request_origin(request) -> str:
     source = request.headers.get("Origin") or request.headers.get("Referer") or ""
-    host = urlparse(source).netloc.lower()
-    if "mfg-solution.com" in host:
-        return "mfg"
-    if "gcindus.com" in host:
-        return "gcindus"
-    if "gcnov.com" in host:
-        return "gcnov"
-    return ""
+    host = (urlparse(source).hostname or "").rstrip(".").lower()
+    return {
+        "mfg-solution.com": "mfg",
+        "www.mfg-solution.com": "mfg",
+        "gcindus.com": "gcindus",
+        "www.gcindus.com": "gcindus",
+        "gcnov.com": "gcnov",
+        "www.gcnov.com": "gcnov",
+        "x-indus.com": "xindus",
+        "www.x-indus.com": "xindus",
+    }.get(host, "")
 
 
 def _site_from_request(request, candidate: str | None = None) -> str:
     site = _normalize_site(candidate)
     origin_site = _site_from_request_origin(request)
-    if origin_site and site in {"", "default"}:
+    if origin_site:
         return origin_site
-    return site or origin_site or "default"
+    return site or "default"
 
 
 def _occ_python_path():

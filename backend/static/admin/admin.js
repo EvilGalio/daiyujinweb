@@ -297,7 +297,7 @@
         e.preventDefault();
         var main = document.querySelector('.admin-main');
         main.innerHTML = '<h2>系统设置</h2>' +
-            '<div class="admin-tabs" id="site-tabs"><button data-site="default" class="active">默认站点</button><button data-site="mfg">MFG Solution</button><button data-site="gcindus">GC INDUS</button><button data-site="gcnov">GCNOV</button></div>' +
+            '<div class="admin-tabs" id="site-tabs"><button data-site="default" class="active">默认站点</button><button data-site="mfg">MFG Solution</button><button data-site="gcindus">GC INDUS</button><button data-site="gcnov">GCNOV</button><button data-site="xindus">X IND MFG</button></div>' +
             '<div id="settings-content"><p>加载中...</p></div>';
         loadSettings('default');
         document.querySelectorAll('#site-tabs button').forEach(function (btn) {

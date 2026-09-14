@@ -21,6 +21,8 @@ def _env_bool(key: str, default: str = "false") -> bool:
 
 
 def _email_enabled_default(site: str) -> str:
+    if site == "xindus":
+        return "true"
     allowed = [s.strip().lower() for s in _env("QUOTE_EMAIL_ALLOWED_SITES", "").split(",") if s.strip()]
     enabled = _env_bool("QUOTE_EMAIL_ENABLED") and site.lower() in allowed
     return "true" if enabled else "false"
@@ -32,7 +34,7 @@ def _register(scope: str, key: str, value: Any, value_type: str = "string", is_p
     }
 
 # Quote text and CTA
-for site in ["default", "mfg", "gcindus", "gcnov"]:
+for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "disclaimer_template", "This estimate is for early cost evaluation. Final pricing may vary based on material grade, tolerances, finishing requirements, inspection needs, and lead time. For an exact quote, contact our engineers for a fast formal review.", is_public=True, description="Estimate disclaimer shown below results")
     _register(f"quote:{site}", "contact_note", "Looking for more material grades, custom materials, machining processes, or finishing options?", is_public=True, description="Inquiry note text above materials")
     _register(f"quote:{site}", "privacy_note", "By submitting this form, you confirm that you are authorized to share the uploaded file. If you provide contact details, we use them only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.", is_public=True, description="Privacy compliance text below form")
@@ -42,6 +44,7 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
         "gcindus": "https://gcindus.com/get-a-quotation/",
         "gcnov": "https://gcnov.com/contact/",
         "default": "https://mfg-solution.com/request-quote/",
+        "xindus": "https://x-indus.com/get-a-quote/",
     }[site], "url", is_public=True, description="Formal quote landing page URL")
     _register(f"quote:{site}", "engineer_contact_label", "Contact our engineers", is_public=True, description="Engineer contact link text")
     _register(f"quote:{site}", "engineer_contact_url", {
@@ -49,10 +52,11 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
         "gcindus": "https://gcindus.com/get-a-quotation/",
         "gcnov": "https://gcnov.com/contact/",
         "default": "https://mfg-solution.com/request-quote/",
+        "xindus": "https://x-indus.com/contact/",
     }[site], "url", is_public=True, description="Engineer contact link URL")
 
 # Quote form rules
-for site in ["default", "mfg", "gcindus", "gcnov"]:
+for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "customer_name_required", "true", "bool", is_public=True, description="Require customer name field")
     _register(f"quote:{site}", "customer_email_required", "true", "bool", is_public=True, description="Require customer email field")
     _register(f"quote:{site}", "quantity_min", "1", "number", is_public=True, description="Minimum quantity allowed")
@@ -61,8 +65,8 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "allowed_extensions", '["stp","step","igs","iges","zip","rar","7z"]', "json", is_public=True, description="Allowed file extensions")
 
 # Watermark
-for site in ["default", "mfg", "gcindus", "gcnov"]:
-    _register(f"quote:{site}", "preview_watermark_text", "GCNOV CO., LIMITED", is_public=False, description="Watermark text on STEP previews")
+for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
+    _register(f"quote:{site}", "preview_watermark_text", "X IND MFG" if site == "xindus" else "GCNOV CO., LIMITED", is_public=False, description="Watermark text on STEP previews")
     _register(f"quote:{site}", "preview_watermark_opacity", "0.12", "number", is_public=False, description="Watermark opacity (0.02-0.35)")
     _register(f"quote:{site}", "preview_watermark_angle", "45", "number", is_public=False, description="Watermark angle in degrees")
     _register(f"quote:{site}", "preview_watermark_spacing", "3.0", "number", is_public=False, description="Watermark spacing multiplier")
@@ -70,7 +74,7 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
     _register(f"quote:{site}", "preview_watermark_font_scale", "0.026", "number", is_public=False, description="Font scale factor")
 
 # Thumbnail rendering
-for site in ["default", "mfg", "gcindus", "gcnov"]:
+for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "thumbnail_background_color", "#f0f0f5", "color", is_public=False, description="CAD preview background color")
     _register(f"quote:{site}", "thumbnail_part_color", "#949aa3", "color", is_public=False, description="CAD preview part color")
     _register(f"quote:{site}", "thumbnail_width", "1280", "number", is_public=False, description="16:9 preview image width (px)")
@@ -78,11 +82,11 @@ for site in ["default", "mfg", "gcindus", "gcnov"]:
 
 
 # Internal quote email notifications
-for site in ["default", "mfg", "gcindus", "gcnov"]:
+for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "quote_email_enabled", _email_enabled_default(site), "bool", is_public=False, description="Enable internal quote notification emails for this site")
-    _register(f"quote:{site}", "quote_email_recipients", _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"), is_public=False, description="Comma-separated internal recipients")
+    _register(f"quote:{site}", "quote_email_recipients", "johnson@x-indus.com" if site == "xindus" else _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"), is_public=False, description="Comma-separated internal recipients")
     _register(f"quote:{site}", "quote_email_throttle_minutes", "30", "number", is_public=False, description="Do not resend for the same customer email within this many minutes")
-    _register(f"quote:{site}", "quote_email_from_name", _env("SMTP_FROM_NAME", "GCNOV Online Quote"), is_public=False, description="Email sender display name")
+    _register(f"quote:{site}", "quote_email_from_name", "X IND MFG Online Quote" if site == "xindus" else _env("SMTP_FROM_NAME", "GCNOV Online Quote"), is_public=False, description="Email sender display name")
     _register(f"quote:{site}", "quote_email_from_address", _env("SMTP_FROM", _env("SMTP_USERNAME", "")), is_public=False, description="Email From address")
     _register(f"quote:{site}", "quote_email_smtp_host", _env("SMTP_HOST", "smtppro.zoho.com"), is_public=False, description="SMTP server host")
     _register(f"quote:{site}", "quote_email_smtp_port", _env("SMTP_PORT", "465"), "number", is_public=False, description="SMTP SSL port")
