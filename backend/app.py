@@ -109,7 +109,7 @@ def _client_real_ip(request) -> str:
 
 def _normalize_site(site: str | None) -> str:
     value = str(site or "").strip().lower()
-    return value if value in {"default", "mfg", "gcindus", "gcnov", "xindus"} else ""
+    return value if value in {"default", "mfg", "gcindus", "gcnov", "4u", "xindus"} else ""
 
 
 def _site_from_request_origin(request) -> str:
@@ -122,6 +122,8 @@ def _site_from_request_origin(request) -> str:
         "www.gcindus.com": "gcindus",
         "gcnov.com": "gcnov",
         "www.gcnov.com": "gcnov",
+        "4umachining.com": "4u",
+        "www.4umachining.com": "4u",
         "x-indus.com": "xindus",
         "www.x-indus.com": "xindus",
     }.get(host, "")

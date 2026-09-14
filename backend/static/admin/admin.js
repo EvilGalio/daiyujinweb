@@ -228,12 +228,16 @@
         quote_email_smtp_timeout_seconds: 'SMTP 连接和发送超时时间，网络较慢可适当调大',
     };
 
+    var settingsRequestId = 0;
+
     function loadSettings(site) {
         var container = document.getElementById('settings-content');
         if (!container) return;
+        var requestId = ++settingsRequestId;
         container.innerHTML = '<p>加载中...</p>';
         var url = site ? '/api/admin/settings?scope=' + encodeURIComponent('quote:' + site) : '/api/admin/settings';
         fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+            if (requestId !== settingsRequestId) return;
             var items = data.settings || [];
             // Filter to only show quote:site scope items
             var scopePrefix = 'quote:' + site;
@@ -282,7 +286,10 @@
                 }).join('');
                 container.innerHTML += '<h3 style="margin:1.25rem 0 .5rem;font-size:14px;color:#6b7280;">' + groups[gk].title + '</h3><div class="admin-form">' + cards + '</div>';
             }
-        }).catch(function () { container.innerHTML = '<p>加载设置失败</p>'; });
+        }).catch(function () {
+            if (requestId !== settingsRequestId) return;
+            container.innerHTML = '<p>加载设置失败</p>';
+        });
     }
 
     /* Navigation */
@@ -297,7 +304,7 @@
         e.preventDefault();
         var main = document.querySelector('.admin-main');
         main.innerHTML = '<h2>系统设置</h2>' +
-            '<div class="admin-tabs" id="site-tabs"><button data-site="default" class="active">默认站点</button><button data-site="mfg">MFG Solution</button><button data-site="gcindus">GC INDUS</button><button data-site="gcnov">GCNOV</button><button data-site="xindus">X IND MFG</button></div>' +
+            '<div class="admin-tabs" id="site-tabs"><button data-site="default" class="active">默认站点</button><button data-site="mfg">MFG Solution</button><button data-site="gcindus">GC INDUS</button><button data-site="gcnov">GCNOV</button><button data-site="4u">4U Machining</button><button data-site="xindus">X IND MFG</button></div>' +
             '<div id="settings-content"><p>加载中...</p></div>';
         loadSettings('default');
         document.querySelectorAll('#site-tabs button').forEach(function (btn) {

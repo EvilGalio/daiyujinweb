@@ -1,16 +1,37 @@
-# X IND 询价邮件稳定版修复
+# 4U 与 X IND 后台站点设置稳定版修复
 
-此分支从 API 服务器确认的稳定提交 `77ccdc49e3ba0140915c995b37379e95873bf2b7` 建立，分支名为 `codex/xindus-mail-77ccdc4`。它仅添加 X IND 在线报价的站点识别、邮件设置和管理入口。
+此分支从 API 服务器确认的稳定提交 `77ccdc49e3ba0140915c995b37379e95873bf2b7` 建立，分支名为 `codex/xindus-mail-77ccdc4`。它添加 4U 与 X IND 在线报价的站点识别、邮件设置和管理入口，配置可以直接在现有管理后台保存。
 
-X IND 内部通知收件人为 `johnson@x-indus.com`，通知默认启用，回复地址仍是客户填写的邮箱。原来的四个站点继续使用各自现有设置。已有的 X IND 数据库配置不会被默认值覆盖，因此部署时应显式执行下面的配置命令。
+X IND 内部通知收件人为 `johnson@x-indus.com`，通知默认启用，回复地址仍是客户填写的邮箱。原来的四个站点继续使用各自现有设置。已有的 X IND 数据库配置不会被默认值覆盖，部署时应在后台核对并保存实际需要的设置。
+
+4U 对应 `4umachining.com` 和 `www.4umachining.com`，默认水印为 `4U MACHINING`，联系链接为 `https://4umachining.com/contact/`。其通知开关和默认收件人沿用原服务器环境规则，实际收件人由管理员确认后保存，不自动指定新邮箱。已有站点配置均保留。
+
+## 已部署修复分支：通过后台配置
+
+在实际 API 电脑暂停 API 和独立管理后台进程，项目目录执行：
+
+```powershell
+git branch --show-current
+git pull --ff-only origin codex/xindus-mail-77ccdc4
+```
+
+第一条应显示 `codex/xindus-mail-77ccdc4`；若不是，先核对当前分支，不要直接执行第二条。此次更新不修改 `run-api.ps1`，服务器本地 CORS 修改可以保留。确认原有域名名单包含 `https://4umachining.com`、`https://www.4umachining.com`、`https://x-indus.com` 和 `https://www.x-indus.com`。
+
+按之前正常运行的方式分别重新启动 API 和管理后台。在 API 电脑打开 `http://127.0.0.1:5010/admin`，按 Ctrl+F5 刷新，进入“系统设置”，即可选择“4U Machining”或“X IND MFG”。
+
+在所选站点的“邮件通知”中，先填写“收件邮箱”并点击旁边“保存”，再打开“启用报价邮件通知”。X IND 收件人使用 `johnson@x-indus.com`；4U 填写实际需要的邮箱。开关自动保存，其他输入框逐项点击“保存”。SMTP 主机、端口、登录账号和发件邮箱使用现有能正常发信的站点配置；新站点若显示空白，应在后台补齐这些字段。SMTP 密码继续使用 API 服务器现有 `SMTP_PASSWORD`，不在后台设置，因此切换站点不等于切换独立的 SMTP 密码。
+
+同一页面也可以分别修改两站的联系链接、页面文案、表单规则、水印和缩略图设置。保存后对后续请求生效，无需再次运行邮件配置脚本或重启；已打开的报价页面需刷新。切换到其他站点再切回来，可核对保存结果。不要在后台修改 X IND 收件人后又重复运行固定收件人的配置脚本。
+
+最后在对应报价页面填写客户姓名和邮箱，完成一次成功报价，检查实际收件。重复使用同一客户邮箱仍遵循后台设置的发送间隔，默认 30 分钟。
 
 原报价计算和 SMTP 发送服务保持原版本。这次接入的是在线报价计算成功后的内部通知；没有改变其他表单或正式报价请求端点的行为。
 
 ## 与稳定版本的差异
 
-- `backend/app.py`：识别 `xindus` 和两个精确域名，已知来源决定站点，防止请求参数将邮件路由到其他站点。
-- `backend/services/settings.py`：注册 X IND 的网址、品牌和私有邮件设置。
-- `backend/static/admin/admin.js`：添加 X IND 设置选项卡。
+- `backend/app.py`：识别 `4u`、`xindus` 和各自精确域名，已知来源决定站点，防止请求参数将邮件路由到其他站点。
+- `backend/services/settings.py`：注册两站的网址、品牌和私有邮件设置；公共设置按全局、默认站点、当前站点依次覆盖，修复 4U 设置被默认站点覆盖的问题。
+- `backend/static/admin/admin.js`：添加两站设置选项卡，忽略快速切换后返回的旧站点响应。
 - `backend/scripts/configure_xindus_quote_email.py`：使用现有 SQLite 数据库，事务内只配置 X IND 收件人和通知开关，并写入审计记录；不执行数据库初始化或结构迁移。
 - 配套回归测试验证路由、模拟 SMTP、原站点设置保留及配置脚本事务行为。
 
@@ -40,7 +61,7 @@ git switch --create codex/xindus-mail-77ccdc4 --track origin/codex/xindus-mail-7
 
 这条创建命令供首次部署使用；若同名分支已存在，请先确认它的内容，不要用强制创建覆盖。不要拉取 main，也不要运行会更新其他分支、安装依赖或初始化数据库的全量更新脚本。
 
-配置真实数据库。以下示例使用项目虚拟环境；如果 API 使用另一处 Python，请将第一段路径换成当前能够正常启动 API 的 Python 路径。无需安装新依赖。
+优先按上面的后台步骤配置。也可以使用以下命令直接配置真实数据库中的 X IND 收件人和通知开关；这是可选方式，不必与后台配置重复执行。以下示例使用项目虚拟环境；如果 API 使用另一处 Python，请将第一段路径换成当前能够正常启动 API 的 Python 路径。无需安装新依赖。
 
 ```powershell
 & ".\.venv\Scripts\python.exe" ".\backend\scripts\configure_xindus_quote_email.py" --database ".\backend\data\daiyujin.db" --apply

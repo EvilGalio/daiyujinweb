@@ -10,6 +10,7 @@ from models import AdminAuditLog, AppSetting
 
 
 DEFAULTS: dict[tuple[str, str], dict[str, Any]] = {}
+QUOTE_SITES = ("default", "mfg", "gcindus", "gcnov", "4u", "xindus")
 
 
 def _env(key: str, default: str = "") -> str:
@@ -34,7 +35,7 @@ def _register(scope: str, key: str, value: Any, value_type: str = "string", is_p
     }
 
 # Quote text and CTA
-for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
+for site in QUOTE_SITES:
     _register(f"quote:{site}", "disclaimer_template", "This estimate is for early cost evaluation. Final pricing may vary based on material grade, tolerances, finishing requirements, inspection needs, and lead time. For an exact quote, contact our engineers for a fast formal review.", is_public=True, description="Estimate disclaimer shown below results")
     _register(f"quote:{site}", "contact_note", "Looking for more material grades, custom materials, machining processes, or finishing options?", is_public=True, description="Inquiry note text above materials")
     _register(f"quote:{site}", "privacy_note", "By submitting this form, you confirm that you are authorized to share the uploaded file. If you provide contact details, we use them only to generate and follow up on your manufacturing estimate. We treat uploaded drawings and quote data as confidential business information.", is_public=True, description="Privacy compliance text below form")
@@ -43,6 +44,7 @@ for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
         "mfg": "https://mfg-solution.com/request-quote/",
         "gcindus": "https://gcindus.com/get-a-quotation/",
         "gcnov": "https://gcnov.com/contact/",
+        "4u": "https://4umachining.com/contact/",
         "default": "https://mfg-solution.com/request-quote/",
         "xindus": "https://x-indus.com/get-a-quote/",
     }[site], "url", is_public=True, description="Formal quote landing page URL")
@@ -51,12 +53,13 @@ for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
         "mfg": "https://mfg-solution.com/request-quote/",
         "gcindus": "https://gcindus.com/get-a-quotation/",
         "gcnov": "https://gcnov.com/contact/",
+        "4u": "https://4umachining.com/contact/",
         "default": "https://mfg-solution.com/request-quote/",
         "xindus": "https://x-indus.com/contact/",
     }[site], "url", is_public=True, description="Engineer contact link URL")
 
 # Quote form rules
-for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
+for site in QUOTE_SITES:
     _register(f"quote:{site}", "customer_name_required", "true", "bool", is_public=True, description="Require customer name field")
     _register(f"quote:{site}", "customer_email_required", "true", "bool", is_public=True, description="Require customer email field")
     _register(f"quote:{site}", "quantity_min", "1", "number", is_public=True, description="Minimum quantity allowed")
@@ -65,8 +68,9 @@ for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "allowed_extensions", '["stp","step","igs","iges","zip","rar","7z"]', "json", is_public=True, description="Allowed file extensions")
 
 # Watermark
-for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
-    _register(f"quote:{site}", "preview_watermark_text", "X IND MFG" if site == "xindus" else "GCNOV CO., LIMITED", is_public=False, description="Watermark text on STEP previews")
+for site in QUOTE_SITES:
+    watermark_text = {"4u": "4U MACHINING", "xindus": "X IND MFG"}.get(site, "GCNOV CO., LIMITED")
+    _register(f"quote:{site}", "preview_watermark_text", watermark_text, is_public=False, description="Watermark text on STEP previews")
     _register(f"quote:{site}", "preview_watermark_opacity", "0.12", "number", is_public=False, description="Watermark opacity (0.02-0.35)")
     _register(f"quote:{site}", "preview_watermark_angle", "45", "number", is_public=False, description="Watermark angle in degrees")
     _register(f"quote:{site}", "preview_watermark_spacing", "3.0", "number", is_public=False, description="Watermark spacing multiplier")
@@ -74,7 +78,7 @@ for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
     _register(f"quote:{site}", "preview_watermark_font_scale", "0.026", "number", is_public=False, description="Font scale factor")
 
 # Thumbnail rendering
-for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
+for site in QUOTE_SITES:
     _register(f"quote:{site}", "thumbnail_background_color", "#f0f0f5", "color", is_public=False, description="CAD preview background color")
     _register(f"quote:{site}", "thumbnail_part_color", "#949aa3", "color", is_public=False, description="CAD preview part color")
     _register(f"quote:{site}", "thumbnail_width", "1280", "number", is_public=False, description="16:9 preview image width (px)")
@@ -82,11 +86,12 @@ for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
 
 
 # Internal quote email notifications
-for site in ["default", "mfg", "gcindus", "gcnov", "xindus"]:
+for site in QUOTE_SITES:
     _register(f"quote:{site}", "quote_email_enabled", _email_enabled_default(site), "bool", is_public=False, description="Enable internal quote notification emails for this site")
     _register(f"quote:{site}", "quote_email_recipients", "johnson@x-indus.com" if site == "xindus" else _env("QUOTE_EMAIL_RECIPIENTS", "great@mfg-solution.com"), is_public=False, description="Comma-separated internal recipients")
     _register(f"quote:{site}", "quote_email_throttle_minutes", "30", "number", is_public=False, description="Do not resend for the same customer email within this many minutes")
-    _register(f"quote:{site}", "quote_email_from_name", "X IND MFG Online Quote" if site == "xindus" else _env("SMTP_FROM_NAME", "GCNOV Online Quote"), is_public=False, description="Email sender display name")
+    from_name = {"4u": "4U Machining Online Quote", "xindus": "X IND MFG Online Quote"}.get(site, _env("SMTP_FROM_NAME", "GCNOV Online Quote"))
+    _register(f"quote:{site}", "quote_email_from_name", from_name, is_public=False, description="Email sender display name")
     _register(f"quote:{site}", "quote_email_from_address", _env("SMTP_FROM", _env("SMTP_USERNAME", "")), is_public=False, description="Email From address")
     _register(f"quote:{site}", "quote_email_smtp_host", _env("SMTP_HOST", "smtppro.zoho.com"), is_public=False, description="SMTP server host")
     _register(f"quote:{site}", "quote_email_smtp_port", _env("SMTP_PORT", "465"), "number", is_public=False, description="SMTP SSL port")
@@ -135,9 +140,14 @@ def get_public_settings(tool: str = "quote", site: str = "default") -> dict[str,
         scopes = [f"{tool}:{site}", f"{tool}:default", "global"]
         rows = session.query(AppSetting).filter(
             AppSetting.scope.in_(scopes), AppSetting.is_public == True
-        ).order_by(AppSetting.scope).all()
+        ).order_by(AppSetting.scope, AppSetting.key).all()
+        rows_by_scope: dict[str, list[AppSetting]] = {}
         for row in rows:
-            result[row.key] = _cast_value(row.value, row.value_type)
+            rows_by_scope.setdefault(row.scope, []).append(row)
+        overlay_order = dict.fromkeys(("global", f"{tool}:default", f"{tool}:{site}"))
+        for scope in overlay_order:
+            for row in rows_by_scope.get(scope, []):
+                result[row.key] = _cast_value(row.value, row.value_type)
         return result
     finally:
         session.close()
