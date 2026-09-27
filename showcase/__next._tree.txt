@@ -7,4 +7,4 @@
 :HL["/showcase/previews/clients/tidefold-house.webp","image"]
 :HL["/showcase/previews/clients/noll-datum.webp","image"]
 :HL["/showcase/previews/clients/sundial-orchard.webp","image"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"bwZ90tQxCCf72GgOpj8YS"}
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"Tyzxawi5Y2kd-R1vOpLaj"}
